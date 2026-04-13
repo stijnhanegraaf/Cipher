@@ -1,63 +1,101 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { stagger, fadeSlideUp } from "@/lib/motion";
 import { TimelineSynthesisData } from "@/lib/view-models";
 import { Badge, CalloutBox } from "@/components/ui";
 
-const stagger = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.12 } },
+// Design tokens
+const tokens = {
+  text: { primary: "#f7f8f8", secondary: "#d0d6e0", tertiary: "#8a8f98", quaternary: "#62666d" },
+  brand: { indigo: "#5e6ad2", violet: "#7170ff" },
+  bg: { surface: "#191a1b" },
+  border: { subtle: "rgba(255,255,255,0.05)", standard: "rgba(255,255,255,0.08)" },
 };
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0 },
-};
-
-// Theme color palette for distinguishing themes visually
-const themeColors = [
-  { dot: "bg-blue-500 dark:bg-blue-400",    ring: "ring-blue-200/80 dark:ring-blue-800/50", bg: "bg-blue-50/60 dark:bg-blue-950/20",    border: "border-blue-200/60 dark:border-blue-800/30", text: "text-blue-700 dark:text-blue-300" },
-  { dot: "bg-violet-500 dark:bg-violet-400",  ring: "ring-violet-200/80 dark:ring-violet-800/50", bg: "bg-violet-50/60 dark:bg-violet-950/20", border: "border-violet-200/60 dark:border-violet-800/30", text: "text-violet-700 dark:text-violet-300" },
-  { dot: "bg-emerald-500 dark:bg-emerald-400", ring: "ring-emerald-200/80 dark:ring-emerald-800/50", bg: "bg-emerald-50/60 dark:bg-emerald-950/20", border: "border-emerald-200/60 dark:border-emerald-800/30", text: "text-emerald-700 dark:text-emerald-300" },
-  { dot: "bg-amber-500 dark:bg-amber-400",    ring: "ring-amber-200/80 dark:ring-amber-800/50", bg: "bg-amber-50/60 dark:bg-amber-950/20",   border: "border-amber-200/60 dark:border-amber-800/30", text: "text-amber-700 dark:text-amber-300" },
-  { dot: "bg-rose-500 dark:bg-rose-400",       ring: "ring-rose-200/80 dark:ring-rose-800/50", bg: "bg-rose-50/60 dark:bg-rose-950/20",     border: "border-rose-200/60 dark:border-rose-800/30", text: "text-rose-700 dark:text-rose-300" },
+// Theme color palette — monochrome-accent, keeping brand indigo as the accent
+const themeAccents = [
+  { dot: "#5e6ad2", bg: "rgba(94,106,210,0.06)",  border: "rgba(94,106,210,0.15)" },   // brand indigo
+  { dot: "#7170ff", bg: "rgba(113,112,255,0.06)",  border: "rgba(113,112,255,0.15)" },  // violet
+  { dot: "#10b981", bg: "rgba(16,185,129,0.06)",   border: "rgba(16,185,129,0.15)" },    // emerald
+  { dot: "#d0d6e0", bg: "rgba(208,214,224,0.04)",  border: "rgba(208,214,224,0.08)" },   // silver
+  { dot: "#8a8f98", bg: "rgba(138,143,152,0.04)",   border: "rgba(138,143,152,0.08)" },   // muted
 ];
+
+const fontFamily = {
+  inter: "'Inter Variable', 'SF Pro Display', -apple-system, system-ui, sans-serif",
+  mono: "'Berkeley Mono', ui-monospace, 'SF Mono', Menlo, monospace",
+};
 
 export function TimelineView({ data, view }: { data: TimelineSynthesisData; view: any }) {
   const timeline = data as TimelineSynthesisData;
 
   return (
     <motion.div
-      variants={stagger}
+      variants={stagger.container(0.12)}
       initial="hidden"
       animate="show"
       className="space-y-6"
     >
       {/* Range badge */}
-      <motion.div variants={fadeUp} transition={{ duration: 0.4 }} className="flex items-center gap-2">
-        <Badge variant="secondary">{timeline.range.label}</Badge>
-        <span className="text-xs text-neutral-400 dark:text-neutral-500">
+      <motion.div variants={fadeSlideUp} className="flex items-center gap-2">
+        <Badge variant="indigo">{timeline.range.label}</Badge>
+        <span
+          className="text-[12px] font-[510]"
+          style={{
+            color: tokens.text.quaternary,
+            fontFamily: fontFamily.inter,
+            fontFeatureSettings: '"cv01", "ss03"',
+          }}
+        >
           {timeline.themes.length} {timeline.themes.length === 1 ? "theme" : "themes"}
         </span>
       </motion.div>
 
       {/* Themes */}
       {timeline.themes.map((theme, i) => {
-        const color = themeColors[i % themeColors.length];
+        const accent = themeAccents[i % themeAccents.length];
         return (
           <motion.div
             key={i}
-            variants={fadeUp}
-            transition={{ duration: 0.4 }}
-            className={`rounded-xl border ${color.border} ${color.bg} overflow-hidden`}
+            variants={fadeSlideUp}
+            className="rounded-[8px] overflow-hidden"
+            style={{
+              background: accent.bg,
+              border: `1px solid ${accent.border}`,
+            }}
           >
             {/* Theme header */}
             <div className="px-4 pt-4 pb-2">
               <div className="flex items-start gap-3">
-                <div className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ring-2 ${color.ring} ${color.dot}`} />
+                <div
+                  className="w-2.5 h-2.5 rounded-full mt-1 shrink-0"
+                  style={{
+                    background: accent.dot,
+                    boxShadow: `0 0 0 2px ${tokens.bg.surface}`,
+                  }}
+                />
                 <div>
-                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{theme.label}</h3>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 leading-relaxed">{theme.summary}</p>
+                  <h3
+                    className="text-[14px] font-[590] tracking-[-0.13px]"
+                    style={{
+                      color: tokens.text.primary,
+                      fontFamily: fontFamily.inter,
+                      fontFeatureSettings: '"cv01", "ss03"',
+                    }}
+                  >
+                    {theme.label}
+                  </h3>
+                  <p
+                    className="text-[13px] mt-0.5 leading-[1.5]"
+                    style={{
+                      color: tokens.text.tertiary,
+                      fontFamily: fontFamily.inter,
+                      fontFeatureSettings: '"cv01", "ss03"',
+                    }}
+                  >
+                    {theme.summary}
+                  </p>
                 </div>
               </div>
             </div>
@@ -66,23 +104,48 @@ export function TimelineView({ data, view }: { data: TimelineSynthesisData; view
             <div className="px-4 pb-4 pt-1">
               <div className="relative pl-4 ml-1.5">
                 {/* Vertical timeline line */}
-                <div className="absolute left-[3px] top-1 bottom-1 w-px bg-neutral-200/80 dark:bg-neutral-700/40" />
+                <div
+                  className="absolute left-[3px] top-1 bottom-1 w-px"
+                  style={{ background: tokens.border.standard }}
+                />
                 <div className="space-y-3">
                   {theme.items.map((item, j) => (
                     <motion.div
                       key={j}
-                      initial={{ opacity: 0, x: -6 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.25, delay: i * 0.1 + j * 0.06 }}
+                      variants={fadeSlideUp}
+                      transition={{ delay: i * 0.1 + j * 0.06 }}
                       className="relative flex items-start gap-3"
                     >
                       {/* Dot on line */}
                       <div className="absolute -left-4 top-1.5">
-                        <div className={`w-[7px] h-[7px] rounded-full ${color.dot} ring-2 ring-white dark:ring-neutral-900`} />
+                        <div
+                          className="w-[7px] h-[7px] rounded-full"
+                          style={{
+                            background: accent.dot,
+                            boxShadow: `0 0 0 2px ${tokens.bg.surface}`,
+                          }}
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <span className="text-[11px] font-mono text-neutral-400 dark:text-neutral-500">{item.date}</span>
-                        <p className="text-sm text-neutral-800 dark:text-neutral-200 leading-snug">{item.label}</p>
+                        <span
+                          className="text-[11px] font-[510]"
+                          style={{
+                            color: tokens.text.quaternary,
+                            fontFamily: fontFamily.mono,
+                          }}
+                        >
+                          {item.date}
+                        </span>
+                        <p
+                          className="text-[14px] leading-[1.5]"
+                          style={{
+                            color: tokens.text.secondary,
+                            fontFamily: fontFamily.inter,
+                            fontFeatureSettings: '"cv01", "ss03"',
+                          }}
+                        >
+                          {item.label}
+                        </p>
                       </div>
                     </motion.div>
                   ))}
@@ -95,7 +158,7 @@ export function TimelineView({ data, view }: { data: TimelineSynthesisData; view
 
       {/* Evidence gaps */}
       {timeline.proofGaps && timeline.proofGaps.length > 0 && (
-        <motion.div variants={fadeUp} transition={{ duration: 0.35 }}>
+        <motion.div variants={fadeSlideUp}>
           <CalloutBox
             tone="warning"
             title="Evidence gaps"

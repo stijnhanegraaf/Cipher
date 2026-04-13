@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { fadeSlideUp } from "@/lib/motion";
 import {
   CurrentWorkData,
   EntityOverviewData,
@@ -18,6 +19,32 @@ import { TimelineView } from "./TimelineView";
 import { SystemStatusView } from "./SystemStatusView";
 import { SearchResultsView } from "./SearchResultsView";
 import { SourceList, ActionBar, Badge } from "@/components/ui";
+
+// Design tokens
+const tokens = {
+  bg: {
+    surface: "#191a1b",
+    secondary: "#28282c",
+  },
+  text: {
+    primary: "#f7f8f8",
+    secondary: "#d0d6e0",
+    tertiary: "#8a8f98",
+    quaternary: "#62666d",
+  },
+  brand: {
+    indigo: "#5e6ad2",
+    violet: "#7170ff",
+  },
+  border: {
+    subtle: "rgba(255,255,255,0.05)",
+    standard: "rgba(255,255,255,0.08)",
+  },
+};
+
+const fontFamily = {
+  inter: "'Inter Variable', 'SF Pro Display', -apple-system, system-ui, sans-serif",
+};
 
 const viewComponents: Record<ViewType, React.ComponentType<{ data: any; view: ViewModel }>> = {
   current_work: CurrentWorkView,
@@ -63,9 +90,9 @@ const viewIcons: Record<ViewType, React.ReactNode> = {
 };
 
 // Map freshness to badge variant
-const freshnessVariant: Record<string, "success" | "warning" | "default"> = {
+const freshnessVariant: Record<string, "success" | "warning" | "default" | "outline"> = {
   fresh: "success",
-  recent: "default",
+  recent: "outline",
   stale: "warning",
   unknown: "default",
 };
@@ -80,43 +107,86 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
 
   if (!Component) {
     return (
-      <div className="p-6 bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-800">
-        <p className="text-amber-800 dark:text-amber-200 text-sm font-medium">Unknown view type: {view.type}</p>
+      <div
+        className="p-6 rounded-[12px]"
+        style={{
+          background: "rgba(245,158,11,0.06)",
+          border: "1px solid rgba(245,158,11,0.15)",
+        }}
+      >
+        <p
+          className="text-[14px] font-[510]"
+          style={{
+            color: "#f59e0b",
+            fontFamily: fontFamily.inter,
+            fontFeatureSettings: '"cv01", "ss03"',
+          }}
+        >
+          Unknown view type: {view.type}
+        </p>
       </div>
     );
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{
-        duration: 0.45,
-        delay: index * 0.12,
+      variants={fadeSlideUp}
+      initial="hidden"
+      animate="show"
+      transition={{ delay: index * 0.12 }}
+      className="rounded-[12px] overflow-hidden"
+      style={{
+        background: tokens.bg.surface,
+        border: `1px solid ${tokens.border.standard}`,
       }}
-      className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200/80 dark:border-neutral-800/80 shadow-sm hover:shadow-lg transition-shadow duration-300 overflow-hidden"
     >
       {/* View header */}
       {(view.title || view.subtitle) && (
-        <div className="px-6 pt-6 pb-3 border-b border-neutral-100 dark:border-neutral-800/60">
+        <div
+          className="px-6 pt-6 pb-3"
+          style={{ borderBottom: `1px solid ${tokens.border.subtle}` }}
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 shrink-0">
+              <div
+                className="flex items-center justify-center w-7 h-7 rounded-[6px] shrink-0"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  color: tokens.text.tertiary,
+                }}
+              >
                 {viewIcons[view.type]}
               </div>
               <div className="min-w-0">
                 {view.title && (
-                  <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50 tracking-tight truncate">
+                  <h2
+                    className="text-[18px] font-[510] tracking-[-0.165px] truncate"
+                    style={{
+                      color: tokens.text.primary,
+                      fontFamily: fontFamily.inter,
+                      fontFeatureSettings: '"cv01", "ss03"',
+                      lineHeight: "1.33",
+                    }}
+                  >
                     {view.title}
                   </h2>
                 )}
                 {view.subtitle && (
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5 truncate">{view.subtitle}</p>
+                  <p
+                    className="text-[13px] mt-0.5 truncate"
+                    style={{
+                      color: tokens.text.tertiary,
+                      fontFamily: fontFamily.inter,
+                      fontFeatureSettings: '"cv01", "ss03"',
+                    }}
+                  >
+                    {view.subtitle}
+                  </p>
                 )}
               </div>
             </div>
             {view.meta?.freshness && (
-              <Badge variant={freshnessVariant[view.meta.freshness] || "default"}>
+              <Badge variant={freshnessVariant[view.meta.freshness] || "outline"}>
                 {view.meta.freshness}
               </Badge>
             )}
@@ -131,21 +201,36 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
 
       {/* Sources footer */}
       {view.sources && view.sources.length > 0 && (
-        <div className="px-6 pb-4 pt-2 border-t border-neutral-100 dark:border-neutral-800/60">
+        <div
+          className="px-6 pb-4 pt-2"
+          style={{ borderTop: `1px solid ${tokens.border.subtle}` }}
+        >
           <SourceList sources={view.sources} />
         </div>
       )}
 
       {/* Actions footer */}
       {view.actions && view.actions.length > 0 && (
-        <div className="px-6 pb-4 pt-2 border-t border-neutral-100 dark:border-neutral-800/60">
+        <div
+          className="px-6 pb-4 pt-2"
+          style={{ borderTop: `1px solid ${tokens.border.subtle}` }}
+        >
           <ActionBar actions={view.actions} />
         </div>
       )}
 
-      {/* Meta footer — confidence & timestamp */}
+      {/* Meta footer — confidence & timestamp in quaternary text */}
       {view.meta && (
-        <div className="px-6 pb-4 pt-1 flex items-center gap-3 text-[11px] text-neutral-400 dark:text-neutral-500">
+        <div
+          className="px-6 pb-4 pt-1 flex items-center gap-3"
+          style={{
+            fontFamily: fontFamily.inter,
+            fontFeatureSettings: '"cv01", "ss03"',
+            color: tokens.text.quaternary,
+            fontSize: "11px",
+            fontWeight: 510,
+          }}
+        >
           {view.meta.confidence !== undefined && (
             <span>Confidence: {Math.round(view.meta.confidence * 100)}%</span>
           )}
