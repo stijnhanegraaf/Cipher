@@ -3,6 +3,27 @@
 
 import { ResponseEnvelope } from "./view-models";
 
+// ─── Real data flag ───────────────────────────────────────────────────
+// When true, the app calls the /api/query endpoint to get real vault data.
+// When false (or the API is unavailable), it falls back to mock data below.
+export const USE_REAL_DATA = true;
+
+const API_URL = "/api/query";
+
+export async function fetchRealData(query: string): Promise<ResponseEnvelope | null> {
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 const currentWorkResponse: ResponseEnvelope = {
   version: "v1",
   request: {
@@ -371,8 +392,9 @@ const mockResponses: Record<string, ResponseEnvelope> = {
   search_results: searchResultsResponse,
 };
 
-// Simple intent detection from user query
-export function detectIntent(query: string): string {
+// Intent detection is now handled by the real intent-detector module.
+// This fallback is only used when USE_REAL_DATA is false.
+export function detectIntentFallback(query: string): string {
   const q = query.toLowerCase();
   if (q.includes("status") || q.includes("health") || q.includes("system") || q.includes("broken") || q.includes("stale")) {
     return "system_status";
@@ -392,8 +414,11 @@ export function detectIntent(query: string): string {
   return "current_work"; // default
 }
 
-export function getMockResponse(intent: string): ResponseEnvelope {
-  return mockResponses[intent] || currentWorkResponse;
+// Re-export the real intent detector for components that import from here
+export { detectIntent } from "./intent-detector";
+
+export function getMockResponse(viewType: string): ResponseEnvelope {
+  return mockResponses[viewType] || currentWorkResponse;
 }
 
 export function getAllMockResponses(): Record<string, ResponseEnvelope> {

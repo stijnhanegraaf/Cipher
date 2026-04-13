@@ -3,7 +3,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ResponseEnvelope } from "@/lib/view-models";
-import { detectIntent, getMockResponse } from "@/lib/mock-data";
+import { USE_REAL_DATA, fetchRealData } from "@/lib/mock-data";
+import { getMockResponse } from "@/lib/mock-data";
+import { detectIntent } from "@/lib/intent-detector";
 import { ViewRenderer } from "@/components/views/ViewRenderer";
 import { fadeSlideUp, stagger } from "@/lib/motion";
 
@@ -112,11 +114,24 @@ export function ChatInterface() {
 
     if (inputRef.current) inputRef.current.style.height = "24px";
 
-    // Simulate AI processing delay
-    await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 700));
+    let response: ResponseEnvelope;
 
-    const intent = detectIntent(userMessage);
-    const response = getMockResponse(intent);
+    if (USE_REAL_DATA) {
+      // Try the real API first
+      const realData = await fetchRealData(userMessage);
+      if (realData) {
+        response = realData;
+      } else {
+        // Fallback to mock data on failure
+        const intent = detectIntent(userMessage);
+        response = getMockResponse(intent.viewType);
+      }
+    } else {
+      // Use mock data
+      await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 700));
+      const intent = detectIntent(userMessage);
+      response = getMockResponse(intent.viewType);
+    }
 
     const assistantMsg: Message = {
       id: `msg_${Date.now()}_assistant`,
