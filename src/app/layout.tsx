@@ -14,8 +14,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0b" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f8f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#08090a" },
   ],
 };
 
@@ -30,7 +30,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap"
           rel="stylesheet"
         />
         <script
@@ -41,6 +41,8 @@ export default function RootLayout({
                   var theme = localStorage.getItem('brain-theme');
                   if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                     document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.add('light');
                   }
                 } catch(e) {}
               })();
@@ -48,7 +50,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="font-sans antialiased min-h-dvh" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text-primary)' }}>
+      <body
+        className="font-sans antialiased min-h-dvh"
+        style={{ backgroundColor: 'var(--bg-marketing)', color: 'var(--text-primary)' }}
+      >
         {children}
       </body>
     </html>

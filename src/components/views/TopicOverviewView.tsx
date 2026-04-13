@@ -1,8 +1,17 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { stagger, fadeSlideUp } from "@/lib/motion";
 import { TopicOverviewData } from "@/lib/view-models";
-import { EntityHeader, SectionBlock, LinkList, TimelineMini, Badge } from "@/components/ui";
+import { EntityHeader, SectionBlock, LinkList, TimelineMini } from "@/components/ui";
+
+// Design tokens
+const tokens = {
+  text: { primary: "#f7f8f8", secondary: "#d0d6e0", tertiary: "#8a8f98", quaternary: "#62666d" },
+  brand: { indigo: "#5e6ad2", violet: "#7170ff" },
+  status: { emerald: "#10b981", warning: "#f59e0b" },
+  border: { subtle: "rgba(255,255,255,0.05)", standard: "rgba(255,255,255,0.08)" },
+};
 
 const topicEmoji: Record<string, string> = {
   project: "📁",
@@ -11,29 +20,19 @@ const topicEmoji: Record<string, string> = {
   system: "⚙️",
 };
 
-const stagger = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.1 } },
-};
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0 },
-};
-
 export function TopicOverviewView({ data, view }: { data: TopicOverviewData; view: any }) {
   const topic = data as TopicOverviewData;
   const emoji = topicEmoji[topic.topicType] || "📄";
 
   return (
     <motion.div
-      variants={stagger}
+      variants={stagger.container(0.1)}
       initial="hidden"
       animate="show"
       className="space-y-6"
     >
       {/* Hero header */}
-      <motion.div variants={fadeUp} transition={{ duration: 0.35 }}>
+      <motion.div variants={fadeSlideUp}>
         <EntityHeader
           title={view?.title || "Topic"}
           kind={topic.topicType}
@@ -45,11 +44,29 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
 
       {/* Current state */}
       {topic.currentState && (
-        <motion.div variants={fadeUp} transition={{ duration: 0.35 }}>
+        <motion.div variants={fadeSlideUp}>
           <SectionBlock title="Current state">
-            <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200/60 dark:border-neutral-700/40">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 mt-2 shrink-0" />
-              <p className="text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed">{topic.currentState}</p>
+            <div
+              className="flex items-start gap-2.5 px-3.5 py-3 rounded-[8px]"
+              style={{
+                background: "rgba(16,185,129,0.04)",
+                borderLeft: `2px solid ${tokens.status.emerald}`,
+              }}
+            >
+              <div
+                className="w-1.5 h-1.5 rounded-full mt-[7px] shrink-0"
+                style={{ background: tokens.status.emerald }}
+              />
+              <p
+                className="text-[14px] leading-[1.6]"
+                style={{
+                  color: tokens.text.secondary,
+                  fontFamily: "'Inter Variable', sans-serif",
+                  fontFeatureSettings: '"cv01", "ss03"',
+                }}
+              >
+                {topic.currentState}
+              </p>
             </div>
           </SectionBlock>
         </motion.div>
@@ -57,23 +74,39 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
 
       {/* Key questions */}
       {topic.keyQuestions && topic.keyQuestions.length > 0 && (
-        <motion.div variants={fadeUp} transition={{ duration: 0.35 }}>
+        <motion.div variants={fadeSlideUp}>
           <SectionBlock title="Open questions">
             <div className="space-y-2">
               {topic.keyQuestions.map((q, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.25, delay: i * 0.05 }}
-                  className="flex items-start gap-3 px-3.5 py-2.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30"
+                  variants={fadeSlideUp}
+                  transition={{ delay: i * 0.05 }}
+                  className="flex items-start gap-3 px-3.5 py-2.5 rounded-[8px]"
+                  style={{
+                    background: "rgba(245,158,11,0.04)",
+                    borderLeft: `2px solid ${tokens.status.warning}`,
+                  }}
                 >
-                  <span className="text-amber-500 dark:text-amber-400 mt-0.5 shrink-0">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </span>
-                  <p className="text-sm text-neutral-700 dark:text-neutral-300 leading-snug">{q}</p>
+                  <svg
+                    className="w-4 h-4 shrink-0 mt-0.5"
+                    style={{ color: tokens.status.warning }}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p
+                    className="text-[14px] leading-[1.6]"
+                    style={{
+                      color: tokens.text.secondary,
+                      fontFamily: "'Inter Variable', sans-serif",
+                      fontFeatureSettings: '"cv01", "ss03"',
+                    }}
+                  >
+                    {q}
+                  </p>
                 </motion.div>
               ))}
             </div>
@@ -83,21 +116,41 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
 
       {/* Next steps */}
       {topic.nextSteps && topic.nextSteps.length > 0 && (
-        <motion.div variants={fadeUp} transition={{ duration: 0.35 }}>
+        <motion.div variants={fadeSlideUp}>
           <SectionBlock title="Next steps">
             <div className="space-y-2">
               {topic.nextSteps.map((s, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.25, delay: i * 0.05 }}
-                  className="flex items-start gap-3 px-3.5 py-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/30"
+                  variants={fadeSlideUp}
+                  transition={{ delay: i * 0.05 }}
+                  className="flex items-start gap-3 px-3.5 py-2.5 rounded-[8px]"
+                  style={{
+                    background: "rgba(16,185,129,0.04)",
+                    borderLeft: `2px solid ${tokens.status.emerald}`,
+                  }}
                 >
-                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 text-xs font-bold shrink-0 mt-0.5">
+                  <span
+                    className="flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-[590] shrink-0 mt-0.5"
+                    style={{
+                      background: "rgba(16,185,129,0.12)",
+                      color: tokens.status.emerald,
+                      fontFamily: "'Inter Variable', sans-serif",
+                      fontFeatureSettings: '"cv01", "ss03"',
+                    }}
+                  >
                     {i + 1}
                   </span>
-                  <p className="text-sm text-neutral-700 dark:text-neutral-300 leading-snug">{s}</p>
+                  <p
+                    className="text-[14px] leading-[1.6]"
+                    style={{
+                      color: tokens.text.secondary,
+                      fontFamily: "'Inter Variable', sans-serif",
+                      fontFeatureSettings: '"cv01", "ss03"',
+                    }}
+                  >
+                    {s}
+                  </p>
                 </motion.div>
               ))}
             </div>
@@ -107,7 +160,7 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
 
       {/* Related notes */}
       {topic.relatedNotes && topic.relatedNotes.length > 0 && (
-        <motion.div variants={fadeUp} transition={{ duration: 0.35 }}>
+        <motion.div variants={fadeSlideUp}>
           <SectionBlock title="Notes">
             <LinkList items={topic.relatedNotes!} />
           </SectionBlock>
@@ -116,7 +169,7 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
 
       {/* Connected entities */}
       {topic.relatedEntities && topic.relatedEntities.length > 0 && (
-        <motion.div variants={fadeUp} transition={{ duration: 0.35 }}>
+        <motion.div variants={fadeSlideUp}>
           <SectionBlock title="Connected">
             <LinkList items={topic.relatedEntities!} />
           </SectionBlock>
@@ -125,7 +178,7 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
 
       {/* Timeline */}
       {topic.timeline && topic.timeline.length > 0 && (
-        <motion.div variants={fadeUp} transition={{ duration: 0.35 }}>
+        <motion.div variants={fadeSlideUp}>
           <SectionBlock title="Recent activity">
             <TimelineMini items={topic.timeline} />
           </SectionBlock>
