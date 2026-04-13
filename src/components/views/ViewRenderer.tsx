@@ -17,7 +17,7 @@ import { TopicOverviewView } from "./TopicOverviewView";
 import { TimelineView } from "./TimelineView";
 import { SystemStatusView } from "./SystemStatusView";
 import { SearchResultsView } from "./SearchResultsView";
-import { SourceList, ActionBar } from "@/components/ui";
+import { SourceList, ActionBar, Badge } from "@/components/ui";
 
 const viewComponents: Record<ViewType, React.ComponentType<{ data: any; view: ViewModel }>> = {
   current_work: CurrentWorkView,
@@ -26,6 +26,48 @@ const viewComponents: Record<ViewType, React.ComponentType<{ data: any; view: Vi
   timeline_synthesis: TimelineView,
   system_status: SystemStatusView,
   search_results: SearchResultsView,
+};
+
+// Map view type to an icon for the header
+const viewIcons: Record<ViewType, React.ReactNode> = {
+  current_work: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    </svg>
+  ),
+  entity_overview: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+  ),
+  topic_overview: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+    </svg>
+  ),
+  timeline_synthesis: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  system_status: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  ),
+  search_results: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+  ),
+};
+
+// Map freshness to badge variant
+const freshnessVariant: Record<string, "success" | "warning" | "default"> = {
+  fresh: "success",
+  recent: "default",
+  stale: "warning",
+  unknown: "default",
 };
 
 interface ViewRendererProps {
@@ -46,32 +88,75 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200/80 dark:border-neutral-800 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden"
+      initial={{ opacity: 0, y: 20, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: 0.45,
+        delay: index * 0.12,
+      }}
+      className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200/80 dark:border-neutral-800/80 shadow-sm hover:shadow-lg transition-shadow duration-300 overflow-hidden"
     >
+      {/* View header */}
       {(view.title || view.subtitle) && (
-        <div className="px-6 pt-6 pb-2">
-          {view.title && (
-            <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{view.title}</h2>
-          )}
-          {view.subtitle && (
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">{view.subtitle}</p>
-          )}
+        <div className="px-6 pt-6 pb-3 border-b border-neutral-100 dark:border-neutral-800/60">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 shrink-0">
+                {viewIcons[view.type]}
+              </div>
+              <div className="min-w-0">
+                {view.title && (
+                  <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50 tracking-tight truncate">
+                    {view.title}
+                  </h2>
+                )}
+                {view.subtitle && (
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5 truncate">{view.subtitle}</p>
+                )}
+              </div>
+            </div>
+            {view.meta?.freshness && (
+              <Badge variant={freshnessVariant[view.meta.freshness] || "default"}>
+                {view.meta.freshness}
+              </Badge>
+            )}
+          </div>
         </div>
       )}
-      <div className="px-6 pb-6">
+
+      {/* View content */}
+      <div className="px-6 py-5">
         <Component data={view.data} view={view} />
       </div>
-      {(view.sources && view.sources.length > 0) && (
-        <div className="px-6 pb-4">
+
+      {/* Sources footer */}
+      {view.sources && view.sources.length > 0 && (
+        <div className="px-6 pb-4 pt-2 border-t border-neutral-100 dark:border-neutral-800/60">
           <SourceList sources={view.sources} />
         </div>
       )}
-      {(view.actions && view.actions.length > 0) && (
-        <div className="px-6 pb-4">
+
+      {/* Actions footer */}
+      {view.actions && view.actions.length > 0 && (
+        <div className="px-6 pb-4 pt-2 border-t border-neutral-100 dark:border-neutral-800/60">
           <ActionBar actions={view.actions} />
+        </div>
+      )}
+
+      {/* Meta footer — confidence & timestamp */}
+      {view.meta && (
+        <div className="px-6 pb-4 pt-1 flex items-center gap-3 text-[11px] text-neutral-400 dark:text-neutral-500">
+          {view.meta.confidence !== undefined && (
+            <span>Confidence: {Math.round(view.meta.confidence * 100)}%</span>
+          )}
+          {view.meta.generatedAt && (
+            <span>
+              Generated {new Date(view.meta.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+          {view.meta.primarySourceCount !== undefined && (
+            <span>{view.meta.primarySourceCount} sources</span>
+          )}
         </div>
       )}
     </motion.div>
