@@ -610,7 +610,7 @@ export function CheckboxIndicator({ checked, onChange }: { checked: boolean; onC
         justifyContent: "center",
         width: 18,
         height: 18,
-        borderRadius: "50%",
+        borderRadius: 4,
         border: checked ? "none" : "1.5px solid rgba(255,255,255,0.2)",
         backgroundColor: checked ? tokens.brand.indigo : "transparent",
         flexShrink: 0,
@@ -624,8 +624,8 @@ export function CheckboxIndicator({ checked, onChange }: { checked: boolean; onC
     >
       {checked && (
         <svg
-          width={8}
-          height={8}
+          width={10}
+          height={10}
           viewBox="0 0 24 24"
           fill="none"
           stroke="white"
@@ -699,7 +699,7 @@ export function StatusDot({
         justifyContent: "center",
         width: size,
         height: size,
-        borderRadius: "50%",
+        borderRadius: 2,
         backgroundColor: dotColor,
         border: interactive
           ? `1.5px solid ${hovered && !isDone ? "rgba(255,255,255,0.35)" : borderColor}`
@@ -727,7 +727,7 @@ export function StatusDot({
         <motion.span
           style={{
             position: "absolute",
-            borderRadius: "50%",
+            borderRadius: 2,
             backgroundColor: "#5e6ad2",
             top: "50%",
             left: "50%",

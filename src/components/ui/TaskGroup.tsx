@@ -229,11 +229,11 @@ export function TaskItemRow({ item, index = 0, onToggle, filePath, lineIndex }: 
           )}
         </AnimatePresence>
 
-        {/* Status dot — animated checkbox circle */}
-        <div className="pt-1.5 shrink-0">
+        {/* Status dot — animated checkbox */}
+        <div className="pt-0.5 shrink-0">
           <StatusDot
             status={status.dotStatus}
-            size={6}
+            size={18}
             checked={isDone}
             interactive={isToggleable}
             onClick={handleToggle}
