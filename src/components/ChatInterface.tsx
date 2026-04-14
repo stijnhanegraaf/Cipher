@@ -549,6 +549,45 @@ export function ChatInterface() {
         )}
       </AnimatePresence>
       </LayoutGroup>
+      {/* ── Floating home button (visible in chat mode) ──── */}
+      {!showWelcome && messages.length > 0 && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.2 }}
+          whileHover={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+          whileTap={{ scale: 0.96 }}
+          onClick={handleClear}
+          style={{
+            position: "fixed",
+            top: 16,
+            left: 16,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 10px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.08)",
+            background: "rgba(8,9,10,0.8)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            color: colors.secondaryText,
+            cursor: "pointer",
+            fontSize: 13,
+            fontWeight: 510,
+            letterSpacing: -0.1,
+            fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+            fontFeatureSettings: '"cv01", "ss03"',
+            zIndex: 30,
+          }}
+        >
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0110 0v4" />
+          </svg>
+          Cipher
+        </motion.button>
+      )}
       {/* ── Floating vault browse button ───────────────────── */}
       <motion.button
         initial={{ opacity: 0 }}
