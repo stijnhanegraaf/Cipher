@@ -71,7 +71,7 @@ export function CurrentWorkView({ data, view, onToggle }: { data: CurrentWorkDat
         workData.groups.map((group, i) => (
           <motion.div key={i} variants={{
             hidden: { opacity: 0, y: 14, scale: 0.97 },
-            show: { opacity: 1, y: 0, scale: [0.97, 1.02, 1.0], transition: { ...springs.bouncy, delay: i * 0.12 } },
+            show: { opacity: 1, y: 0, scale: 1.02, transition: { ...springs.bouncy, delay: i * 0.12 } },
           }}>
             <TaskGroupComponent group={group} index={i} onToggle={onToggle} />
           </motion.div>
