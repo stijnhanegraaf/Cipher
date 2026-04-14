@@ -1172,6 +1172,10 @@ export function ChatInterface() {
           setVaultDrawerOpen(false);
           handleSubmit(query);
         }}
+        onOpenFile={(path) => {
+          setVaultDrawerOpen(false);
+          setDetailPath(path);
+        }}
       />
     </div>
   );
