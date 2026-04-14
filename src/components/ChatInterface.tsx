@@ -768,6 +768,8 @@ export function ChatInterface() {
                     gap: 8,
                     justifyContent: "center",
                     maxWidth: 520,
+                    marginTop: 24,
+                    paddingBottom: 32,
                   }}
                 >
                   {quickActions.map((action) => (
@@ -785,7 +787,7 @@ export function ChatInterface() {
                         display: "inline-flex",
                         alignItems: "center",
                         gap: 0,
-                        padding: "10px 18px",
+                        padding: "12px 22px",
                         borderRadius: 9999,
                         fontSize: 14,
                         fontWeight: 510,
@@ -894,13 +896,12 @@ export function ChatInterface() {
                             return (
                               <motion.div
                                 key={view.viewId}
-                                initial={{ opacity: 0, y: 12 }}
-                                animate={isRevealed ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={isRevealed ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
                                 transition={{
-                                  type: "spring",
-                                  stiffness: 260,
-                                  damping: 20,
-                                  delay: isRevealed ? viewIndex * 0.08 : 0,
+                                  duration: 0.3,
+                                  ease: [0.25, 0.1, 0.25, 1],
+                                  delay: isRevealed ? viewIndex * 0.06 : 0,
                                 }}
                               >
                                 <ViewRenderer view={view} index={viewIndex} onNavigate={setDetailPath} onToggle={handleToggle} />

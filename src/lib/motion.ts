@@ -100,12 +100,12 @@ export const scaleIn: Variants = {
 /* ── E1: Spring-based card entrance with overshoot ──── */
 /** View card entrance — spring physics with scale overshoot */
 export const cardEntrance: Variants = {
-  hidden: { opacity: 0, y: 16, scale: 0.97 },
+  hidden: { opacity: 0, y: 12 },
   show: {
     opacity: 1,
     y: 0,
-    scale: 1.02,
-    transition: springs.cardEnter,
+    scale: 1,
+    transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] },
   },
   exit: {
     opacity: 0,
@@ -137,12 +137,12 @@ export const stagger = {
   } as Variants,
   /** E1: Spring-based stagger items with overshoot */
   springItem: {
-    hidden: { opacity: 0, y: 14, scale: 0.97 },
+    hidden: { opacity: 0, y: 8 },
     show: {
       opacity: 1,
       y: 0,
-      scale: 1.02,
-      transition: springs.bouncy,
+      scale: 1,
+      transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] },
     },
   } as Variants,
   /** E1: Group container — 0.12s stagger between groups */
