@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 import { fadeSlideUp } from "@/lib/motion";
 
 // ─── Design tokens (from DESIGN.md) ────────────────────────────────
@@ -194,7 +195,7 @@ export function EntityHeader({ title, kind, summary, whyNow, emoji }: EntityHead
       variants={fadeSlideUp}
       initial="hidden"
       animate="show"
-      className="space-y-3"
+      className="space-y-4"
     >
       <div className="flex items-center gap-3">
         {emoji && <span className="text-2xl">{emoji}</span>}
@@ -211,7 +212,7 @@ export function EntityHeader({ title, kind, summary, whyNow, emoji }: EntityHead
         </h1>
         <Badge variant="outline">{kind}</Badge>
       </div>
-      <p
+      <div
         className="text-[15px] leading-[1.6] tracking-[-0.165px]"
         style={{
           color: tokens.text.tertiary,
@@ -219,29 +220,29 @@ export function EntityHeader({ title, kind, summary, whyNow, emoji }: EntityHead
           fontFeatureSettings: '"cv01", "ss03"',
         }}
       >
-        {summary}
-      </p>
+        <MarkdownRenderer content={summary} />
+      </div>
       {whyNow && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.15 }}
-          className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-[12px]"
+          className="flex items-start gap-3 px-4 py-3 rounded-[8px]"
           style={{
-            background: "rgba(94,106,210,0.08)",
+            background: "rgba(94,106,210,0.06)",
             borderLeft: `2px solid ${tokens.brand.indigo}`,
           }}
         >
-          <p
-            className="text-[14px] leading-[1.5]"
+          <div
+            className="text-[14px] leading-[1.6]"
             style={{
               color: tokens.text.secondary,
               fontFamily: "'Inter Variable', sans-serif",
               fontFeatureSettings: '"cv01", "ss03"',
             }}
           >
-            {whyNow}
-          </p>
+            <MarkdownRenderer content={whyNow} />
+          </div>
         </motion.div>
       )}
     </motion.div>
@@ -258,7 +259,7 @@ interface SectionBlockProps {
 
 export function SectionBlock({ title, subtitle, children }: SectionBlockProps) {
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       <div>
         <h3
           className="text-[11px] font-[510] uppercase tracking-[0.08em]"
@@ -272,7 +273,7 @@ export function SectionBlock({ title, subtitle, children }: SectionBlockProps) {
         </h3>
         {subtitle && (
           <p
-            className="text-[12px] mt-0.5"
+            className="text-[12px] mt-1"
             style={{
               color: tokens.text.quaternary,
               fontFamily: "'Inter Variable', sans-serif",
@@ -460,7 +461,7 @@ export function CalloutBox({ tone, title, body }: CalloutBoxProps) {
             {title}
           </p>
         )}
-        <p
+        <div
           className="text-[14px] leading-[1.6]"
           style={{
             color: style.text,
@@ -468,8 +469,8 @@ export function CalloutBox({ tone, title, body }: CalloutBoxProps) {
             fontFeatureSettings: '"cv01", "ss03"',
           }}
         >
-          {body}
-        </p>
+          <MarkdownRenderer content={body} />
+        </div>
       </div>
     </motion.div>
   );

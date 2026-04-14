@@ -97,6 +97,11 @@ const freshnessVariant: Record<string, "success" | "warning" | "default" | "outl
   unknown: "default",
 };
 
+// Obsidian URL builder
+function getObsidianUrl(path: string): string {
+  return `obsidian://open?vault=Obsidian&file=${encodeURIComponent(path)}`;
+}
+
 interface ViewRendererProps {
   view: ViewModel;
   index?: number;
@@ -128,6 +133,9 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
     );
   }
 
+  // Determine the Obsidian source file
+  const sourceFile = view.sourceFile || (view.sources && view.sources.length > 0 ? view.sources[0].path : undefined);
+
   return (
     <motion.div
       variants={fadeSlideUp}
@@ -143,13 +151,13 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
       {/* View header */}
       {(view.title || view.subtitle) && (
         <div
-          className="px-6 pt-6 pb-3"
+          className="px-7 pt-7 pb-4"
           style={{ borderBottom: `1px solid ${tokens.border.subtle}` }}
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
               <div
-                className="flex items-center justify-center w-7 h-7 rounded-[6px] shrink-0"
+                className="flex items-center justify-center w-8 h-8 rounded-[6px] shrink-0"
                 style={{
                   background: "rgba(255,255,255,0.04)",
                   color: tokens.text.tertiary,
@@ -160,7 +168,7 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
               <div className="min-w-0">
                 {view.title && (
                   <h2
-                    className="text-[18px] font-[510] tracking-[-0.165px] truncate"
+                    className="text-[20px] font-[590] tracking-[-0.24px]"
                     style={{
                       color: tokens.text.primary,
                       fontFamily: fontFamily.inter,
@@ -173,7 +181,7 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
                 )}
                 {view.subtitle && (
                   <p
-                    className="text-[13px] mt-0.5 truncate"
+                    className="text-[13px] mt-1"
                     style={{
                       color: tokens.text.tertiary,
                       fontFamily: fontFamily.inter,
@@ -195,14 +203,14 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
       )}
 
       {/* View content */}
-      <div className="px-6 py-5">
+      <div className="px-7 py-6">
         <Component data={view.data} view={view} />
       </div>
 
       {/* Sources footer */}
       {view.sources && view.sources.length > 0 && (
         <div
-          className="px-6 pb-4 pt-2"
+          className="px-7 pb-5 pt-2"
           style={{ borderTop: `1px solid ${tokens.border.subtle}` }}
         >
           <SourceList sources={view.sources} />
@@ -212,38 +220,74 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
       {/* Actions footer */}
       {view.actions && view.actions.length > 0 && (
         <div
-          className="px-6 pb-4 pt-2"
+          className="px-7 pb-5 pt-2"
           style={{ borderTop: `1px solid ${tokens.border.subtle}` }}
         >
           <ActionBar actions={view.actions} />
         </div>
       )}
 
-      {/* Meta footer — confidence & timestamp in quaternary text */}
-      {view.meta && (
+      {/* Meta footer — confidence, timestamp, and "Open in Obsidian" link */}
+      <div
+        className="px-7 pb-5 pt-2 flex items-center justify-between"
+        style={{
+          fontFamily: fontFamily.inter,
+          fontFeatureSettings: '"cv01", "ss03"',
+        }}
+      >
         <div
-          className="px-6 pb-4 pt-1 flex items-center gap-3"
+          className="flex items-center gap-4"
           style={{
-            fontFamily: fontFamily.inter,
-            fontFeatureSettings: '"cv01", "ss03"',
             color: tokens.text.quaternary,
             fontSize: "11px",
             fontWeight: 510,
           }}
         >
-          {view.meta.confidence !== undefined && (
+          {view.meta?.confidence !== undefined && (
             <span>Confidence: {Math.round(view.meta.confidence * 100)}%</span>
           )}
-          {view.meta.generatedAt && (
+          {view.meta?.generatedAt && (
             <span>
               Generated {new Date(view.meta.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
-          {view.meta.primarySourceCount !== undefined && (
+          {view.meta?.primarySourceCount !== undefined && (
             <span>{view.meta.primarySourceCount} sources</span>
           )}
         </div>
-      )}
+        {sourceFile && (
+          <a
+            href={getObsidianUrl(sourceFile)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 transition-colors duration-150"
+            style={{
+              color: tokens.text.quaternary,
+              fontSize: "11px",
+              fontWeight: 400,
+              letterSpacing: "0.02em",
+              textDecoration: "none",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = tokens.text.tertiary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = tokens.text.quaternary;
+            }}
+          >
+            <svg
+              className="w-3 h-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            Open in Obsidian
+          </a>
+        )}
+      </div>
     </motion.div>
   );
 }

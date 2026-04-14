@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
 import { SystemStatusData, Status } from "@/lib/view-models";
-import { CalloutBox, Badge } from "@/components/ui";
+import { CalloutBox, Badge, StatusDot, MarkdownRenderer } from "@/components/ui";
 
 // Design tokens
 const tokens = {
@@ -17,7 +17,7 @@ const fontFamily = {
   inter: "'Inter Variable', 'SF Pro Display', -apple-system, system-ui, sans-serif",
 };
 
-// Status visual configuration — green/amber/red status indicators
+// Status visual configuration
 const statusStyles: Record<string, { color: string; bg: string; border: string; label: string }> = {
   ok: {
     color: tokens.status.emerald,
@@ -51,28 +51,25 @@ const statusStyles: Record<string, { color: string; bg: string; border: string; 
   },
 };
 
-// Overall status indicator — bigger and more prominent
+// Overall status indicator
 function OverallIndicator({ status, label }: { status: Status; label: string }) {
   const style = statusStyles[status] || statusStyles.stale;
 
   return (
     <motion.div
       variants={fadeSlideUp}
-      className="flex items-center gap-3.5 px-4 py-3.5 rounded-[8px]"
+      className="flex items-center gap-4 px-5 py-4 rounded-[8px]"
       style={{
         background: style.bg,
         border: `1px solid ${style.border}`,
       }}
     >
       <div className="relative">
-        <span
-          className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full"
-          style={{ background: style.color }}
-        />
+        <StatusDot status={status} size={10} />
         {/* Pulse animation for active statuses */}
         {(status === "ok" || status === "fresh") && (
           <span
-            className="absolute inset-0 w-3.5 h-3.5 rounded-full animate-ping"
+            className="absolute inset-0 rounded-full animate-ping"
             style={{ background: style.color, opacity: 0.2 }}
           />
         )}
@@ -111,13 +108,23 @@ export function SystemStatusView({ data, view }: { data: SystemStatusData; view:
       variants={stagger.container(0.08)}
       initial="hidden"
       animate="show"
-      className="space-y-5"
+      className="space-y-6"
     >
       {/* Overall status */}
       <OverallIndicator status={status.overall.status} label={status.overall.label} />
 
       {/* Checks */}
-      <div className="space-y-2">
+      <div className="space-y-3">
+        <h3
+          className="text-[11px] font-[510] uppercase tracking-[0.08em]"
+          style={{
+            color: tokens.text.quaternary,
+            fontFamily: fontFamily.inter,
+            fontFeatureSettings: '"cv01", "ss03"',
+          }}
+        >
+          Checks
+        </h3>
         {status.checks.map((check, i) => {
           const style = statusStyles[check.status] || statusStyles.stale;
           const badgeVariant = check.status === "ok" || check.status === "fresh" ? "success" : check.status === "warn" ? "warning" : "error";
@@ -126,16 +133,15 @@ export function SystemStatusView({ data, view }: { data: SystemStatusData; view:
             <motion.div
               key={i}
               variants={fadeSlideUp}
-              className="flex items-start gap-3 p-3.5 rounded-[8px] transition-colors duration-150"
+              className="flex items-start gap-3 p-4 rounded-[8px] transition-colors duration-150"
               style={{
                 background: style.bg,
                 border: `1px solid ${style.border}`,
               }}
             >
-              <span
-                className="inline-flex items-center justify-center w-2 h-2 rounded-full mt-1.5 shrink-0"
-                style={{ background: style.color }}
-              />
+              <div className="mt-1 shrink-0">
+                <StatusDot status={check.status} size={6} />
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p
@@ -151,16 +157,16 @@ export function SystemStatusView({ data, view }: { data: SystemStatusData; view:
                   <Badge variant={badgeVariant} dot>{style.label}</Badge>
                 </div>
                 {check.detail && (
-                  <p
-                    className="text-[13px] mt-1 leading-[1.5]"
+                  <div
+                    className="text-[13px] mt-1.5 leading-[1.5]"
                     style={{
                       color: tokens.text.quaternary,
                       fontFamily: fontFamily.inter,
                       fontFeatureSettings: '"cv01", "ss03"',
                     }}
                   >
-                    {check.detail}
-                  </p>
+                    <MarkdownRenderer content={check.detail} />
+                  </div>
                 )}
               </div>
             </motion.div>

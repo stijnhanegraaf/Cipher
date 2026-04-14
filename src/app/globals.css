@@ -881,6 +881,78 @@ pre code {
   line-height: 1.6;
 }
 
+/* ── Markdown content rendering ─────────── */
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  margin: 0;
+  padding: 0;
+}
+
+.markdown-content p:first-child {
+  margin-top: 0;
+}
+
+.markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 0;
+  margin: 0;
+}
+
+.markdown-content li {
+  list-style: none;
+}
+
+/* Checkbox rendering in markdown — GFM task lists */
+.markdown-content li input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  background: transparent;
+  vertical-align: middle;
+  margin-right: 8px;
+  flex-shrink: 0;
+  position: relative;
+  cursor: default;
+}
+
+.markdown-content li input[type="checkbox"]:checked {
+  background: var(--accent-brand);
+  border-color: var(--accent-brand);
+}
+
+.markdown-content li input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  width: 5px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Task list items — checkbox text styling */
+.markdown-content li:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: flex-start;
+}
+
+.markdown-content li:has(input[type="checkbox"]:checked) {
+  color: var(--text-quaternary);
+}
+
 /* ── Responsive typography ───────────────── */
 @media (max-width: 1024px) {
   .display-xl { font-size: 3rem; letter-spacing: -1.056px; }

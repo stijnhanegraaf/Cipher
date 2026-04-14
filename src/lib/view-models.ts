@@ -1,6 +1,20 @@
 // Internal view-model types - the contract between AI/retrieval and UI
 // These are app-owned, not renderer-owned
 
+// ─── Vault index types (shared with intent-detector) ──────────────────
+
+export interface IndexEntry {
+  name: string;
+  path: string;
+  area?: string;
+  type?: string;
+}
+
+export interface ResearchProject {
+  name: string;
+  dir: string;
+}
+
 export type Intent =
   | "current_work"
   | "entity_overview"
@@ -167,6 +181,7 @@ export interface ViewModel {
   sources?: SourceRef[];
   actions?: ActionRef[];
   meta?: ViewMeta;
+  sourceFile?: string; // Path to the original Obsidian file for "Open in Obsidian" links
 }
 
 export interface ResponseEnvelope {
@@ -176,6 +191,7 @@ export interface ResponseEnvelope {
     intent: Intent;
     mode: Mode;
     query?: string;
+    entityName?: string;
   };
   response: {
     title: string;

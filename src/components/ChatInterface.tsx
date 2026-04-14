@@ -7,6 +7,7 @@ import { USE_REAL_DATA, fetchRealData } from "@/lib/mock-data";
 import { getMockResponse } from "@/lib/mock-data";
 import { detectIntent } from "@/lib/intent-detector";
 import { ViewRenderer } from "@/components/views/ViewRenderer";
+import { MarkdownRenderer } from "@/components/ui";
 import { fadeSlideUp, stagger } from "@/lib/motion";
 
 // ────────────────────────────────────────────────────────────────────
@@ -123,13 +124,13 @@ export function ChatInterface() {
         response = realData;
       } else {
         // Fallback to mock data on failure
-        const intent = detectIntent(userMessage);
+        const intent = await detectIntent(userMessage);
         response = getMockResponse(intent.viewType);
       }
     } else {
       // Use mock data
       await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 700));
-      const intent = detectIntent(userMessage);
+      const intent = await detectIntent(userMessage);
       response = getMockResponse(intent.viewType);
     }
 
@@ -277,7 +278,7 @@ export function ChatInterface() {
           scrollbarColor: `${colors.quaternaryText} transparent`,
         }}
       >
-        <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 24px" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 24px 120px" }}>
           <AnimatePresence mode="popLayout">
             {showWelcome && (
               <motion.div
@@ -292,7 +293,7 @@ export function ChatInterface() {
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  paddingTop: 160,
+                  paddingTop: 200,
                   paddingBottom: 64,
                 }}
               >
@@ -363,7 +364,7 @@ export function ChatInterface() {
                         display: "inline-flex",
                         alignItems: "center",
                         gap: 0,
-                        padding: "7px 14px",
+                        padding: "8px 16px",
                         borderRadius: 9999,
                         fontSize: 13,
                         fontWeight: 510,
@@ -386,8 +387,8 @@ export function ChatInterface() {
           </AnimatePresence>
 
           {/* ── Message list ────────────────────────────────────────── */}
-          <div style={{ paddingTop: 32, paddingBottom: 32 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+          <div style={{ paddingTop: 40, paddingBottom: 40 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
               {messages.map((msg) => (
                 <motion.div
                   key={msg.id}
@@ -405,7 +406,7 @@ export function ChatInterface() {
                           backgroundColor: colors.brandIndigo,
                           borderRadius: 12,
                           borderBottomRightRadius: 4,
-                          padding: "10px 16px",
+                          padding: "12px 18px",
                           boxShadow: `rgba(0,0,0,0.2) 0px 0px 0px 1px`,
                         }}
                       >
@@ -413,7 +414,7 @@ export function ChatInterface() {
                           style={{
                             fontSize: 15,
                             fontWeight: 400,
-                            lineHeight: 1.5,
+                            lineHeight: 1.6,
                             color: "#ffffff",
                             margin: 0,
                             fontFeatureSettings: '"cv01", "ss03"',
@@ -427,45 +428,22 @@ export function ChatInterface() {
                     /* ── AI response ─────────────────────────────────────── */
                     <div style={{ width: "100%" }}>
                       {msg.content && (
-                        <motion.p
+                        <motion.div
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ duration: 0.3, delay: 0.1 }}
                           style={{
-                            fontSize: 15,
-                            fontWeight: 400,
-                            lineHeight: 1.6,
-                            color: colors.secondaryText,
-                            letterSpacing: -0.165,
-                            marginBottom: 20,
-                            margin: 0,
-                            fontFeatureSettings: '"cv01", "ss03"',
+                            marginBottom: 24,
                           }}
                         >
-                          {msg.content}
-                        </motion.p>
-                      )}
-                      {msg.response?.response.views.map((view, viewIndex, arr) => (
-                        <motion.div
-                          key={view.viewId}
-                          initial={{ opacity: 0, y: 12 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{
-                            duration: 0.35,
-                            delay: 0.15 + viewIndex * 0.08,
-                            ease: [0.25, 0.1, 0.25, 1],
-                          }}
-                          style={{
-                            backgroundColor: "rgba(255,255,255,0.02)",
-                            border: `1px solid ${colors.borderStandard}`,
-                            borderRadius: 8,
-                            padding: 20,
-                            marginBottom: viewIndex < arr.length - 1 ? 12 : 0,
-                          }}
-                        >
-                          <ViewRenderer view={view} index={viewIndex} />
+                          <MarkdownRenderer content={msg.content} />
                         </motion.div>
-                      ))}
+                      )}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {msg.response?.response.views.map((view, viewIndex) => (
+                          <ViewRenderer key={view.viewId} view={view} index={viewIndex} />
+                        ))}
+                      </div>
                     </div>
                   )}
                 </motion.div>
@@ -619,20 +597,6 @@ export function ChatInterface() {
               </button>
             </div>
           </form>
-          <p
-            style={{
-              textAlign: "center",
-              fontSize: 12,
-              fontWeight: 400,
-              letterSpacing: 0,
-              lineHeight: 1.4,
-              color: colors.quaternaryText,
-              marginTop: 10,
-              fontFeatureSettings: '"cv01", "ss03"',
-            }}
-          >
-            Brain reads from your Obsidian vault · Read-only prototype
-          </p>
         </div>
       </div>
 

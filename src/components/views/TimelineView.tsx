@@ -13,13 +13,13 @@ const tokens = {
   border: { subtle: "rgba(255,255,255,0.05)", standard: "rgba(255,255,255,0.08)" },
 };
 
-// Theme color palette — monochrome-accent, keeping brand indigo as the accent
+// Theme color palette
 const themeAccents = [
-  { dot: "#5e6ad2", bg: "rgba(94,106,210,0.06)",  border: "rgba(94,106,210,0.15)" },   // brand indigo
-  { dot: "#7170ff", bg: "rgba(113,112,255,0.06)",  border: "rgba(113,112,255,0.15)" },  // violet
-  { dot: "#10b981", bg: "rgba(16,185,129,0.06)",   border: "rgba(16,185,129,0.15)" },    // emerald
-  { dot: "#d0d6e0", bg: "rgba(208,214,224,0.04)",  border: "rgba(208,214,224,0.08)" },   // silver
-  { dot: "#8a8f98", bg: "rgba(138,143,152,0.04)",   border: "rgba(138,143,152,0.08)" },   // muted
+  { dot: "#5e6ad2", bg: "rgba(94,106,210,0.06)",  border: "rgba(94,106,210,0.15)" },
+  { dot: "#7170ff", bg: "rgba(113,112,255,0.06)",  border: "rgba(113,112,255,0.15)" },
+  { dot: "#10b981", bg: "rgba(16,185,129,0.06)",   border: "rgba(16,185,129,0.15)" },
+  { dot: "#d0d6e0", bg: "rgba(208,214,224,0.04)",  border: "rgba(208,214,224,0.08)" },
+  { dot: "#8a8f98", bg: "rgba(138,143,152,0.04)",   border: "rgba(138,143,152,0.08)" },
 ];
 
 const fontFamily = {
@@ -35,7 +35,7 @@ export function TimelineView({ data, view }: { data: TimelineSynthesisData; view
       variants={stagger.container(0.12)}
       initial="hidden"
       animate="show"
-      className="space-y-6"
+      className="space-y-8"
     >
       {/* Range badge */}
       <motion.div variants={fadeSlideUp} className="flex items-center gap-2">
@@ -66,10 +66,10 @@ export function TimelineView({ data, view }: { data: TimelineSynthesisData; view
             }}
           >
             {/* Theme header */}
-            <div className="px-4 pt-4 pb-2">
+            <div className="px-5 pt-5 pb-2">
               <div className="flex items-start gap-3">
                 <div
-                  className="w-2.5 h-2.5 rounded-full mt-1 shrink-0"
+                  className="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0"
                   style={{
                     background: accent.dot,
                     boxShadow: `0 0 0 2px ${tokens.bg.surface}`,
@@ -87,7 +87,7 @@ export function TimelineView({ data, view }: { data: TimelineSynthesisData; view
                     {theme.label}
                   </h3>
                   <p
-                    className="text-[13px] mt-0.5 leading-[1.5]"
+                    className="text-[13px] mt-1 leading-[1.5]"
                     style={{
                       color: tokens.text.tertiary,
                       fontFamily: fontFamily.inter,
@@ -101,14 +101,14 @@ export function TimelineView({ data, view }: { data: TimelineSynthesisData; view
             </div>
 
             {/* Timeline items inside theme */}
-            <div className="px-4 pb-4 pt-1">
-              <div className="relative pl-4 ml-1.5">
+            <div className="px-5 pb-5 pt-2">
+              <div className="relative pl-5 ml-1.5">
                 {/* Vertical timeline line */}
                 <div
                   className="absolute left-[3px] top-1 bottom-1 w-px"
                   style={{ background: tokens.border.standard }}
                 />
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {theme.items.map((item, j) => (
                     <motion.div
                       key={j}
@@ -117,7 +117,7 @@ export function TimelineView({ data, view }: { data: TimelineSynthesisData; view
                       className="relative flex items-start gap-3"
                     >
                       {/* Dot on line */}
-                      <div className="absolute -left-4 top-1.5">
+                      <div className="absolute -left-5 top-1.5">
                         <div
                           className="w-[7px] h-[7px] rounded-full"
                           style={{
@@ -137,7 +137,7 @@ export function TimelineView({ data, view }: { data: TimelineSynthesisData; view
                           {item.date}
                         </span>
                         <p
-                          className="text-[14px] leading-[1.5]"
+                          className="text-[14px] leading-[1.5] mt-0.5"
                           style={{
                             color: tokens.text.secondary,
                             fontFamily: fontFamily.inter,

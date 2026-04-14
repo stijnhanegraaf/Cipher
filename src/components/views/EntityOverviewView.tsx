@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
 import { EntityOverviewData } from "@/lib/view-models";
-import { EntityHeader, SectionBlock, LinkList, TimelineMini } from "@/components/ui";
+import { EntityHeader, SectionBlock, LinkList, TimelineMini, MarkdownRenderer } from "@/components/ui";
 
 const entityEmoji: Record<string, string> = {
   company: "🏢",
@@ -23,7 +23,7 @@ export function EntityOverviewView({ data, view }: { data: EntityOverviewData; v
       variants={stagger.container(0.1)}
       initial="hidden"
       animate="show"
-      className="space-y-6"
+      className="space-y-8"
     >
       {/* Hero header */}
       <motion.div variants={fadeSlideUp}>

@@ -25,7 +25,7 @@ export function CurrentWorkView({ data, view }: { data: CurrentWorkData; view: a
       variants={stagger.container(0.08)}
       initial="hidden"
       animate="show"
-      className="space-y-5"
+      className="space-y-6"
     >
       {/* Highlights strip */}
       {workData.highlights && workData.highlights.length > 0 && (
@@ -45,7 +45,7 @@ export function CurrentWorkView({ data, view }: { data: CurrentWorkData; view: a
 
       {/* Period links */}
       {workData.periodLinks && (
-        <motion.div variants={fadeSlideUp} className="flex items-center gap-3 pt-1">
+        <motion.div variants={fadeSlideUp} className="flex items-center gap-4 pt-2">
           {workData.periodLinks.week && (
             <a
               href="#"

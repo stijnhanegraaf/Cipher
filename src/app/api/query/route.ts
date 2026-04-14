@@ -1,12 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { detectIntent } from "@/lib/intent-detector";
 import { buildView } from "@/lib/view-builder";
+import { getEntityIndex, getProjectIndex, getResearchProjects } from "@/lib/vault-reader";
 import type { ResponseEnvelope, Intent, ViewType } from "@/lib/view-models";
+
+// ─── GET /api/query — vault metadata ──────────────────────────────────
+
+export async function GET() {
+  try {
+    const [entities, projects, research] = await Promise.all([
+      getEntityIndex(),
+      getProjectIndex(),
+      getResearchProjects(),
+    ]);
+
+    return NextResponse.json({
+      version: "v1",
+      vault: {
+        path: process.env.VAULT_PATH || "Obsidian",
+      },
+      entities,
+      projects,
+      research,
+    });
+  } catch (error) {
+    console.error("Query API GET error:", error);
+    return NextResponse.json(
+      { error: "Failed to load vault metadata", detail: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
+}
+
+// ─── POST /api/query — process a query ─────────────────────────────────
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const query = body.query;
+    const { query, entityName } = body;
 
     if (!query || typeof query !== "string") {
       return NextResponse.json(
@@ -24,10 +55,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Detect intent from query
-    const intentResult = detectIntent(query);
+    const intentResult = await detectIntent(query);
 
-    // Build the view from real vault data
-    const view = await buildView(intentResult.viewType, query);
+    // If entityName is provided and intent would be entity_overview, use that entity
+    const effectiveViewType: ViewType =
+      entityName && intentResult.viewType === "entity_overview"
+        ? "entity_overview"
+        : intentResult.viewType;
+
+    // Build the view from real vault data, passing entityName through
+    const view = await buildView(effectiveViewType, query, entityName);
 
     // Build the response envelope
     const response: ResponseEnvelope = {
@@ -37,11 +74,12 @@ export async function POST(request: NextRequest) {
         intent: intentResult.intent,
         mode: intentResult.intent === "search_results" ? "structured" : "mixed",
         query,
+        entityName,
       },
       response: {
         title: view.title || "Results",
-        summary: generateSummary(view, intentResult.viewType),
-        text: intentResult.intent !== "search_results" ? generateText(view, intentResult.viewType) : undefined,
+        summary: generateSummary(view, effectiveViewType),
+        text: intentResult.intent !== "search_results" ? generateText(view, effectiveViewType) : undefined,
         views: [view],
         sources: view.sources,
         actions: view.actions,
@@ -52,6 +90,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response);
   } catch (error) {
     console.error("Query API error:", error);
+    const detail = error instanceof Error ? error.message : "Something went wrong processing your query.";
     return NextResponse.json(
       {
         version: "v1",

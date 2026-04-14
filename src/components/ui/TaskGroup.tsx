@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { fadeSlideUp } from "@/lib/motion";
 import { TaskGroup as TaskGroupType, TaskItem as TaskItemType } from "@/lib/view-models";
+import { StatusDot } from "@/components/ui";
 
 // ─── Design tokens ───────────────────────────────────────────────────
 const tokens = {
@@ -38,26 +39,30 @@ const tokens = {
 };
 
 // ─── Status configuration ────────────────────────────────────────────
-const statusConfig: Record<string, { color: string; bgColor: string; label: string }> = {
+const statusConfig: Record<string, { color: string; bgColor: string; label: string; dotStatus: string }> = {
   open: {
     color: tokens.status.infoBlue,
     bgColor: "rgba(59,130,246,0.12)",
     label: "Open",
+    dotStatus: "open",
   },
   in_progress: {
     color: tokens.status.warning,
     bgColor: "rgba(245,158,11,0.12)",
     label: "In progress",
+    dotStatus: "in_progress",
   },
   done: {
     color: tokens.status.emerald,
     bgColor: "rgba(16,185,129,0.12)",
     label: "Done",
+    dotStatus: "done",
   },
   blocked: {
     color: tokens.status.error,
     bgColor: "rgba(239,68,68,0.12)",
     label: "Blocked",
+    dotStatus: "blocked",
   },
 };
 
@@ -78,20 +83,12 @@ export function TaskItemRow({ item, index = 0 }: { item: TaskItemType; index?: n
       initial="hidden"
       animate="show"
       transition={{ delay: index * 0.04 }}
-      className="flex items-start gap-3 py-2.5 group rounded-[6px] transition-colors duration-150 -mx-2 px-2"
+      className="flex items-start gap-3 py-3 group rounded-[6px] transition-colors duration-150 -mx-2 px-2"
       style={{ cursor: "default" }}
     >
-      {/* Status dot */}
-      <div className="pt-1 shrink-0">
-        <span
-          className="inline-flex items-center justify-center w-5 h-5 rounded-full"
-          style={{ background: status.bgColor }}
-        >
-          <span
-            className="w-2 h-2 rounded-full"
-            style={{ background: status.color }}
-          />
-        </span>
+      {/* Status dot — 6px circle */}
+      <div className="pt-1.5 shrink-0">
+        <StatusDot status={status.dotStatus} size={6} />
       </div>
 
       {/* Content */}
@@ -113,7 +110,7 @@ export function TaskItemRow({ item, index = 0 }: { item: TaskItemType; index?: n
               <a
                 key={i}
                 href="#"
-                className="inline-flex items-center gap-1 text-[12px] font-[510] transition-colors duration-150 hover:brightness-125"
+                className="inline-flex items-center gap-1 text-[13px] font-[510] transition-colors duration-150 hover:brightness-125"
                 style={{
                   color: tokens.brand.violet,
                   fontFamily: "'Inter Variable', sans-serif",
@@ -133,7 +130,7 @@ export function TaskItemRow({ item, index = 0 }: { item: TaskItemType; index?: n
             {item.related.map((rel, i) => (
               <span
                 key={i}
-                className="inline-flex items-center px-2 py-0.5 rounded-[2px] text-[10px] font-[510]"
+                className="inline-flex items-center px-2 py-0.5 rounded-[2px] text-[11px] font-[510]"
                 style={{
                   background: "rgba(255,255,255,0.03)",
                   color: tokens.text.quaternary,
@@ -152,7 +149,7 @@ export function TaskItemRow({ item, index = 0 }: { item: TaskItemType; index?: n
       {/* Priority */}
       {priority && (
         <span
-          className="text-[11px] font-[510] uppercase tracking-[0.06em] shrink-0 mt-1"
+          className="text-[11px] font-[510] uppercase tracking-[0.06em] shrink-0 mt-1.5"
           style={{
             color: priority.color,
             fontFamily: "'Inter Variable', sans-serif",
@@ -181,8 +178,8 @@ export function TaskGroupComponent({ group, index = 0 }: { group: TaskGroupType;
         border: `1px solid rgba(255,255,255,0.08)`,
       }}
     >
-      {/* Group header */}
-      <div className="px-4 pt-4 pb-2">
+      {/* Group header — section label style */}
+      <div className="px-5 pt-5 pb-2">
         <h3
           className="text-[11px] font-[510] uppercase tracking-[0.08em]"
           style={{
@@ -196,7 +193,7 @@ export function TaskGroupComponent({ group, index = 0 }: { group: TaskGroupType;
       </div>
 
       {/* Task list */}
-      <div className="px-2 pb-2">
+      <div className="px-3 pb-3">
         {group.items.map((item, i) => (
           <TaskItemRow key={item.id} item={item} index={i} />
         ))}
