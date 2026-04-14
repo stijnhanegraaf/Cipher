@@ -46,7 +46,7 @@ const fontFamily = {
   inter: "'Inter Variable', 'SF Pro Display', -apple-system, system-ui, sans-serif",
 };
 
-const viewComponents: Record<ViewType, React.ComponentType<{ data: any; view: ViewModel }>> = {
+const viewComponents: Record<ViewType, React.ComponentType<{ data: any; view: ViewModel; onToggle?: (itemId: string, checked: boolean) => void }>> = {
   current_work: CurrentWorkView,
   entity_overview: EntityOverviewView,
   topic_overview: TopicOverviewView,
@@ -106,9 +106,10 @@ interface ViewRendererProps {
   view: ViewModel;
   index?: number;
   onNavigate?: (path: string) => void;
+  onToggle?: (itemId: string, checked: boolean) => void;
 }
 
-export function ViewRenderer({ view, index = 0, onNavigate }: ViewRendererProps) {
+export function ViewRenderer({ view, index = 0, onNavigate, onToggle }: ViewRendererProps) {
   const Component = viewComponents[view.type];
 
   if (!Component) {
@@ -205,7 +206,7 @@ export function ViewRenderer({ view, index = 0, onNavigate }: ViewRendererProps)
 
       {/* View content */}
       <div className="px-7 py-7">
-        <Component data={view.data} view={view} />
+        <Component data={view.data} view={view} onToggle={view.type === "current_work" ? onToggle : undefined} />
       </div>
 
       {/* Sources footer */}

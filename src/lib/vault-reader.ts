@@ -55,6 +55,7 @@ export interface CheckboxItem {
   text: string;
   checked: boolean;
   indent: number;
+  lineIndex: number;
 }
 
 export interface KeyValuePairs {
@@ -214,13 +215,15 @@ export function getSectionsByPrefix(file: ParsedFile, prefix: string): Section[]
 
 export function parseCheckboxes(text: string): CheckboxItem[] {
   const items: CheckboxItem[] = [];
-  for (const line of text.split("\n")) {
-    const match = line.match(/^(\s*)-\s*\[([ xX])\]\s*(.+)/);
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const match = lines[i].match(/^(\s*)-\s*\[([ xX])\]\s*(.+)/);
     if (match) {
       items.push({
         text: match[3].trim(),
         checked: match[2] !== " ",
         indent: match[1].length,
+        lineIndex: i,
       });
     }
   }

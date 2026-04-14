@@ -163,12 +163,20 @@ export async function buildCurrentWork(): Promise<ViewModel> {
         const checkboxes = parseCheckboxes(section.body);
         if (checkboxes.length === 0) continue;
 
+        // Compute absolute line offset: find the heading line in the file, body starts on next line
+        const fileLines = openFile.content.split("\n");
+        const headingLineIndex = fileLines.findIndex((l) =>
+          l.trim() === "### " + section.heading
+        );
+        const sectionStartLine = headingLineIndex >= 0 ? headingLineIndex + 1 : 0;
+
         const items: TaskItem[] = checkboxes.map((cb) => ({
           id: uid("task"),
           text: stripLinks(cb.text),
           status: inferTaskStatus(cb.checked, cb.text),
           priority: inferPriority(cb.text),
           links: extractLinksFromCheckbox(cb.text),
+          lineIndex: sectionStartLine + cb.lineIndex,
         }));
 
         groups.push({ label: section.heading, items });
@@ -185,6 +193,7 @@ export async function buildCurrentWork(): Promise<ViewModel> {
           status: inferTaskStatus(cb.checked, cb.text),
           priority: inferPriority(cb.text),
           links: extractLinksFromCheckbox(cb.text),
+          lineIndex: cb.lineIndex,
         }));
         groups.push({ label: "Active Work", items });
       }
@@ -204,6 +213,7 @@ export async function buildCurrentWork(): Promise<ViewModel> {
             text: stripLinks(cb.text),
             status: "blocked" as const,
             links: extractLinksFromCheckbox(cb.text),
+            lineIndex: cb.lineIndex,
           })),
       });
     }
