@@ -145,11 +145,27 @@ export function SystemStatusView({ data, view }: { data: SystemStatusData; view:
           Checks
         </h3>
         {status.checks.length === 0 ? (
-          <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-8">
+          <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-16">
+            <motion.svg
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 0.3, scale: 1 }}
+              transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+              width={48}
+              height={48}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#62666d"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ marginBottom: 16 }}
+            >
+              <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </motion.svg>
             <p
-              className="text-[15px]"
+              className="text-[14px]"
               style={{
-                color: "#8a8f98",
+                color: "#62666d",
                 fontFamily: fontFamily.inter,
                 fontFeatureSettings: '"cv01", "ss03"',
                 lineHeight: 1.6,

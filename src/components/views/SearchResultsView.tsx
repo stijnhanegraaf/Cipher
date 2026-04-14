@@ -81,22 +81,27 @@ export function SearchResultsView({ data, view }: { data: SearchResultsData; vie
 
       {/* Empty state */}
       {search.results.length === 0 && (
-        <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-12">
-          <svg
-            width={24}
-            height={24}
+        <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-16">
+          <motion.svg
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 0.3, scale: 1 }}
+            transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+            width={48}
+            height={48}
+            viewBox="0 0 24 24"
             fill="none"
             stroke="#62666d"
-            viewBox="0 0 24 24"
             strokeWidth={1.5}
-            style={{ marginBottom: 12 }}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ marginBottom: 16 }}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </motion.svg>
           <p
-            className="text-[15px]"
+            className="text-[14px]"
             style={{
-              color: "#8a8f98",
+              color: "#62666d",
               fontFamily: fontFamily.inter,
               fontFeatureSettings: '"cv01", "ss03"',
               lineHeight: 1.6,

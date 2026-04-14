@@ -400,16 +400,36 @@ export function TaskGroupComponent({ group, index = 0, onToggle, filePath }: { g
       {/* Task list */}
       <div className="px-4 pb-4">
         {group.items.length === 0 ? (
-          <p
-            className="text-[15px] py-4 text-center"
-            style={{
-              color: tokens.text.quaternary,
-              fontFamily: "'Inter Variable', sans-serif",
-              fontFeatureSettings: '"cv01", "ss03"',
-            }}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+            className="flex flex-col items-center justify-center py-12"
           >
-            No items
-          </p>
+            <svg
+              width={32}
+              height={32}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#62666d"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ marginBottom: 8, opacity: 0.3 }}
+            >
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <p
+              className="text-[14px]"
+              style={{
+                color: "#62666d",
+                fontFamily: "'Inter Variable', sans-serif",
+                fontFeatureSettings: '"cv01", "ss03"',
+              }}
+            >
+              No items
+            </p>
+          </motion.div>
         ) : (
           group.items.map((item, i) => (
             <TaskItemRow key={item.id} item={item} index={i} onToggle={onToggle} filePath={filePath} lineIndex={item.lineIndex} />
