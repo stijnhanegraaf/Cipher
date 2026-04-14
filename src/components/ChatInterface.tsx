@@ -64,21 +64,57 @@ const quickActions = [
 // Quick reply pills per view type (A4)
 // ────────────────────────────────────────────────────────────────────
 
-const QUICK_REPLIES: Record<string, string[]> = {
-  current_work: ["Show details", "What's blocked?", "Mark done"],
-  entity_overview: ["Go deeper", "Open in Obsidian"],
-  topic_overview: ["Tell me more", "Show related"],
-  timeline_synthesis: ["Tell me more", "Show related"],
-  system_status: ["Tell me more", "Show related"],
-  search_results: ["Tell me more", "Show related"],
+interface QuickReply {
+  label: string;
+  query: string; // What to actually send — context-rich query
+}
+
+const QUICK_REPLIES: Record<string, (ctx: { title?: string; entityName?: string; sourceFile?: string }) => QuickReply[]> = {
+  current_work: (ctx) => [
+    { label: "Show details", query: `show details for ${ctx.title || "current work"}` },
+    { label: "What's blocked?", query: "what's blocked or waiting for" },
+    { label: "Mark done", query: "mark done" },
+  ],
+  entity_overview: (ctx) => [
+    { label: "Go deeper", query: `tell me more about ${ctx.entityName || ctx.title || "this"}` },
+    { label: "Open in Obsidian", query: `open ${ctx.entityName || ctx.title || ""} in obsidian` },
+  ],
+  topic_overview: (ctx) => [
+    { label: "Tell me more", query: `tell me more about ${ctx.title || "this topic"}` },
+    { label: "Show related", query: `show related to ${ctx.title || "this"}` },
+  ],
+  timeline_synthesis: (ctx) => [
+    { label: "Tell me more", query: `more details on ${ctx.title || "timeline"}` },
+    { label: "Show related", query: `what's related to ${ctx.title || "this"}` },
+  ],
+  system_status: (ctx) => [
+    { label: "Tell me more", query: `more about ${ctx.title || "system status"}` },
+    { label: "Show related", query: `open loops and issues` },
+  ],
+  search_results: (ctx) => [
+    { label: "Tell me more", query: `tell me more about ${ctx.title || "these results"}` },
+    { label: "Show related", query: `find more about ${ctx.title || "this"}` },
+  ],
+  browse_entities: () => [
+    { label: "Show projects", query: "show me my projects" },
+    { label: "Show research", query: "show me my research" },
+  ],
+  browse_projects: () => [
+    { label: "Show entities", query: "show me my entities" },
+    { label: "Show research", query: "show me my research" },
+  ],
+  browse_research: () => [
+    { label: "Show entities", query: "show me my entities" },
+    { label: "Show projects", query: "show me my projects" },
+  ],
 };
 
-function getQuickReplies(views: ViewModel[]): string[] {
+function getQuickReplies(views: ViewModel[], entityName?: string): QuickReply[] {
   if (views.length === 0) return [];
-  // Return pills for the primary (first) view type
-  const primaryType = views[0].type;
-  const replies = QUICK_REPLIES[primaryType] || ["Tell me more", "Show related"];
-  return replies;
+  const primary = views[0];
+  const builder = QUICK_REPLIES[primary.type];
+  if (!builder) return [{ label: "Tell me more", query: `tell me more about ${primary.title || "this"}` }];
+  return builder({ title: primary.title, entityName, sourceFile: primary.sourceFile });
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -885,16 +921,16 @@ export function ChatInterface() {
                               marginTop: 12,
                             }}
                           >
-                            {getQuickReplies(msg.response.response.views).map((reply) => (
+                            {getQuickReplies(msg.response.response.views, msg.response.request?.entityName).map((reply) => (
                               <motion.button
-                                key={reply}
+                                key={reply.label}
                                 whileHover={{
                                   backgroundColor: "rgba(255,255,255,0.06)",
                                   borderColor: "rgba(255,255,255,0.14)",
                                   scale: 1.02,
                                 }}
                                 whileTap={{ scale: 0.97 }}
-                                onClick={() => handleSubmit(reply)}
+                                onClick={() => handleSubmit(reply.query)}
                                 style={{
                                   display: "inline-flex",
                                   alignItems: "center",
@@ -912,7 +948,7 @@ export function ChatInterface() {
                                   transition: "background-color 0.15s, border-color 0.15s",
                                 }}
                               >
-                                {reply}
+                                {reply.label}
                               </motion.button>
                             ))}
                           </motion.div>

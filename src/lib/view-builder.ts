@@ -31,6 +31,7 @@ import {
   getEntityIndex,
   getProjectIndex,
   getResearchProjects,
+  getJournalIndex,
   searchVault,
   resolveLink,
   listVaultFiles,
@@ -1048,6 +1049,60 @@ function inferSuggestedViews(query: string): { intent: Intent; label: string }[]
   return suggestions;
 }
 
+// ─── Browse Index ─────────────────────────────────────────────────────
+
+export async function buildBrowseIndex(
+  indexType: "entities" | "projects" | "research"
+): Promise<ViewModel> {
+  const [entityFiles, projectFiles, researchDirs] = await Promise.all([
+    getEntityIndex(),
+    getProjectIndex(),
+    getResearchProjects(),
+  ]);
+
+  const titles: Record<string, string> = {
+    entities: "Entities",
+    projects: "Projects",
+    research: "Research Projects",
+  };
+
+  let items: import("./view-models").IndexEntry[] = [];
+  let researchItems: import("./view-models").ResearchProject[] | undefined;
+
+  switch (indexType) {
+    case "entities":
+      items = entityFiles;
+      break;
+    case "projects":
+      items = projectFiles;
+      break;
+    case "research":
+      researchItems = researchDirs;
+      items = researchDirs.map((d) => ({
+        name: d.name,
+        path: `${d.dir}/executive-summary.md`,
+      }));
+      break;
+  }
+
+  const data: import("./view-models").BrowseIndexData = {
+    indexType,
+    items,
+    researchItems,
+  };
+
+  return {
+    type: indexType === "entities" ? "browse_entities" : indexType === "projects" ? "browse_projects" : "browse_research",
+    viewId: uid("view_browse"),
+    title: titles[indexType],
+    layout: "stack",
+    data,
+    sources: [],
+    actions: [],
+    meta: { confidence: 0.95, freshness: "fresh", generatedAt: new Date().toISOString(), primarySourceCount: items.length },
+  };
+}
+
 // ─── Build by view type ──────────────────────────────────────────────
 
 export async function buildView(
@@ -1068,5 +1123,11 @@ export async function buildView(
       return buildTopicOverview(query);
     case "search_results":
       return buildSearchResults(query || "");
+    case "browse_entities":
+      return buildBrowseIndex("entities");
+    case "browse_projects":
+      return buildBrowseIndex("projects");
+    case "browse_research":
+      return buildBrowseIndex("research");
   }
 }
