@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, readFile } from "fs/promises";
+import { writeFile, readFile, mkdir } from "fs/promises";
 import { join } from "path";
 
-// POST /api/vault — set vault path in .env.local
+// POST /api/vault — set vault path
 export async function POST(request: NextRequest) {
   try {
     const { path: vaultPath } = await request.json();
 
     if (!vaultPath || typeof vaultPath !== "string") {
       return NextResponse.json({ error: "Path required" }, { status: 400 });
+    }
+
+    // Validate the path exists
+    const { existsSync } = require("fs");
+    if (!existsSync(vaultPath)) {
+      return NextResponse.json({ error: "Path does not exist", path: vaultPath }, { status: 400 });
     }
 
     // Write VAULT_PATH to .env.local
@@ -21,7 +27,6 @@ export async function POST(request: NextRequest) {
       // File doesn't exist yet
     }
 
-    // Replace or add VAULT_PATH line
     const lines = envContent.split("\n").filter((l) => !l.startsWith("VAULT_PATH="));
     lines.push(`VAULT_PATH=${vaultPath}`);
 
@@ -38,4 +43,33 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// GET /api/vault — check current vault config
+export async function GET() {
+  const envPath = join(process.cwd(), ".env.local");
+  let configuredPath = "";
+  let envExists = false;
+
+  try {
+    const envContent = await readFile(envPath, "utf-8");
+    envExists = true;
+    const match = envContent.match(/^VAULT_PATH=(.+)$/m);
+    if (match) configuredPath = match[1].trim();
+  } catch {
+    // no .env.local
+  }
+
+  const { existsSync } = require("fs");
+  const autoDetect = process.env.VAULT_PATH || "";
+  const activePath = configuredPath || autoDetect;
+  const connected = activePath ? existsSync(activePath) : false;
+
+  return NextResponse.json({
+    configuredPath,
+    autoDetectPath: autoDetect,
+    activePath,
+    connected,
+    envExists,
+  });
 }
