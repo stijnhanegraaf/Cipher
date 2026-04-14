@@ -382,8 +382,60 @@ export function ChatInterface() {
                       No Obsidian vault connected
                     </p>
                     <p style={{ fontSize: 13, color: "#8a8f98", margin: 0, textAlign: "center" }}>
-                      Set VAULT_PATH in <code style={{ fontFamily: '"Berkeley Mono", ui-monospace, monospace', fontSize: 12, background: "rgba(255,255,255,0.04)", padding: "2px 6px", borderRadius: 4 }}>.env.local</code> or place your Obsidian folder next to this project.
+                      Enter the path to your Obsidian vault folder below.
                     </p>
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const form = e.currentTarget;
+                        const pathInput = (form.elements[0] as HTMLInputElement).value.trim();
+                        if (!pathInput) return;
+                        const res = await fetch("/api/vault", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ path: pathInput }),
+                        });
+                        if (res.ok) {
+                          setVaultPath(pathInput);
+                          setVaultConnected(true);
+                        }
+                      }}
+                      style={{ display: "flex", gap: 8, width: "100%" }}
+                    >
+                      <input
+                        type="text"
+                        placeholder="/path/to/your/Obsidian"
+                        style={{
+                          flex: 1,
+                          padding: "8px 12px",
+                          borderRadius: 6,
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          background: "rgba(255,255,255,0.02)",
+                          color: colors.secondaryText,
+                          fontSize: 13,
+                          fontFamily: '"Berkeley Mono", ui-monospace, monospace',
+                          fontFeatureSettings: '"cv01", "ss03"',
+                          outline: "none",
+                        }}
+                      />
+                      <button
+                        type="submit"
+                        style={{
+                          padding: "8px 16px",
+                          borderRadius: 6,
+                          border: "none",
+                          background: colors.brandIndigo,
+                          color: "#fff",
+                          fontSize: 13,
+                          fontWeight: 510,
+                          cursor: "pointer",
+                          fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+                          fontFeatureSettings: '"cv01", "ss03"',
+                        }}
+                      >
+                        Connect
+                      </button>
+                    </form>
                   </motion.div>
                 )}
                 {vaultConnected === true && (
