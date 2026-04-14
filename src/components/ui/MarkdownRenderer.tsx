@@ -34,6 +34,7 @@ const fontFamily = {
 interface MarkdownRendererProps {
   content: string;
   className?: string;
+  onNavigate?: (path: string) => void;
 }
 
 // ─── Wiki-link preprocessor ────────────────────────────────────────
@@ -47,9 +48,36 @@ function preprocessWikiLinks(markdown: string): string {
   });
 }
 
-export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
+// Variant that uses vault:// URLs instead of obsidian:// URLs
+// so the link component can intercept clicks and call onNavigate
+function preprocessWikiLinksDataAttr(markdown: string): string {
+  return markdown.replace(/\[\[([^\]]+)\]\]/g, (_match, linkText: string) => {
+    const url = `vault://${linkText}`;
+    return `[${linkText}](${url})`;
+  });
+}
+
+// ─── Helper: extract text content from React children for heading IDs ──
+function textToId(children: React.ReactNode): string {
+  let text = "";
+  React.Children.forEach(children, (child) => {
+    if (typeof child === "string") text += child;
+    else if (typeof child === "number") text += child;
+    else if (React.isValidElement(child)) text += textToId((child.props as { children?: React.ReactNode }).children);
+  });
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRendererProps) {
   // Preprocess wiki links before passing to react-markdown
-  const processedContent = useMemo(() => preprocessWikiLinks(content), [content]);
+  // When onNavigate is provided, use vault:// URLs instead of obsidian://
+  const processedContent = useMemo(
+    () =>
+      onNavigate
+        ? preprocessWikiLinksDataAttr(content)
+        : preprocessWikiLinks(content),
+    [content, onNavigate]
+  );
 
   return (
     <div className={`markdown-content ${className || ""}`}>
@@ -57,101 +85,125 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
         remarkPlugins={[remarkGfm]}
         components={{
           // ── Headings ──
-          h1: ({ children }) => (
-            <h1
-              style={{
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
-                fontSize: "1.5rem", // 24px — heading-2
-                fontWeight: 400,
-                lineHeight: 1.33,
-                letterSpacing: "-0.288px",
-                color: tokens.text.primary,
-                margin: "32px 0 12px",
-              }}
-            >
-              {children}
-            </h1>
-          ),
-          h2: ({ children }) => (
-            <h2
-              style={{
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
-                fontSize: "1.5rem", // 24px
-                fontWeight: 400,
-                lineHeight: 1.33,
-                letterSpacing: "-0.288px",
-                color: tokens.text.primary,
-                margin: "28px 0 10px",
-              }}
-            >
-              {children}
-            </h2>
-          ),
-          h3: ({ children }) => (
-            <h3
-              style={{
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
-                fontSize: "1.25rem", // 20px
-                fontWeight: 590,
-                lineHeight: 1.33,
-                letterSpacing: "-0.24px",
-                color: tokens.text.primary,
-                margin: "24px 0 8px",
-              }}
-            >
-              {children}
-            </h3>
-          ),
-          h4: ({ children }) => (
-            <h4
-              style={{
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
-                fontSize: "1.0625rem", // 17px
-                fontWeight: 590,
-                lineHeight: 1.6,
-                color: tokens.text.primary,
-                margin: "20px 0 6px",
-              }}
-            >
-              {children}
-            </h4>
-          ),
-          h5: ({ children }) => (
-            <h5
-              style={{
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
-                fontSize: "0.9375rem", // 15px
-                fontWeight: 590,
-                lineHeight: 1.6,
-                letterSpacing: "-0.165px",
-                color: tokens.text.primary,
-                margin: "16px 0 4px",
-              }}
-            >
-              {children}
-            </h5>
-          ),
-          h6: ({ children }) => (
-            <h6
-              style={{
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
-                fontSize: "0.8125rem", // 13px
-                fontWeight: 590,
-                lineHeight: 1.5,
-                letterSpacing: "-0.13px",
-                color: tokens.text.tertiary,
-                margin: "16px 0 4px",
-              }}
-            >
-              {children}
-            </h6>
-          ),
+          h1: ({ children }) => {
+            const id = `heading-${textToId(children)}`;
+            return (
+              <h1
+                id={id}
+                style={{
+                  fontFamily: fontFamily.inter,
+                  fontFeatureSettings: '"cv01", "ss03"',
+                  fontSize: "1.5rem", // 24px — heading-2
+                  fontWeight: 400,
+                  lineHeight: 1.33,
+                  letterSpacing: "-0.288px",
+                  color: tokens.text.primary,
+                  margin: "32px 0 12px",
+                }}
+              >
+                {children}
+              </h1>
+            );
+          },
+          h2: ({ children }) => {
+            const id = `heading-${textToId(children)}`;
+            return (
+              <h2
+                id={id}
+                style={{
+                  fontFamily: fontFamily.inter,
+                  fontFeatureSettings: '"cv01", "ss03"',
+                  fontSize: "1.5rem", // 24px
+                  fontWeight: 400,
+                  lineHeight: 1.33,
+                  letterSpacing: "-0.288px",
+                  color: tokens.text.primary,
+                  margin: "28px 0 10px",
+                }}
+              >
+                {children}
+              </h2>
+            );
+          },
+          h3: ({ children }) => {
+            const id = `heading-${textToId(children)}`;
+            return (
+              <h3
+                id={id}
+                style={{
+                  fontFamily: fontFamily.inter,
+                  fontFeatureSettings: '"cv01", "ss03"',
+                  fontSize: "1.25rem", // 20px
+                  fontWeight: 590,
+                  lineHeight: 1.33,
+                  letterSpacing: "-0.24px",
+                  color: tokens.text.primary,
+                  margin: "24px 0 8px",
+                }}
+              >
+                {children}
+              </h3>
+            );
+          },
+          h4: ({ children }) => {
+            const id = `heading-${textToId(children)}`;
+            return (
+              <h4
+                id={id}
+                style={{
+                  fontFamily: fontFamily.inter,
+                  fontFeatureSettings: '"cv01", "ss03"',
+                  fontSize: "1.0625rem", // 17px
+                  fontWeight: 590,
+                  lineHeight: 1.6,
+                  color: tokens.text.primary,
+                  margin: "20px 0 6px",
+                }}
+              >
+                {children}
+              </h4>
+            );
+          },
+          h5: ({ children }) => {
+            const id = `heading-${textToId(children)}`;
+            return (
+              <h5
+                id={id}
+                style={{
+                  fontFamily: fontFamily.inter,
+                  fontFeatureSettings: '"cv01", "ss03"',
+                  fontSize: "0.9375rem", // 15px
+                  fontWeight: 590,
+                  lineHeight: 1.6,
+                  letterSpacing: "-0.165px",
+                  color: tokens.text.primary,
+                  margin: "16px 0 4px",
+                }}
+              >
+                {children}
+              </h5>
+            );
+          },
+          h6: ({ children }) => {
+            const id = `heading-${textToId(children)}`;
+            return (
+              <h6
+                id={id}
+                style={{
+                  fontFamily: fontFamily.inter,
+                  fontFeatureSettings: '"cv01", "ss03"',
+                  fontSize: "0.8125rem", // 13px
+                  fontWeight: 590,
+                  lineHeight: 1.5,
+                  letterSpacing: "-0.13px",
+                  color: tokens.text.tertiary,
+                  margin: "16px 0 4px",
+                }}
+              >
+                {children}
+              </h6>
+            );
+          },
 
           // ── Paragraph ──
           p: ({ children }) => (
@@ -193,13 +245,64 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
           // ── Links ── (handles both regular links and wiki-link-converted links)
           a: ({ href, children }) => {
             const isObsidianLink = href?.startsWith("obsidian://");
+            const isVaultLink = href?.startsWith("vault://");
+            const isWikiLink = isObsidianLink || isVaultLink;
+
+            // For vault:// links with onNavigate, intercept the click
+            if (isVaultLink && onNavigate && href) {
+              const vaultPath = decodeURIComponent(href.replace("vault://", ""));
+              return (
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onNavigate(vaultPath);
+                  }}
+                  style={{
+                    color: tokens.brand.violet,
+                    textDecoration: "none",
+                    borderBottom: "1px solid transparent",
+                    transition: "border-color 0.15s, color 0.15s",
+                    fontFamily: fontFamily.inter,
+                    fontFeatureSettings: '"cv01", "ss03"',
+                    cursor: "pointer",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderBottomColor = tokens.brand.violet;
+                    e.currentTarget.style.color = tokens.brand.hover;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderBottomColor = "transparent";
+                    e.currentTarget.style.color = tokens.brand.violet;
+                  }}
+                >
+                  <svg
+                    style={{
+                      display: "inline-block",
+                      width: 12,
+                      height: 12,
+                      marginRight: 3,
+                      verticalAlign: "-1px",
+                    }}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  {children}
+                </a>
+              );
+            }
+
             return (
               <a
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  color: isObsidianLink ? tokens.brand.violet : tokens.brand.violet,
+                  color: tokens.brand.violet,
                   textDecoration: "none",
                   borderBottom: "1px solid transparent",
                   transition: "border-color 0.15s, color 0.15s",
@@ -215,7 +318,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                   e.currentTarget.style.color = tokens.brand.violet;
                 }}
               >
-                {isObsidianLink && (
+                {isWikiLink && (
                   <svg
                     style={{
                       display: "inline-block",
@@ -341,8 +444,6 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
             // If there's a language class, it's a code block (handled by pre)
             const isCodeBlock = className && className.startsWith("language-");
             if (isCodeBlock || !className) {
-              // Check if inside <pre> by looking at parent — we handle inline only here
-              // The pre component handles block code
               return (
                 <code
                   style={{

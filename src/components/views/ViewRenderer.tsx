@@ -105,9 +105,10 @@ function getObsidianUrl(path: string): string {
 interface ViewRendererProps {
   view: ViewModel;
   index?: number;
+  onNavigate?: (path: string) => void;
 }
 
-export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
+export function ViewRenderer({ view, index = 0, onNavigate }: ViewRendererProps) {
   const Component = viewComponents[view.type];
 
   if (!Component) {
@@ -213,7 +214,7 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
           className="px-7 pb-5 pt-2"
           style={{ borderTop: `1px solid ${tokens.border.subtle}` }}
         >
-          <SourceList sources={view.sources} />
+          <SourceList sources={view.sources} onNavigate={onNavigate} />
         </div>
       )}
 
@@ -257,9 +258,15 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
         </div>
         {sourceFile && (
           <a
-            href={getObsidianUrl(sourceFile)}
-            target="_blank"
-            rel="noopener noreferrer"
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              if (onNavigate) {
+                onNavigate(sourceFile);
+              } else {
+                window.open(getObsidianUrl(sourceFile), '_blank');
+              }
+            }}
             className="inline-flex items-center gap-1.5 transition-colors duration-200"
             style={{
               color: tokens.text.quaternary,
@@ -268,6 +275,7 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
               letterSpacing: "0.02em",
               textDecoration: "none",
               opacity: 0.7,
+              cursor: "pointer",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = tokens.text.tertiary;
