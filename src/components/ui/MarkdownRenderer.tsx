@@ -712,7 +712,7 @@ export function StatusDot({
       }}
       whileHover={interactive ? { scale: 1.04 } : undefined}
       whileTap={interactive ? { scale: 0.95 } : undefined}
-      animate={{ scale: isDone && interactive ? [1, 1.3, 0.95, 1] : 1 }}
+      animate={{ scale: isDone && interactive ? 1.3 : 1 }}
       transition={springs.bouncy}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
