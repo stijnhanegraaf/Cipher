@@ -200,7 +200,7 @@ export function EntityHeader({ title, kind, summary, whyNow, emoji }: EntityHead
       <div className="flex items-center gap-3">
         {emoji && <span className="text-2xl">{emoji}</span>}
         <h1
-          className="text-[20px] font-[590] tracking-[-0.24px]"
+          className="text-[24px] font-[400] tracking-[-0.288px]"
           style={{
             color: tokens.text.primary,
             fontFamily: "'Inter Variable', sans-serif",
@@ -215,7 +215,7 @@ export function EntityHeader({ title, kind, summary, whyNow, emoji }: EntityHead
       <div
         className="text-[15px] leading-[1.6] tracking-[-0.165px]"
         style={{
-          color: tokens.text.tertiary,
+          color: tokens.text.secondary,
           fontFamily: "'Inter Variable', sans-serif",
           fontFeatureSettings: '"cv01", "ss03"',
         }}
@@ -357,7 +357,7 @@ export function TimelineMini({ items }: { items: TimelineMiniItem[] }) {
             variants={fadeSlideUp}
             initial="hidden"
             animate="show"
-            transition={{ delay: i * 0.05 }}
+            transition={{ delay: i * 0.04 }}
             className="relative flex items-start gap-3"
           >
             {/* Dot on the line */}

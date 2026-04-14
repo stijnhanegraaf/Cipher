@@ -252,20 +252,21 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
 
   return (
     <motion.div
-      initial={{ x: 40, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 40, opacity: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
       style={{
-        position: "absolute",
+        position: "fixed",
         inset: 0,
+        zIndex: 50,
         display: "flex",
         flexDirection: "column",
-        backgroundColor: tokens.bg.marketing,
+        backgroundColor: "#08090a",
         fontFamily: fontFamily.inter,
         fontFeatureSettings: '"cv01", "ss03"',
         color: tokens.text.primary,
-        zIndex: 20,
+        overflow: "hidden",
       }}
     >
       {/* ── Header ────────────────────────────────────────────────────── */}
@@ -273,9 +274,7 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
         style={{
           flexShrink: 0,
           borderBottom: `1px solid ${tokens.border.subtle}`,
-          backgroundColor: "rgba(8,9,10,0.8)",
-          backdropFilter: "blur(24px) saturate(180%)",
-          WebkitBackdropFilter: "blur(24px) saturate(180%)",
+          backgroundColor: "#08090a",
         }}
       >
         <div
@@ -289,38 +288,36 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
             justifyContent: "space-between",
           }}
         >
-          {/* Back button */}
+          {/* Back button — 28px circle */}
           <button
             onClick={onBack}
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 6,
-              background: "transparent",
+              justifyContent: "center",
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.05)",
               border: "none",
               cursor: "pointer",
-              padding: "4px 8px",
-              borderRadius: 6,
               color: tokens.text.tertiary,
               fontFamily: fontFamily.inter,
               fontFeatureSettings: '"cv01", "ss03"',
-              fontSize: 14,
-              fontWeight: 510,
-              letterSpacing: "-0.13px",
-              transition: "color 0.15s, background 0.15s",
+              transition: "background 0.15s, color 0.15s",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = tokens.text.secondary;
-              e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+              e.currentTarget.style.background = "rgba(255,255,255,0.08)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = tokens.text.tertiary;
-              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.background = "rgba(255,255,255,0.05)";
             }}
           >
             <svg
-              width={16}
-              height={16}
+              width={14}
+              height={14}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -330,10 +327,9 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
             >
               <path d="M15 19l-7-7 7-7" />
             </svg>
-            Back
           </button>
 
-          {/* Open in Obsidian */}
+          {/* Open in Obsidian — 11px quaternary, subtle */}
           <a
             href={obsidianUrl}
             target="_blank"
@@ -341,36 +337,24 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 5,
+              gap: 4,
               color: tokens.text.quaternary,
               fontSize: 11,
               fontWeight: 510,
               letterSpacing: "0.02em",
               textDecoration: "none",
-              opacity: 0.7,
+              opacity: 0.5,
               fontFamily: fontFamily.inter,
               fontFeatureSettings: '"cv01", "ss03"',
-              transition: "color 0.15s, opacity 0.15s",
+              transition: "opacity 0.15s",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = tokens.text.tertiary;
               e.currentTarget.style.opacity = "1";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = tokens.text.quaternary;
-              e.currentTarget.style.opacity = "0.7";
+              e.currentTarget.style.opacity = "0.5";
             }}
           >
-            <svg
-              width={12}
-              height={12}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
             Open in Obsidian
           </a>
         </div>
@@ -391,7 +375,7 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
           style={{
             maxWidth: showToc ? 720 + 200 : 720,
             margin: "0 auto",
-            padding: "0 24px 80px",
+            padding: "0 32px 80px",
             display: showToc ? "flex" : "block",
             gap: 48,
           }}
@@ -406,23 +390,42 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
                     paddingTop: 160,
-                    gap: 10,
+                    maxWidth: 720,
                   }}
                 >
-                  {[0, 150, 300].map((delay) => (
-                    <span
-                      key={delay}
+                  {/* Title shimmer */}
+                  <div
+                    style={{
+                      width: "60%",
+                      height: 28,
+                      borderRadius: 6,
+                      background: "rgba(255,255,255,0.04)",
+                      animation: "shimmer 2s ease-in-out infinite",
+                    }}
+                  />
+                  {/* Subtitle shimmer */}
+                  <div
+                    style={{
+                      width: "80%",
+                      height: 16,
+                      borderRadius: 4,
+                      marginTop: 16,
+                      background: "rgba(255,255,255,0.03)",
+                      animation: "shimmer 2s ease-in-out infinite 0.3s",
+                    }}
+                  />
+                  {/* Content shimmer lines */}
+                  {["90%", "70%", "85%"].map((w, i) => (
+                    <div
+                      key={i}
                       style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: "50%",
-                        backgroundColor: tokens.text.quaternary,
-                        animation: "dot-pulse 1.4s ease-in-out infinite",
-                        animationDelay: `${delay}ms`,
+                        width: w,
+                        height: 14,
+                        borderRadius: 4,
+                        marginTop: 12,
+                        background: "rgba(255,255,255,0.02)",
+                        animation: `shimmer 2s ease-in-out infinite ${0.5 + i * 0.15}s`,
                       }}
                     />
                   ))}
@@ -439,10 +442,21 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
                     textAlign: "center" as const,
                   }}
                 >
+                  <svg
+                    width={32}
+                    height={32}
+                    fill="none"
+                    stroke={tokens.text.quaternary}
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    style={{ margin: "0 auto 16px" }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                  </svg>
                   <p
                     style={{
-                      fontSize: 16,
-                      fontWeight: 510,
+                      fontSize: 15,
+                      fontWeight: 400,
                       color: tokens.text.tertiary,
                       fontFamily: fontFamily.inter,
                       fontFeatureSettings: '"cv01", "ss03"',
@@ -455,12 +469,45 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
                       fontSize: 13,
                       color: tokens.text.quaternary,
                       marginTop: 8,
-                      fontFamily: fontFamily.inter,
-                      fontFeatureSettings: '"cv01", "ss03"',
+                      fontFamily: fontFamily.mono,
                     }}
                   >
                     {path}
                   </p>
+                  <button
+                    onClick={() => {
+                      setLoading(true);
+                      setError(null);
+                      // Re-trigger fetch by re-calling effect
+                      // Simple: reload the page for now
+                      window.location.reload();
+                    }}
+                    style={{
+                      marginTop: 16,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 16px",
+                      borderRadius: 6,
+                      fontSize: 13,
+                      fontWeight: 510,
+                      color: tokens.text.secondary,
+                      background: "rgba(255,255,255,0.04)",
+                      border: `1px solid ${tokens.border.standard}`,
+                      cursor: "pointer",
+                      fontFamily: fontFamily.inter,
+                      fontFeatureSettings: '"cv01", "ss03"',
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                    }}
+                  >
+                    Try again
+                  </button>
                 </motion.div>
               )}
 
@@ -605,6 +652,11 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
         @keyframes dot-pulse {
           0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
           40% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes shimmer {
+          0% { opacity: 1; }
+          50% { opacity: 0.4; }
+          100% { opacity: 1; }
         }
       `}</style>
     </motion.div>

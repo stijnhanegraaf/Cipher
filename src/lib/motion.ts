@@ -56,21 +56,21 @@ export const fadeIn: Variants = {
 
 /** Slide up + fade — the workhorse entrance, 0.3s */
 export const fadeSlideUp: Variants = {
-  hidden: { opacity: 0, y: 8 },
+  hidden: { opacity: 0, y: 12 },
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.3, ease: ease.linear },
+    transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] },
   },
 };
 
 /** Slide down + fade — for elements entering from top */
 export const fadeSlideDown: Variants = {
-  hidden: { opacity: 0, y: -8 },
+  hidden: { opacity: 0, y: -12 },
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.3, ease: ease.linear },
+    transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] },
   },
 };
 
@@ -80,13 +80,13 @@ export const scaleIn: Variants = {
   show: {
     opacity: 1,
     scale: 1,
-    transition: { duration: 0.3, ease: ease.linear },
+    transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] },
   },
 };
 
 /** Stagger container + item — wrap parent with stagger.container */
 export const stagger = {
-  container: (staggerDelay: number = 0.05): Variants => ({
+  container: (staggerDelay: number = 0.04): Variants => ({
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
@@ -97,11 +97,11 @@ export const stagger = {
     },
   }),
   item: {
-    hidden: { opacity: 0, y: 8 },
+    hidden: { opacity: 0, y: 12 },
     show: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.3, ease: ease.linear },
+      transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] },
     },
   } as Variants,
 };

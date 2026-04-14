@@ -44,7 +44,7 @@ export function SearchResultsView({ data, view }: { data: SearchResultsData; vie
 
   return (
     <motion.div
-      variants={stagger.container(0.06)}
+      variants={stagger.container(0.04)}
       initial="hidden"
       animate="show"
       className="space-y-8"
@@ -78,6 +78,34 @@ export function SearchResultsView({ data, view }: { data: SearchResultsData; vie
         </span>
         <Badge variant="outline">{search.results.length} results</Badge>
       </motion.div>
+
+      {/* Empty state */}
+      {search.results.length === 0 && (
+        <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-12">
+          <svg
+            width={24}
+            height={24}
+            fill="none"
+            stroke="#62666d"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            style={{ marginBottom: 12 }}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <p
+            className="text-[15px]"
+            style={{
+              color: "#8a8f98",
+              fontFamily: fontFamily.inter,
+              fontFeatureSettings: '"cv01", "ss03"',
+              lineHeight: 1.6,
+            }}
+          >
+            No results found for this query.
+          </p>
+        </motion.div>
+      )}
 
       {/* Grouped results */}
       {kindOrder.map((kind) => {

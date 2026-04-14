@@ -22,7 +22,7 @@ export function CurrentWorkView({ data, view }: { data: CurrentWorkData; view: a
 
   return (
     <motion.div
-      variants={stagger.container(0.08)}
+      variants={stagger.container(0.04)}
       initial="hidden"
       animate="show"
       className="space-y-8"
@@ -37,11 +37,38 @@ export function CurrentWorkView({ data, view }: { data: CurrentWorkData; view: a
       )}
 
       {/* Task groups */}
-      {workData.groups.map((group, i) => (
-        <motion.div key={i} variants={stagger.item}>
-          <TaskGroupComponent group={group} index={i} />
+      {workData.groups.length === 0 ? (
+        <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-12">
+          <svg
+            width={24}
+            height={24}
+            fill="none"
+            stroke="#62666d"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            style={{ marginBottom: 12 }}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+          <p
+            className="text-[15px]"
+            style={{
+              color: "#8a8f98",
+              fontFamily: "'Inter Variable', sans-serif",
+              fontFeatureSettings: '"cv01", "ss03"',
+              lineHeight: 1.6,
+            }}
+          >
+            No tasks to show right now.
+          </p>
         </motion.div>
-      ))}
+      ) : (
+        workData.groups.map((group, i) => (
+          <motion.div key={i} variants={stagger.item}>
+            <TaskGroupComponent group={group} index={i} />
+          </motion.div>
+        ))
+      )}
 
       {/* Period links */}
       {workData.periodLinks && (
@@ -49,7 +76,7 @@ export function CurrentWorkView({ data, view }: { data: CurrentWorkData; view: a
           {workData.periodLinks.week && (
             <a
               href="#"
-              className="inline-flex items-center gap-1.5 text-[14px] font-[510] transition-colors duration-150 hover:brightness-125"
+              className="inline-flex items-center gap-1.5 text-[13px] font-[510] transition-colors duration-150 hover:brightness-125"
               style={{
                 color: tokens.brand.violet,
                 fontFamily: "'Inter Variable', sans-serif",
@@ -57,7 +84,7 @@ export function CurrentWorkView({ data, view }: { data: CurrentWorkData; view: a
               }}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
               {workData.periodLinks.week.label}
             </a>
@@ -65,7 +92,7 @@ export function CurrentWorkView({ data, view }: { data: CurrentWorkData; view: a
           {workData.periodLinks.month && (
             <a
               href="#"
-              className="inline-flex items-center gap-1.5 text-[14px] font-[510] transition-colors duration-150 hover:brightness-125"
+              className="inline-flex items-center gap-1.5 text-[13px] font-[510] transition-colors duration-150 hover:brightness-125"
               style={{
                 color: tokens.brand.violet,
                 fontFamily: "'Inter Variable', sans-serif",
@@ -73,7 +100,7 @@ export function CurrentWorkView({ data, view }: { data: CurrentWorkData; view: a
               }}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
               {workData.periodLinks.month.label}
             </a>
