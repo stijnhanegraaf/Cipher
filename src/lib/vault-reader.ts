@@ -4,7 +4,20 @@
 import { readFile, stat, readdir } from "fs/promises";
 import { join, sep } from "path";
 
-const VAULT_PATH = process.env.VAULT_PATH || "/root/.openclaw/workspace/Obsidian";
+const VAULT_PATH = process.env.VAULT_PATH ||
+  // Auto-detect: sibling Obsidian directory or common locations
+  (() => {
+    const candidates = [
+      join(process.cwd(), '..', 'Obsidian'),
+      join(process.cwd(), 'Obsidian'),
+      join(process.cwd(), '..', 'obsidian'),
+      '/root/.openclaw/workspace/Obsidian',
+    ];
+    // Sync check — only used at module load, not in request path
+    const { existsSync } = require('fs');
+    const found = candidates.find(p => { try { return existsSync(p); } catch { return false; } });
+    return found || candidates[3]; // fallback to VPS path
+  })();
 
 // ─── Types ────────────────────────────────────────────────────────────
 
