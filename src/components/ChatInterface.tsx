@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { ResponseEnvelope, ViewType, CurrentWorkData, ViewModel } from "@/lib/view-models";
 import { USE_REAL_DATA, fetchRealData } from "@/lib/mock-data";
 import { getMockResponse } from "@/lib/mock-data";
@@ -445,7 +445,8 @@ export function ChatInterface() {
         position: "relative",
       }}
     >
-      <AnimatePresence>
+      <LayoutGroup>
+      <AnimatePresence mode="wait">
         {detailPath && (
           <DetailPage
             key={detailPath}
@@ -455,6 +456,7 @@ export function ChatInterface() {
           />
         )}
       </AnimatePresence>
+      </LayoutGroup>
       {/* ── Header ────────────────────────────────────────────────── */}
       <header
         style={{
@@ -476,7 +478,7 @@ export function ChatInterface() {
             justifyContent: "space-between",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {/* Brain icon */}
             <div
               style={{
@@ -770,7 +772,7 @@ export function ChatInterface() {
           </AnimatePresence>
 
           {/* ── Message list ────────────────────────────────────────── */}
-          <div style={{ paddingTop: 40, paddingBottom: 40 }}>
+          <div style={{ paddingTop: 32, paddingBottom: 32 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               {messages.map((msg) => (
                 <motion.div
@@ -929,7 +931,7 @@ export function ChatInterface() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4, transition: { duration: 0.15 } }}
                     transition={{ duration: 0.25 }}
-                    style={{ display: "flex", alignItems: "center", gap: 10 }}
+                    style={{ display: "flex", alignItems: "center", gap: 8 }}
                   >
                     <div
                       style={{

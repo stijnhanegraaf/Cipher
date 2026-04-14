@@ -156,7 +156,7 @@ export function ViewRenderer({ view, index = 0, onNavigate, onToggle }: ViewRend
       {/* View header */}
       {(view.title || view.subtitle) && (
         <div
-          className="px-7 pt-7 pb-4"
+          className="px-6 pt-6 pb-2"
           style={{ borderBottom: `1px solid ${tokens.border.subtle}` }}
         >
           <div className="flex items-start justify-between gap-3">
@@ -172,7 +172,8 @@ export function ViewRenderer({ view, index = 0, onNavigate, onToggle }: ViewRend
               </div>
               <div className="min-w-0">
                 {view.title && (
-                  <h2
+                  <motion.h2
+                    layoutId={`view-card-${view.viewId}`}
                     className="text-[20px] font-[590] tracking-[-0.24px]"
                     style={{
                       color: tokens.text.primary,
@@ -182,7 +183,7 @@ export function ViewRenderer({ view, index = 0, onNavigate, onToggle }: ViewRend
                     }}
                   >
                     {view.title}
-                  </h2>
+                  </motion.h2>
                 )}
                 {view.subtitle && (
                   <p
@@ -208,14 +209,14 @@ export function ViewRenderer({ view, index = 0, onNavigate, onToggle }: ViewRend
       )}
 
       {/* View content */}
-      <div className="px-7 py-7">
+      <div className="px-6 py-6">
         <Component data={view.data} view={view} onToggle={view.type === "current_work" ? onToggle : undefined} />
       </div>
 
       {/* Sources footer */}
       {view.sources && view.sources.length > 0 && (
         <div
-          className="px-7 pb-5 pt-2"
+          className="px-6 pb-4 pt-2"
           style={{ borderTop: `1px solid ${tokens.border.subtle}` }}
         >
           <SourceList sources={view.sources} onNavigate={onNavigate} />
@@ -225,7 +226,7 @@ export function ViewRenderer({ view, index = 0, onNavigate, onToggle }: ViewRend
       {/* Actions footer */}
       {view.actions && view.actions.length > 0 && (
         <div
-          className="px-7 pb-5 pt-2"
+          className="px-6 pb-4 pt-2"
           style={{ borderTop: `1px solid ${tokens.border.subtle}` }}
         >
           <ActionBar actions={view.actions} />
@@ -234,7 +235,7 @@ export function ViewRenderer({ view, index = 0, onNavigate, onToggle }: ViewRend
 
       {/* Meta footer — confidence, timestamp, and "Open in Obsidian" link */}
       <div
-        className="px-7 pb-5 pt-2 flex items-center justify-between"
+        className="px-6 pb-4 pt-2 flex items-center justify-between"
         style={{
           fontFamily: fontFamily.inter,
           fontFeatureSettings: '"cv01", "ss03"',

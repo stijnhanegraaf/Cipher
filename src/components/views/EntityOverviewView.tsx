@@ -68,22 +68,27 @@ export function EntityOverviewView({ data, view }: { data: EntityOverviewData; v
 
       {/* Empty state */}
       {!hasContent && (
-        <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-12">
-          <svg
-            width={24}
-            height={24}
+        <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-16">
+          <motion.svg
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 0.3, scale: 1 }}
+            transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+            width={48}
+            height={48}
+            viewBox="0 0 24 24"
             fill="none"
             stroke="#62666d"
-            viewBox="0 0 24 24"
             strokeWidth={1.5}
-            style={{ marginBottom: 12 }}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ marginBottom: 16 }}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-          </svg>
+            <path d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.16m0 .16l-.004-.16m.004.16v-.16m0 .16l-.004-.16M9.004 19.128a9.38 9.38 0 01-2.625.372 9.337 9.337 0 01-4.121-.952 4.125 4.125 0 017.533-2.493M9.004 19.128v-.16m0 .16l.004-.16m-.004.16v-.16m0 .16l.004-.16M12 8.25a5.25 5.25 0 11-10.5 0 5.25 5.25 0 0110.5 0z" />
+          </motion.svg>
           <p
-            className="text-[15px]"
+            className="text-[14px]"
             style={{
-              color: "#8a8f98",
+              color: "#62666d",
               fontFamily: "'Inter Variable', sans-serif",
               fontFeatureSettings: '"cv01", "ss03"',
               lineHeight: 1.6,

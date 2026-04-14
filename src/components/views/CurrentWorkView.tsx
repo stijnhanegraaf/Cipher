@@ -38,22 +38,27 @@ export function CurrentWorkView({ data, view, onToggle }: { data: CurrentWorkDat
 
       {/* Task groups */}
       {workData.groups.length === 0 ? (
-        <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-12">
-          <svg
-            width={24}
-            height={24}
+        <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-16">
+          <motion.svg
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 0.3, scale: 1 }}
+            transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+            width={48}
+            height={48}
+            viewBox="0 0 24 24"
             fill="none"
             stroke="#62666d"
-            viewBox="0 0 24 24"
             strokeWidth={1.5}
-            style={{ marginBottom: 12 }}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ marginBottom: 16 }}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-          </svg>
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </motion.svg>
           <p
-            className="text-[15px]"
+            className="text-[14px]"
             style={{
-              color: "#8a8f98",
+              color: "#62666d",
               fontFamily: "'Inter Variable', sans-serif",
               fontFeatureSettings: '"cv01", "ss03"',
               lineHeight: 1.6,

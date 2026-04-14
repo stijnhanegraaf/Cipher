@@ -100,7 +100,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                   lineHeight: 1.33,
                   letterSpacing: "-0.288px",
                   color: tokens.text.primary,
-                  margin: "32px 0 12px",
+                  margin: "32px 0 16px",
                 }}
               >
                 {children}
@@ -120,7 +120,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                   lineHeight: 1.33,
                   letterSpacing: "-0.288px",
                   color: tokens.text.primary,
-                  margin: "28px 0 10px",
+                  margin: "32px 0 16px",
                 }}
               >
                 {children}
@@ -218,7 +218,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 lineHeight: 1.6,
                 letterSpacing: "-0.165px",
                 color: tokens.text.secondary,
-                margin: "0 0 12px",
+                margin: "0 0 16px",
               }}
             >
               {children}
