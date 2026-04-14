@@ -1,0 +1,58 @@
+import { NextRequest, NextResponse } from "next/server";
+import { readFile, writeFile } from "fs/promises";
+import { join } from "path";
+
+// Vault path resolution
+function getVaultPath(): string {
+  return process.env.VAULT_PATH || "/root/.openclaw/workspace/Obsidian";
+}
+
+// POST /api/toggle — toggle a checkbox in a vault file
+export async function POST(request: NextRequest) {
+  try {
+    const { path: relPath, lineIndex, checked } = await request.json();
+
+    if (!relPath || typeof lineIndex !== "number") {
+      return NextResponse.json({ error: "path and lineIndex required" }, { status: 400 });
+    }
+
+    const absPath = join(getVaultPath(), relPath);
+    let content: string;
+
+    try {
+      content = await readFile(absPath, "utf-8");
+    } catch {
+      return NextResponse.json({ error: "File not found", path: relPath }, { status: 404 });
+    }
+
+    const lines = content.split("\n");
+    const line = lines[lineIndex];
+
+    if (!line) {
+      return NextResponse.json({ error: "Line index out of range" }, { status: 400 });
+    }
+
+    if (checked) {
+      // Change - [ ] to - [x]
+      lines[lineIndex] = line.replace(/- \[ \]/, "- [x]");
+    } else {
+      // Change - [x] to - [ ]
+      lines[lineIndex] = line.replace(/- \[x\]/i, "- [ ]");
+    }
+
+    await writeFile(absPath, lines.join("\n"), "utf-8");
+
+    return NextResponse.json({
+      success: true,
+      path: relPath,
+      lineIndex,
+      checked,
+      line: lines[lineIndex],
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to toggle checkbox", detail: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
+}

@@ -598,22 +598,27 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
 
 // ─── Checkbox rendering helper ────────────────────────────────────────
 // Renders Obsidian-style checkboxes: checked = filled circle, unchecked = empty circle
-export function CheckboxIndicator({ checked }: { checked: boolean }) {
+export function CheckboxIndicator({ checked, onChange }: { checked: boolean; onChange?: () => void }) {
   return (
     <span
+      onClick={onChange ? (e) => { e.preventDefault(); e.stopPropagation(); onChange(); } : undefined}
       style={{
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        width: 16,
-        height: 16,
+        width: 18,
+        height: 18,
         borderRadius: "50%",
         border: checked ? "none" : "1.5px solid rgba(255,255,255,0.2)",
         backgroundColor: checked ? tokens.brand.indigo : "transparent",
         flexShrink: 0,
         marginRight: 8,
-        transition: "background-color 0.15s, border-color 0.15s",
+        transition: "background-color 0.15s, border-color 0.15s, transform 0.1s",
+        cursor: onChange ? "pointer" : "default",
+        ...(onChange ? { transform: "scale(1)" } : {}),
       }}
+      onMouseEnter={onChange ? (e) => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.4)"; } : undefined}
+      onMouseLeave={onChange ? (e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.borderColor = "1.5px solid rgba(255,255,255,0.2)"; } : undefined}
     >
       {checked && (
         <svg
