@@ -25,6 +25,8 @@ export type Intent =
   | "browse_entities"
   | "browse_projects"
   | "browse_research"
+  | "system_detail"
+  | "knowledge_topic"
   | "mixed";
 
 export type Mode = "text" | "structured" | "mixed";

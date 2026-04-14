@@ -292,6 +292,44 @@ const CONVERSATIONAL_PATTERNS: { patterns: RegExp[]; match: PatternMatch }[] = [
       confidence: 0.92,
     },
   },
+  // Direct work file navigation
+  {
+    patterns: [
+      /(?:show|view|open) (?:my )?(?:open tasks|open work|current work)/i,
+      /(?:show|view|open) work/i,
+    ],
+    match: {
+      intent: "current_work",
+      viewType: "current_work",
+      files: ["wiki/work/open.md", "wiki/work/waiting-for.md"],
+      confidence: 0.95,
+    },
+  },
+  // Direct system file navigation
+  {
+    patterns: [
+      /(?:show|view|open) system (.+)/i,
+      /(?:show|view|open) (?:the )?(?:architecture|roadmap|router|performance|health|cron|agents?|brain|status|open.loops)/i,
+    ],
+    match: {
+      intent: "system_detail",
+      viewType: "search_results",
+      files: [],
+      confidence: 0.90,
+    },
+  },
+  // Knowledge/topic navigation
+  {
+    patterns: [
+      /(?:tell me about|show|view|open) (?:my )?(?:llm|obsidian|tebi|relationship|search)/i,
+    ],
+    match: {
+      intent: "knowledge_topic",
+      viewType: "topic_overview",
+      files: [],
+      confidence: 0.90,
+    },
+  },
 ];
 
 // ─── Entity type aliases ─────────────────────────────────────────────
