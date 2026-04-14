@@ -68,10 +68,23 @@ export function ChatInterface() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [detailPath, setDetailPath] = useState<string | null>(null);
+  const [vaultConnected, setVaultConnected] = useState<boolean | null>(null);
+  const [vaultPath, setVaultPath] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
+
+  // Check vault connection on mount
+  useEffect(() => {
+    fetch("/api/query")
+      .then((r) => r.json())
+      .then((data) => {
+        setVaultConnected(data.vault?.connected ?? false);
+        setVaultPath(data.vault?.path ?? "");
+      })
+      .catch(() => setVaultConnected(false));
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -343,6 +356,56 @@ export function ChatInterface() {
                   Ask about your work, systems, people, or projects.
                   I&apos;ll find the right view.
                 </motion.p>
+
+                {/* ── Vault connection status ───────────────────────── */}
+                {vaultConnected === false && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3, duration: 0.3 }}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 12,
+                      marginBottom: 32,
+                      padding: "16px 24px",
+                      borderRadius: 12,
+                      background: "rgba(245,158,11,0.06)",
+                      border: "1px solid rgba(245,158,11,0.15)",
+                      maxWidth: 440,
+                      fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+                      fontFeatureSettings: '"cv01", "ss03"',
+                    }}
+                  >
+                    <p style={{ fontSize: 13, fontWeight: 510, color: "#f59e0b", margin: 0 }}>
+                      No Obsidian vault connected
+                    </p>
+                    <p style={{ fontSize: 13, color: "#8a8f98", margin: 0, textAlign: "center" }}>
+                      Set VAULT_PATH in <code style={{ fontFamily: '"Berkeley Mono", ui-monospace, monospace', fontSize: 12, background: "rgba(255,255,255,0.04)", padding: "2px 6px", borderRadius: 4 }}>.env.local</code> or place your Obsidian folder next to this project.
+                    </p>
+                  </motion.div>
+                )}
+                {vaultConnected === true && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3, duration: 0.3 }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      marginBottom: 32,
+                      fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+                      fontFeatureSettings: '"cv01", "ss03"',
+                    }}
+                  >
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} />
+                    <span style={{ fontSize: 11, fontWeight: 510, color: "#62666d", letterSpacing: "0.02em" }}>
+                      Vault connected
+                    </span>
+                  </motion.div>
+                )}
 
                 {/* ── Quick-action pills ─────────────────────────────── */}
                 <motion.div
