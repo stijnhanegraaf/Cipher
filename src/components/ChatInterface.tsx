@@ -819,6 +819,39 @@ export function ChatInterface() {
                       No open tasks
                     </div>
                   )}
+                  {/* View all CTA */}
+                  {openTasks.length > 0 && (
+                    <motion.button
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.15, duration: 0.2 }}
+                      onClick={() => handleSubmit("What am I working on?")}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        marginTop: 8,
+                        padding: "4px 0",
+                        background: "transparent",
+                        border: "none",
+                        color: colors.brandIndigo,
+                        fontSize: 13,
+                        fontWeight: 510,
+                        letterSpacing: -0.1,
+                        cursor: "pointer",
+                        fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+                        fontFeatureSettings: '"cv01", "ss03"',
+                        transition: "opacity 0.15s",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.7"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+                    >
+                      View all open tasks
+                      <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </motion.button>
+                  )}
                 </motion.div>
 
                 {/* ── Vault connection (if not connected) ────────── */}
