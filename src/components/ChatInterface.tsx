@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
-import { ResponseEnvelope, ViewType, CurrentWorkData, ViewModel } from "@/lib/view-models";
+import { ResponseEnvelope, ViewType, CurrentWorkData, ViewModel, TaskItem } from "@/lib/view-models";
 import { USE_REAL_DATA, fetchRealData } from "@/lib/mock-data";
 import { getMockResponse } from "@/lib/mock-data";
 import { detectIntent, detectToggleIntent } from "@/lib/intent-detector";
@@ -181,6 +181,9 @@ export function ChatInterface() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [revealedMessages, setRevealedMessages] = useState<Set<string>>(new Set());
+  const [openTasks, setOpenTasks] = useState<TaskItem[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(true);
+  const [recentQueries, setRecentQueries] = useState<string[]>([]);
 
   // Check vault connection on mount
   useEffect(() => {
@@ -191,6 +194,37 @@ export function ChatInterface() {
         setVaultPath(data.vault?.path ?? "");
       })
       .catch(() => setVaultConnected(false));
+  }, []);
+
+  // Fetch open tasks for home view
+  useEffect(() => {
+    fetch("/api/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "current work" }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.response?.views) {
+          for (const view of data.response.views) {
+            if (view.type === "current_work" && view.data?.groups) {
+              const items = view.data.groups.flatMap((g: any) => g.items).filter((i: TaskItem) => i.status !== "done");
+              setOpenTasks(items.slice(0, 5));
+              break;
+            }
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingTasks(false));
+  }, []);
+
+  // Read recent queries from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("cipher-recent");
+      if (stored) setRecentQueries(JSON.parse(stored));
+    } catch {}
   }, []);
 
   const scrollToBottom = useCallback(() => {
@@ -393,6 +427,15 @@ export function ChatInterface() {
     }
 
     setShowWelcome(false);
+
+    // Store recent query
+    try {
+      const stored = localStorage.getItem("cipher-recent");
+      const recent: string[] = stored ? JSON.parse(stored) : [];
+      const updated = [userMessage, ...recent.filter((q: string) => q !== userMessage)].slice(0, 5);
+      localStorage.setItem("cipher-recent", JSON.stringify(updated));
+      setRecentQueries(updated);
+    } catch {}
     const userMsg: Message = {
       id: `msg_${Date.now()}_user`,
       role: "user",
@@ -632,86 +675,259 @@ export function ChatInterface() {
             {showWelcome && (
               <motion.div
                 key="welcome"
-                variants={fadeSlideUp}
-                initial="hidden"
-                animate="show"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 exit={{ opacity: 0, y: -12, transition: { duration: 0.2 } }}
-                transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+                transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  justifyContent: "center",
-                  paddingTop: 200,
+                  paddingTop: 48,
                   paddingBottom: 64,
+                  maxWidth: 560,
+                  margin: "0 auto",
+                  width: "100%",
                 }}
               >
-                {/* ── Cipher headline ──────────────────────────────── */}
-                <motion.h1
-                  initial={{ opacity: 0, y: 12 }}
+                {/* ── Header ──────────────────────────────────────── */}
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+                  transition={{ delay: 0, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
                   style={{
-                    fontSize: 64,
-                    fontWeight: 510,
-                    letterSpacing: -1.408,
-                    lineHeight: 1.0,
-                    color: colors.primaryText,
-                    fontFeatureSettings: '"cv01", "ss03"',
-                    margin: 0,
-                    marginBottom: 16,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    marginBottom: 4,
+                    alignSelf: "flex-start",
+                    width: "100%",
                   }}
                 >
-                  Cipher
-                </motion.h1>
-
-                {/* ── Tagline ──────────────────────────────────────── */}
+                  <div
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 6,
+                      background: colors.brandIndigo,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0110 0v4" />
+                    </svg>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 510,
+                      letterSpacing: -0.3,
+                      color: colors.primaryText,
+                      fontFeatureSettings: '"cv01", "ss03"',
+                    }}
+                  >
+                    Cipher
+                  </span>
+                </motion.div>
                 <motion.p
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+                  transition={{ delay: 0.04, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
                   style={{
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: 400,
                     lineHeight: 1.5,
                     color: colors.tertiaryText,
                     fontFeatureSettings: '"cv01", "ss03"',
-                    textAlign: "center",
-                    maxWidth: 400,
                     margin: 0,
-                    marginBottom: 48,
+                    marginBottom: 28,
+                    alignSelf: "flex-start",
                   }}
                 >
                   Ask about your work, systems, people, or projects.
-                  I&apos;ll find the right view.
                 </motion.p>
 
-                {/* ── Vault connection status ───────────────────────── */}
+                {/* ── Open tasks ─────────────────────────────────── */}
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.08, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+                  style={{
+                    width: "100%",
+                    marginBottom: 24,
+                    alignSelf: "flex-start",
+                    fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+                    fontFeatureSettings: '"cv01", "ss03"',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 510,
+                      color: colors.tertiaryText,
+                      letterSpacing: 0.5,
+                      textTransform: "uppercase",
+                      marginBottom: 10,
+                    }}
+                  >
+                    Open
+                  </div>
+                  {loadingTasks ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {[0, 1, 2].map((i) => (
+                        <div
+                          key={i}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            padding: "8px 0",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 16,
+                              height: 16,
+                              borderRadius: 4,
+                              background: colors.level3,
+                            border: `1px solid ${colors.borderStandard}`,
+                            flexShrink: 0,
+                            animation: "skeleton-pulse 1.5s ease-in-out infinite",
+                              animationDelay: `${i * 0.15}s`,
+                            opacity: 0.4,
+                            alignSelf: "center",
+                            marginTop: 1,
+                            }}
+                          />
+                          <div
+                            style={{
+                              height: 14,
+                              width: `${60 + i * 15}%`,
+                              borderRadius: 4,
+                              background: colors.level3,
+                              animation: "skeleton-pulse 1.5s ease-in-out infinite",
+                              animationDelay: `${i * 0.15}s`,
+                              opacity: 0.4,
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : openTasks.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      {openTasks.map((task) => (
+                        <motion.button
+                          key={task.id}
+                          whileHover={{ backgroundColor: "rgba(255,255,255,0.03)" }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => handleSubmit(`show details for ${task.text}`)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            padding: "7px 8px",
+                            margin: "0 -8px",
+                            borderRadius: 6,
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            width: "calc(100% + 16px)",
+                            textAlign: "left",
+                            fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+                            fontFeatureSettings: '"cv01", "ss03"',
+                            transition: "background-color 0.15s",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 16,
+                              height: 16,
+                              borderRadius: 4,
+                              background: task.status === "done" ? colors.brandIndigo : "transparent",
+                              border: `1.5px solid ${task.status === "done" ? colors.brandIndigo : colors.quaternaryText}`,
+                              flexShrink: 0,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              marginTop: 1,
+                            }}
+                          >
+                            {task.status === "done" && (
+                              <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M20 6L9 17l-5-5" />
+                              </svg>
+                            )}
+                          </div>
+                          <span
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 400,
+                              lineHeight: 1.4,
+                              color: colors.primaryText,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              flex: 1,
+                            }}
+                          >
+                            {task.text.length > 60 ? task.text.slice(0, 57) + "..." : task.text}
+                          </span>
+                          {task.priority && task.priority !== "low" && (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 510,
+                                color: task.priority === "high" ? "#f87171" : colors.tertiaryText,
+                                background: task.priority === "high" ? "rgba(248,113,113,0.1)" : colors.level3,
+                                padding: "2px 6px",
+                                borderRadius: 4,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {task.priority}
+                            </span>
+                          )}
+                        </motion.button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        fontSize: 13,
+                        color: colors.quaternaryText,
+                        padding: "8px 0",
+                      }}
+                    >
+                      No open tasks
+                    </div>
+                  )}
+                </motion.div>
+
+                {/* ── Vault connection (if not connected) ────────── */}
                 {vaultConnected === false && (
                   <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3, duration: 0.3 }}
+                    transition={{ delay: 0.16, duration: 0.3 }}
                     style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 12,
-                      marginBottom: 32,
-                      padding: "16px 24px",
-                      borderRadius: 12,
+                      width: "100%",
+                      marginBottom: 24,
+                      padding: "16px 20px",
+                      borderRadius: 8,
                       background: "rgba(245,158,11,0.06)",
                       border: "1px solid rgba(245,158,11,0.15)",
-                      maxWidth: 440,
                       fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
                       fontFeatureSettings: '"cv01", "ss03"',
                     }}
                   >
-                    <p style={{ fontSize: 13, fontWeight: 510, color: "#f59e0b", margin: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 510, color: "#f59e0b", margin: 0, marginBottom: 4 }}>
                       No Obsidian vault connected
                     </p>
-                    <p style={{ fontSize: 13, color: "#8a8f98", margin: 0, textAlign: "center" }}>
-                      Enter the path to your Obsidian vault folder below.
+                    <p style={{ fontSize: 13, color: "#8a8f98", margin: 0, marginBottom: 12 }}>
+                      Enter the path to your Obsidian vault folder.
                     </p>
                     <form
                       onSubmit={async (e) => {
@@ -769,14 +985,15 @@ export function ChatInterface() {
                 )}
                 {vaultConnected === true && (
                   <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3, duration: 0.3 }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.16, duration: 0.3 }}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       gap: 6,
-                      marginBottom: 32,
+                      marginBottom: 24,
+                      width: "100%",
                       fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
                       fontFeatureSettings: '"cv01", "ss03"',
                     }}
@@ -788,54 +1005,159 @@ export function ChatInterface() {
                   </motion.div>
                 )}
 
-                {/* ── Quick-action pills ─────────────────────────────── */}
+                {/* ── Shortcuts ──────────────────────────────────── */}
                 <motion.div
-                  variants={stagger.container(0.04)}
-                  initial="hidden"
-                  animate="show"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.24, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
                   style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 8,
-                    justifyContent: "center",
-                    maxWidth: 520,
-                    marginTop: 24,
-                    paddingBottom: 32,
+                    width: "100%",
+                    marginBottom: 24,
+                    fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+                    fontFeatureSettings: '"cv01", "ss03"',
                   }}
                 >
-                  {quickActions.map((action) => (
-                    <motion.button
-                      key={action.intent}
-                      variants={stagger.item}
-                      whileHover={{
-                        backgroundColor: "rgba(255,255,255,0.06)",
-                        borderColor: "rgba(255,255,255,0.14)",
-                        scale: 1.02,
-                      }}
-                      whileTap={{ scale: 0.97 }}
-                      onClick={() => handleSubmit(action.label)}
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 510,
+                      color: colors.tertiaryText,
+                      letterSpacing: 0.5,
+                      textTransform: "uppercase",
+                      marginBottom: 10,
+                    }}
+                  >
+                    Shortcuts
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 8,
+                    }}
+                  >
+                    {[
+                      { label: "Current Work", icon: (
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                      ), query: "What matters now" },
+                      { label: "System Status", icon: (
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                      ), query: "System health" },
+                      { label: "Tebi", icon: (
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                      ), query: "About Tebi" },
+                      { label: "Timeline", icon: (
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ), query: "What changed this month" },
+                      { label: "Browse Vault", icon: (
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" />
+                        </svg>
+                      ), query: "Browse vault" },
+                      { label: "Search", icon: (
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      ), query: "Search review prep" },
+                    ].map((shortcut, i) => (
+                      <motion.button
+                        key={shortcut.label}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.28 + i * 0.04, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+                        whileHover={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)" }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => handleSubmit(shortcut.query)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "10px 12px",
+                          borderRadius: 8,
+                          border: `1px solid ${colors.borderStandard}`,
+                          background: colors.level3,
+                          color: colors.secondaryText,
+                          cursor: "pointer",
+                          fontSize: 13,
+                          fontWeight: 510,
+                          fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+                          fontFeatureSettings: '"cv01", "ss03"',
+                          transition: "background-color 0.15s, border-color 0.15s",
+                        }}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", color: colors.tertiaryText }}>{shortcut.icon}</span>
+                        {shortcut.label}
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
+
+                {/* ── Recent ─────────────────────────────────────── */}
+                {recentQueries.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+                    style={{
+                      width: "100%",
+                      fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+                      fontFeatureSettings: '"cv01", "ss03"',
+                    }}
+                  >
+                    <div
                       style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 0,
-                        padding: "12px 22px",
-                        borderRadius: 9999,
-                        fontSize: 14,
+                        fontSize: 11,
                         fontWeight: 510,
-                        letterSpacing: "-0.13",
-                        lineHeight: 1.5,
-                        color: colors.secondaryText,
-                        backgroundColor: "rgba(255,255,255,0.02)",
-                        border: `1px solid ${colors.pillBorder}`,
-                        cursor: "pointer",
-                        fontFeatureSettings: '"cv01", "ss03"',
-                        transition: "background-color 0.2s, border-color 0.2s, transform 0.15s",
+                        color: colors.tertiaryText,
+                        letterSpacing: 0.5,
+                        textTransform: "uppercase",
+                        marginBottom: 8,
                       }}
                     >
-                      {action.label}
-                    </motion.button>
-                  ))}
-                </motion.div>
+                      Recent
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      {recentQueries.map((query, i) => (
+                        <motion.button
+                          key={i}
+                          whileHover={{ backgroundColor: "rgba(255,255,255,0.03)" }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => handleSubmit(query)}
+                          style={{
+                            display: "block",
+                            padding: "6px 8px",
+                            margin: "0 -8px",
+                            borderRadius: 4,
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            fontSize: 13,
+                            fontWeight: 400,
+                            lineHeight: 1.4,
+                            color: colors.secondaryText,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+                            fontFeatureSettings: '"cv01", "ss03"',
+                            transition: "background-color 0.15s",
+                          }}
+                        >
+                          {query}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -1148,6 +1470,10 @@ export function ChatInterface() {
         @keyframes dot-pulse {
           0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
           40% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes skeleton-pulse {
+          0%, 100% { opacity: 0.15; }
+          50% { opacity: 0.35; }
         }
         textarea::placeholder {
           color: #8a8f98;
