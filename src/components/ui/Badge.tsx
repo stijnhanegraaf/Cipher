@@ -485,7 +485,7 @@ interface SourceItem {
   relevance?: string;
 }
 
-export function SourceList({ sources }: { sources: SourceItem[] }) {
+export function SourceList({ sources, onNavigate }: { sources: SourceItem[]; onNavigate?: (path: string) => void }) {
   return (
     <div>
       <p
@@ -500,9 +500,9 @@ export function SourceList({ sources }: { sources: SourceItem[] }) {
       </p>
       <div className="flex flex-wrap gap-1.5">
         {sources.map((source, i) => (
-          <motion.a
+          <motion.button
             key={i}
-            href="#"
+            onClick={() => onNavigate?.(source.path)}
             variants={fadeSlideUp}
             initial="hidden"
             animate="show"
@@ -514,6 +514,7 @@ export function SourceList({ sources }: { sources: SourceItem[] }) {
               color: tokens.text.tertiary,
               fontFamily: "'Inter Variable', sans-serif",
               fontFeatureSettings: '"cv01", "ss03"',
+              cursor: onNavigate ? "pointer" : "default",
             }}
           >
             <svg className="w-3 h-3 shrink-0" style={{ color: tokens.text.quaternary }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -523,7 +524,7 @@ export function SourceList({ sources }: { sources: SourceItem[] }) {
             {source.relevance === "high" && (
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: tokens.brand.indigo }} />
             )}
-          </motion.a>
+          </motion.button>
         ))}
       </div>
     </div>

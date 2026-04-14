@@ -8,6 +8,7 @@ import { getMockResponse } from "@/lib/mock-data";
 import { detectIntent } from "@/lib/intent-detector";
 import { ViewRenderer } from "@/components/views/ViewRenderer";
 import { MarkdownRenderer } from "@/components/ui";
+import { DetailPage } from "@/components/DetailPage";
 import { fadeSlideUp, stagger } from "@/lib/motion";
 
 // ────────────────────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ export function ChatInterface() {
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [detailPath, setDetailPath] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -173,8 +175,19 @@ export function ChatInterface() {
         fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
         fontFeatureSettings: '"cv01", "ss03"',
         color: colors.primaryText,
+        position: "relative",
       }}
     >
+      <AnimatePresence>
+        {detailPath && (
+          <DetailPage
+            key={detailPath}
+            path={detailPath}
+            onBack={() => setDetailPath(null)}
+            onNavigate={setDetailPath}
+          />
+        )}
+      </AnimatePresence>
       {/* ── Header ────────────────────────────────────────────────── */}
       <header
         style={{
@@ -437,12 +450,12 @@ export function ChatInterface() {
                             marginBottom: 24,
                           }}
                         >
-                          <MarkdownRenderer content={msg.content} />
+                          <MarkdownRenderer content={msg.content} onNavigate={setDetailPath} />
                         </motion.div>
                       )}
                       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                         {msg.response?.response.views.map((view, viewIndex) => (
-                          <ViewRenderer key={view.viewId} view={view} index={viewIndex} />
+                          <ViewRenderer key={view.viewId} view={view} index={viewIndex} onNavigate={setDetailPath} />
                         ))}
                       </div>
                     </div>
