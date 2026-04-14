@@ -83,6 +83,7 @@ const sectionIcons: Record<string, React.ReactNode> = {
 export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDrawerProps) {
   const [sections, setSections] = useState<VaultSection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (open) {
@@ -94,7 +95,6 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDraw
           setLoading(false);
         })
         .catch(() => {
-          // Fallback: fetch old-style data
           fetch("/api/query")
             .then((r) => r.json())
             .then((data) => {
@@ -124,11 +124,14 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDraw
     }
   };
 
+  const toggleSection = (key: string) => {
+    setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   return (
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -142,7 +145,6 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDraw
               zIndex: 40,
             }}
           />
-          {/* Drawer */}
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
@@ -162,7 +164,6 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDraw
               overflow: "hidden",
             }}
           >
-            {/* Header */}
             <div
               style={{
                 display: "flex",
@@ -199,7 +200,6 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDraw
               </button>
             </div>
 
-            {/* Sections */}
             <div
               style={{
                 flex: 1,
@@ -219,99 +219,135 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDraw
                 </div>
               )}
 
-              {sections.map((section, si) => (
-                <div key={section.key}>
-                  {/* Section header */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      padding: "12px 16px 6px",
-                      color: colors.tertiaryText,
-                      fontSize: 11,
-                      fontWeight: 510,
-                      textTransform: "uppercase" as const,
-                      letterSpacing: 0.5,
-                      fontFeatureSettings: '"cv01", "ss03"',
-                    }}
-                  >
-                    {sectionIcons[section.key] || sectionIcons.entities}
-                    {section.label}
-                    <span style={{ opacity: 0.5, fontSize: 10 }}>{section.items.length}</span>
-                  </div>
-
-                  {/* Items */}
-                  {section.items.map((item, i) => (
-                    <motion.button
-                      key={item.path + item.name}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: si * 0.05 + i * 0.02, duration: 0.2 }}
-                      onClick={() => {
-                        if (section.key === "entities" || section.key === "projects" || section.key === "research") {
-                          onNavigate(queryFor(section.key, item));
-                        } else {
-                          onOpenFile(item.path);
-                        }
-                        onClose();
-                      }}
+              {sections.map((section, si) => {
+                const isCollapsed = collapsed[section.key];
+                return (
+                  <div key={section.key}>
+                    <button
+                      onClick={() => toggleSection(section.key)}
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "space-between",
+                        gap: 6,
                         width: "100%",
-                        padding: "8px 16px 8px 32px",
+                        padding: "12px 16px 6px",
                         background: "transparent",
                         border: "none",
-                        borderRadius: 4,
-                        cursor: "pointer",
-                        color: colors.primaryText,
-                        fontSize: 13,
-                        fontWeight: 400,
-                        letterSpacing: -0.1,
+                        color: colors.tertiaryText,
+                        fontSize: 11,
+                        fontWeight: 510,
+                        textTransform: "uppercase" as const,
+                        letterSpacing: 0.5,
                         fontFeatureSettings: '"cv01", "ss03"',
+                        cursor: "pointer",
                         fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                        textAlign: "left" as const,
-                        transition: "background-color 0.15s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.04)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "transparent";
+                        transition: "color 0.15s",
                       }}
                     >
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
-                        {item.name}
-                      </span>
-                      {item.type && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            color: colors.tertiaryText,
-                            marginLeft: 8,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {item.type}
-                        </span>
-                      )}
-                    </motion.button>
-                  ))}
+                      {sectionIcons[section.key] || sectionIcons.entities}
+                      {section.label}
+                      <span style={{ opacity: 0.5, fontSize: 10 }}>{section.items.length}</span>
+                      <svg
+                        width={10}
+                        height={10}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2.5}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{
+                          marginLeft: "auto",
+                          transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
+                          transition: "transform 0.15s ease",
+                        }}
+                      >
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </button>
 
-                  {/* Divider between sections */}
-                  {si < sections.length - 1 && (
-                    <div
-                      style={{
-                        height: 1,
-                        backgroundColor: colors.borderSubtle,
-                        margin: "8px 16px",
-                      }}
-                    />
-                  )}
-                </div>
-              ))}
+                    <AnimatePresence initial={false}>
+                      {!isCollapsed && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+                          style={{ overflow: "hidden" }}
+                        >
+                          {section.items.map((item, i) => (
+                            <motion.button
+                              key={item.path + item.name}
+                              initial={{ opacity: 0, y: 4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: i * 0.02, duration: 0.2 }}
+                              onClick={() => {
+                                if (section.key === "entities" || section.key === "projects" || section.key === "research") {
+                                  onNavigate(queryFor(section.key, item));
+                                } else {
+                                  onOpenFile(item.path);
+                                }
+                                onClose();
+                              }}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                width: "100%",
+                                padding: "8px 16px 8px 32px",
+                                background: "transparent",
+                                border: "none",
+                                borderRadius: 4,
+                                cursor: "pointer",
+                                color: colors.primaryText,
+                                fontSize: 13,
+                                fontWeight: 400,
+                                letterSpacing: -0.1,
+                                fontFeatureSettings: '"cv01", "ss03"',
+                                fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+                                textAlign: "left" as const,
+                                transition: "background-color 0.15s",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.04)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = "transparent";
+                              }}
+                            >
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
+                                {item.name}
+                              </span>
+                              {item.type && (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    color: colors.tertiaryText,
+                                    marginLeft: 8,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {item.type}
+                                </span>
+                              )}
+                            </motion.button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {si < sections.length - 1 && (
+                      <div
+                        style={{
+                          height: 1,
+                          backgroundColor: colors.borderSubtle,
+                          margin: "8px 16px",
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </motion.div>
         </>
