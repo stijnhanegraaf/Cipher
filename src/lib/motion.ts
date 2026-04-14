@@ -193,11 +193,11 @@ export const messageSend: Variants = {
 /** E8: Scroll-reveal section fade-in */
 export const scrollReveal: Variants = {
   hidden: { opacity: 0.3, y: 8 },
-  show: {
+  show: (delay: number = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.4, ease: ease.linear },
-  },
+    transition: { duration: 0.4, ease: ease.linear, delay },
+  }),
 };
 
 /* ── Convenience re-exports ────────────────── */

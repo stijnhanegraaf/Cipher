@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useInView } from "framer-motion";
 import { MarkdownRenderer } from "@/components/ui";
+import { scrollReveal, springs } from "@/lib/motion";
 
 // Design tokens (from DESIGN.md)
 const tokens = {
@@ -145,6 +146,25 @@ function TableOfContents({
   );
 }
 
+// ─── ScrollRevealSection (E8) ──────────────────────────────────────────
+function ScrollRevealSection({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const ref = useRef(null);
+  const hasAnimated = useRef(false);
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
+
+  return (
+    <motion.div
+      ref={ref}
+      variants={scrollReveal}
+      initial="hidden"
+      animate={isInView ? "show" : "hidden"}
+      custom={delay}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 // ─── DetailPage component ─────────────────────────────────────────────
 
 export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
@@ -155,6 +175,7 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
   const [editMode, setEditMode] = useState(false);
   const [editContent, setEditContent] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -313,24 +334,41 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
   }, [editContent, saveFile, data]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 50,
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: "#08090a",
-        fontFamily: fontFamily.inter,
-        fontFeatureSettings: '"cv01", "ss03"',
-        color: tokens.text.primary,
-        overflow: "hidden",
-      }}
-    >
+    <>
+      {/* Backdrop overlay */}
+      <motion.div
+        key={`backdrop-${path}`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.6 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 49,
+          backgroundColor: "#000000",
+          pointerEvents: "none",
+        }}
+      />
+      <motion.div
+        key={`panel-${path}`}
+        initial={{ opacity: 0, x: "100%" }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: "100%" }}
+        transition={{ type: "spring", stiffness: 260, damping: 25 }}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+          backgroundColor: "#08090a",
+          fontFamily: fontFamily.inter,
+          fontFeatureSettings: '"cv01", "ss03"',
+          color: tokens.text.primary,
+          overflow: "hidden",
+        }}
+      >
       {/* ── Header ────────────────────────────────────────────────────── */}
       <header
         style={{
@@ -654,6 +692,7 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
                 >
+                  <ScrollRevealSection delay={0}>
                   {/* ── File path breadcrumb ──────────────────────────────── */}
                   <p
                     style={{
@@ -667,7 +706,9 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
                   >
                     {data.path}
                   </p>
+                  </ScrollRevealSection>
 
+                  <ScrollRevealSection delay={0.08}>
                   {/* ── Title ─────────────────────────────────────────────── */}
                   <h1
                     style={{
@@ -683,7 +724,9 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
                   >
                     {data.title}
                   </h1>
+                  </ScrollRevealSection>
 
+                  <ScrollRevealSection delay={0.16}>
                   {/* ── Frontmatter badges ────────────────────────────────── */}
                   {frontmatterBadges.length > 0 && (
                     <div
@@ -741,7 +784,9 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
                       ))}
                     </div>
                   )}
+                  </ScrollRevealSection>
 
+                  <ScrollRevealSection delay={0.24}>
                   {/* ── Divider ─────────────────────────────────────────────── */}
                   <div
                     style={{
@@ -750,7 +795,9 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
                       margin: "24px 0",
                     }}
                   />
+                  </ScrollRevealSection>
 
+                  <ScrollRevealSection delay={0.32}>
                   {/* ── Content: Edit mode or Read mode ─────────────────────── */}
                   <AnimatePresence mode="wait">
                     {editMode ? (
@@ -808,6 +855,7 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
                       </motion.div>
                     )}
                   </AnimatePresence>
+                  </ScrollRevealSection>
 
                   {/* ── Save indicator (shown briefly after save) ────────── */}
                   <AnimatePresence>
@@ -876,5 +924,6 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
         }
       `}</style>
     </motion.div>
+    </>
   );
 }

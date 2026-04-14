@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ResponseEnvelope } from "@/lib/view-models";
+import { ResponseEnvelope, ViewType, CurrentWorkData, ViewModel } from "@/lib/view-models";
 import { USE_REAL_DATA, fetchRealData } from "@/lib/mock-data";
 import { getMockResponse } from "@/lib/mock-data";
-import { detectIntent } from "@/lib/intent-detector";
+import { detectIntent, detectToggleIntent } from "@/lib/intent-detector";
 import { ViewRenderer } from "@/components/views/ViewRenderer";
 import { MarkdownRenderer } from "@/components/ui";
 import { DetailPage } from "@/components/DetailPage";
@@ -20,6 +20,8 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   response?: ResponseEnvelope;
+  /** Track which messages have finished their word-by-word reveal */
+  textRevealed?: boolean;
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -59,6 +61,72 @@ const quickActions = [
 ];
 
 // ────────────────────────────────────────────────────────────────────
+// Quick reply pills per view type (A4)
+// ────────────────────────────────────────────────────────────────────
+
+const QUICK_REPLIES: Record<string, string[]> = {
+  current_work: ["Show details", "What's blocked?", "Mark done"],
+  entity_overview: ["Go deeper", "Open in Obsidian"],
+  topic_overview: ["Tell me more", "Show related"],
+  timeline_synthesis: ["Tell me more", "Show related"],
+  system_status: ["Tell me more", "Show related"],
+  search_results: ["Tell me more", "Show related"],
+};
+
+function getQuickReplies(views: ViewModel[]): string[] {
+  if (views.length === 0) return [];
+  // Return pills for the primary (first) view type
+  const primaryType = views[0].type;
+  const replies = QUICK_REPLIES[primaryType] || ["Tell me more", "Show related"];
+  return replies;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Word-by-word animated text component (A2)
+// ────────────────────────────────────────────────────────────────────
+
+function AnimatedText({ text, onComplete }: { text: string; onComplete?: () => void }) {
+  const words = useMemo(() => text.split(/(\s+)/), [text]);
+  const [revealed, setRevealed] = useState(0);
+
+  useEffect(() => {
+    setRevealed(0);
+    if (words.length === 0) { onComplete?.(); return; }
+    const totalDelay = words.length * 30;
+    const timer = setTimeout(() => {
+      onComplete?.();
+    }, totalDelay + 50);
+    return () => clearTimeout(timer);
+  }, [text]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (revealed < words.length) {
+      const t = setTimeout(() => setRevealed((r) => r + 1), 30);
+      return () => clearTimeout(t);
+    }
+  }, [revealed, words.length]);
+
+  return (
+    <span>
+      {words.map((word, i) => {
+        if (/^\s+$/.test(word)) return <span key={i}>{word}</span>;
+        return (
+          <motion.span
+            key={i}
+            initial={{ opacity: 0, y: 4 }}
+            animate={i < revealed ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            style={{ display: "inline-block" }}
+          >
+            {word}
+          </motion.span>
+        );
+      })}
+    </span>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Component
 // ────────────────────────────────────────────────────────────────────
 
@@ -74,6 +142,7 @@ export function ChatInterface() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [revealedMessages, setRevealedMessages] = useState<Set<string>>(new Set());
 
   // Check vault connection on mount
   useEffect(() => {
@@ -106,15 +175,13 @@ export function ChatInterface() {
     return () => el.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Textarea is fixed height — no auto-resize needed
-
   const handleToggle = async (itemId: string, checked: boolean) => {
     // Find the item in messages, get sourceFile and lineIndex
     for (const msg of messages) {
       if (msg.role !== "assistant" || !msg.response) continue;
       for (const view of msg.response.response.views) {
         if (view.type !== "current_work") continue;
-        const data = view.data as import("@/lib/view-models").CurrentWorkData;
+        const data = view.data as CurrentWorkData;
         for (const group of data.groups) {
           for (const item of group.items) {
             if (item.id !== itemId) continue;
@@ -128,7 +195,7 @@ export function ChatInterface() {
                 const newResponse = { ...m.response };
                 const newViews = newResponse.response.views.map((v) => {
                   if (v.viewId !== view.viewId) return v;
-                  const vData = { ...(v.data as import("@/lib/view-models").CurrentWorkData) };
+                  const vData = { ...(v.data as CurrentWorkData) };
                   vData.groups = vData.groups.map((g) => ({
                     ...g,
                     items: g.items.map((it) =>
@@ -158,7 +225,7 @@ export function ChatInterface() {
                     const newResponse = { ...m.response };
                     const newViews = newResponse.response.views.map((v) => {
                       if (v.viewId !== view.viewId) return v;
-                      const vData = { ...(v.data as import("@/lib/view-models").CurrentWorkData) };
+                      const vData = { ...(v.data as CurrentWorkData) };
                       vData.groups = vData.groups.map((g) => ({
                         ...g,
                         items: g.items.map((it) =>
@@ -181,7 +248,7 @@ export function ChatInterface() {
                   const newResponse = { ...m.response };
                   const newViews = newResponse.response.views.map((v) => {
                     if (v.viewId !== view.viewId) return v;
-                    const vData = { ...(v.data as import("@/lib/view-models").CurrentWorkData) };
+                    const vData = { ...(v.data as CurrentWorkData) };
                     vData.groups = vData.groups.map((g) => ({
                       ...g,
                       items: g.items.map((it) =>
@@ -202,9 +269,90 @@ export function ChatInterface() {
     }
   };
 
+  // ── A3: Natural language todo toggling ──────────────────────────────
+
+  const findTaskInView = (taskName: string): { msgId: string; viewId: string; itemId: string; sourceFile: string; lineIndex: number; itemText: string } | null => {
+    const lower = taskName.toLowerCase();
+    for (const msg of messages) {
+      if (msg.role !== "assistant" || !msg.response) continue;
+      for (const view of msg.response.response.views) {
+        if (view.type !== "current_work") continue;
+        const data = view.data as CurrentWorkData;
+        for (const group of data.groups) {
+          for (const item of group.items) {
+            if (item.status === "done" && lower.includes("done")) continue; // skip already done
+            const itemText = item.text.toLowerCase();
+            // Exact or substring match
+            if (itemText === lower || itemText.includes(lower) || lower.includes(itemText)) {
+              if (item.lineIndex !== undefined && view.sourceFile) {
+                return { msgId: msg.id, viewId: view.viewId, itemId: item.id, sourceFile: view.sourceFile, lineIndex: item.lineIndex, itemText: item.text };
+              }
+            }
+          }
+        }
+      }
+    }
+    return null;
+  };
+
   const handleSubmit = async (query?: string) => {
     const userMessage = query || input.trim();
     if (!userMessage || isProcessing) return;
+
+    // ── A3: Check for toggle intent before sending to AI ──
+    const toggleIntent = detectToggleIntent(userMessage);
+    if (toggleIntent) {
+      const match = findTaskInView(toggleIntent.taskName);
+      if (match) {
+        // Add user message
+        const userMsg: Message = {
+          id: `msg_${Date.now()}_user`,
+          role: "user",
+          content: userMessage,
+        };
+        setMessages((prev) => [...prev, userMsg]);
+
+        // Optimistic toggle
+        const checked = toggleIntent.checked;
+        const newStatus = checked ? "done" as const : "open" as const;
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== match.msgId || !m.response) return m;
+            const newResponse = { ...m.response };
+            const newViews = newResponse.response.views.map((v) => {
+              if (v.viewId !== match.viewId) return v;
+              const vData = { ...(v.data as CurrentWorkData) };
+              vData.groups = vData.groups.map((g) => ({
+                ...g,
+                items: g.items.map((it) =>
+                  it.id === match.itemId ? { ...it, status: newStatus } : it
+                ),
+              }));
+              return { ...v, data: vData };
+            });
+            newResponse.response = { ...newResponse.response, views: newViews };
+            return { ...m, response: newResponse };
+          })
+        );
+
+        // Server request
+        fetch("/api/toggle", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: match.sourceFile, lineIndex: match.lineIndex, checked }),
+        }).catch(() => {});
+
+        // Add confirmation message
+        const confirmMsg: Message = {
+          id: `msg_${Date.now()}_assistant`,
+          role: "assistant",
+          content: checked ? `✓ Marked "${match.itemText}" as done` : `✓ Reopened "${match.itemText}"`,
+        };
+        setMessages((prev) => [...prev, confirmMsg]);
+        return;
+      }
+      // If no match found, fall through to normal AI query
+    }
 
     setShowWelcome(false);
     const userMsg: Message = {
@@ -242,6 +390,7 @@ export function ChatInterface() {
       role: "assistant",
       content: response.response.text || response.response.summary,
       response,
+      textRevealed: false,
     };
 
     setMessages((prev) => [...prev, assistantMsg]);
@@ -269,6 +418,14 @@ export function ChatInterface() {
     setShowWelcome(true);
     setInput("");
     setIsProcessing(false);
+  };
+
+  const handleTextRevealComplete = (msgId: string) => {
+    setRevealedMessages((prev) => {
+      const next = new Set(prev);
+      next.add(msgId);
+      return next;
+    });
   };
 
   // ────────────────────────────────────────────────────────────────
@@ -672,16 +829,92 @@ export function ChatInterface() {
                         </svg>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* A1: Conversational AI text with A2: word-by-word animation */}
                         {msg.content && (
                           <div style={{ marginBottom: 16 }}>
-                            <MarkdownRenderer content={msg.content} onNavigate={setDetailPath} />
+                            <p
+                              style={{
+                                fontSize: 15,
+                                fontWeight: 400,
+                                lineHeight: 1.6,
+                                color: colors.secondaryText,
+                                margin: 0,
+                                fontFeatureSettings: '"cv01", "ss03"',
+                              }}
+                            >
+                              <AnimatedText
+                                text={msg.content}
+                                onComplete={() => handleTextRevealComplete(msg.id)}
+                              />
+                            </p>
                           </div>
                         )}
+                        {/* View cards — animate in after text reveal */}
                         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                          {msg.response?.response.views.map((view, viewIndex) => (
-                            <ViewRenderer key={view.viewId} view={view} index={viewIndex} onNavigate={setDetailPath} onToggle={handleToggle} />
-                          ))}
+                          {msg.response?.response.views.map((view, viewIndex) => {
+                            const isRevealed = revealedMessages.has(msg.id);
+                            return (
+                              <motion.div
+                                key={view.viewId}
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={isRevealed ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+                                transition={{
+                                  type: "spring",
+                                  stiffness: 260,
+                                  damping: 20,
+                                  delay: isRevealed ? viewIndex * 0.08 : 0,
+                                }}
+                              >
+                                <ViewRenderer view={view} index={viewIndex} onNavigate={setDetailPath} onToggle={handleToggle} />
+                              </motion.div>
+                            );
+                          })}
                         </div>
+                        {/* A4: Quick reply pills after views */}
+                        {msg.response && revealedMessages.has(msg.id) && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.2, duration: 0.3 }}
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 6,
+                              marginTop: 12,
+                            }}
+                          >
+                            {getQuickReplies(msg.response.response.views).map((reply) => (
+                              <motion.button
+                                key={reply}
+                                whileHover={{
+                                  backgroundColor: "rgba(255,255,255,0.06)",
+                                  borderColor: "rgba(255,255,255,0.14)",
+                                  scale: 1.02,
+                                }}
+                                whileTap={{ scale: 0.97 }}
+                                onClick={() => handleSubmit(reply)}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  padding: "6px 14px",
+                                  borderRadius: 9999,
+                                  fontSize: 13,
+                                  fontWeight: 510,
+                                  letterSpacing: "-0.13",
+                                  lineHeight: 1.5,
+                                  color: colors.tertiaryText,
+                                  backgroundColor: "rgba(255,255,255,0.02)",
+                                  border: `1px solid ${colors.pillBorder}`,
+                                  cursor: "pointer",
+                                  fontFeatureSettings: '"cv01", "ss03"',
+                                  transition: "background-color 0.15s, border-color 0.15s",
+                                }}
+                              >
+                                {reply}
+                              </motion.button>
+                            ))}
+                          </motion.div>
+                        )}
                       </div>
                     </div>
                   )}
