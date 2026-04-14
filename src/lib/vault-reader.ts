@@ -10,16 +10,25 @@ import { join } from "path";
 
 const VAULT_PATH = process.env.VAULT_PATH ||
   (() => {
+    const homedir = require('os').homedir();
     const candidates = [
+      // Sibling of project dir (most common local setup)
       join(process.cwd(), '..', 'Obsidian'),
       join(process.cwd(), 'Obsidian'),
       join(process.cwd(), '..', 'obsidian'),
+      // Common Mac locations
+      join(homedir, 'Obsidian'),
+      join(homedir, 'Documents', 'Obsidian'),
+      join(homedir, 'Projects', 'Obsidian'),
+      join(homedir, 'Developer', 'Obsidian'),
+      join(homedir, 'repos', 'Obsidian'),
+      join(homedir, 'src', 'Obsidian'),
+      // Workspace paths
       '/root/.openclaw/workspace/Obsidian',
     ];
-    // Sync check — only used at module load
     const { existsSync } = require('fs');
     const found = candidates.find(p => { try { return existsSync(p); } catch { return false; } });
-    return found || candidates[3];
+    return found || candidates[candidates.length - 1];
   })();
 
 export function getVaultPath(): string {

@@ -93,13 +93,7 @@ export function ChatInterface() {
     return () => el.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Auto-resize textarea
-  useEffect(() => {
-    const el = inputRef.current;
-    if (!el) return;
-    el.style.height = "24px";
-    el.style.height = Math.min(el.scrollHeight, 150) + "px";
-  }, [input]);
+  // Textarea is fixed height — no auto-resize needed
 
   const handleSubmit = async (query?: string) => {
     const userMessage = query || input.trim();
@@ -115,7 +109,7 @@ export function ChatInterface() {
     setInput("");
     setIsProcessing(true);
 
-    if (inputRef.current) inputRef.current.style.height = "24px";
+    if (inputRef.current) inputRef.current.value = "";
 
     let response: ResponseEnvelope;
 
@@ -572,8 +566,8 @@ export function ChatInterface() {
                   color: colors.primaryText,
                   fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
                   fontFeatureSettings: '"cv01", "ss03"',
-                  minHeight: 24,
-                  maxHeight: 150,
+                  height: 48,
+                  overflowY: "auto",
                 }}
               />
               <button

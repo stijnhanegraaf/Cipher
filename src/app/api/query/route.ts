@@ -14,10 +14,16 @@ export async function GET() {
       getResearchProjects(),
     ]);
 
+    const { getVaultPath } = await import("@/lib/vault-reader");
+    const vaultPath = getVaultPath();
+    const { existsSync } = require('fs');
+    const vaultConnected = existsSync(vaultPath);
+
     return NextResponse.json({
       version: "v1",
       vault: {
-        path: process.env.VAULT_PATH || "Obsidian",
+        path: vaultPath,
+        connected: vaultConnected,
       },
       entities,
       projects,
