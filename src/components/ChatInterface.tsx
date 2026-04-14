@@ -152,6 +152,15 @@ export function ChatInterface() {
 
     setMessages((prev) => [...prev, assistantMsg]);
     setIsProcessing(false);
+
+    // Scroll to the start of the AI response
+    requestAnimationFrame(() => {
+      const msgElements = document.querySelectorAll('[data-msg-role="assistant"]');
+      const last = msgElements[msgElements.length - 1];
+      if (last && scrollContainerRef.current) {
+        last.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -511,7 +520,7 @@ export function ChatInterface() {
 
           {/* ── Message list ────────────────────────────────────────── */}
           <div style={{ paddingTop: 40, paddingBottom: 40 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               {messages.map((msg) => (
                 <motion.div
                   key={msg.id}
@@ -525,11 +534,11 @@ export function ChatInterface() {
                     <div style={{ display: "flex", justifyContent: "flex-end" }}>
                       <div
                         style={{
-                          maxWidth: "85%",
+                          maxWidth: "75%",
                           backgroundColor: colors.brandIndigo,
-                          borderRadius: 12,
+                          borderRadius: 16,
                           borderBottomRightRadius: 4,
-                          padding: "12px 18px",
+                          padding: "10px 16px",
                           boxShadow: `rgba(0,0,0,0.2) 0px 0px 0px 1px`,
                         }}
                       >
@@ -537,7 +546,7 @@ export function ChatInterface() {
                           style={{
                             fontSize: 15,
                             fontWeight: 400,
-                            lineHeight: 1.6,
+                            lineHeight: 1.5,
                             color: "#ffffff",
                             margin: 0,
                             fontFeatureSettings: '"cv01", "ss03"',
@@ -549,23 +558,36 @@ export function ChatInterface() {
                     </div>
                   ) : (
                     /* ── AI response ─────────────────────────────────────── */
-                    <div style={{ width: "100%" }}>
-                      {msg.content && (
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ duration: 0.3, delay: 0.1 }}
-                          style={{
-                            marginBottom: 24,
-                          }}
-                        >
-                          <MarkdownRenderer content={msg.content} onNavigate={setDetailPath} />
-                        </motion.div>
-                      )}
-                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        {msg.response?.response.views.map((view, viewIndex) => (
-                          <ViewRenderer key={view.viewId} view={view} index={viewIndex} onNavigate={setDetailPath} />
-                        ))}
+                    <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }} data-msg-role="assistant">
+                      {/* Brain avatar */}
+                      <div
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 8,
+                          background: colors.brandIndigo,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          marginTop: 2,
+                        }}
+                      >
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {msg.content && (
+                          <div style={{ marginBottom: 16 }}>
+                            <MarkdownRenderer content={msg.content} onNavigate={setDetailPath} />
+                          </div>
+                        )}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                          {msg.response?.response.views.map((view, viewIndex) => (
+                            <ViewRenderer key={view.viewId} view={view} index={viewIndex} onNavigate={setDetailPath} />
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
