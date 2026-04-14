@@ -180,12 +180,20 @@ export function ChatInterface() {
     >
       <AnimatePresence>
         {detailPath && (
-          <DetailPage
-            key={detailPath}
-            path={detailPath}
-            onBack={() => setDetailPath(null)}
-            onNavigate={setDetailPath}
-          />
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 50,
+            }}
+          >
+            <DetailPage
+              key={detailPath}
+              path={detailPath}
+              onBack={() => setDetailPath(null)}
+              onNavigate={setDetailPath}
+            />
+          </div>
         )}
       </AnimatePresence>
       {/* ── Header ────────────────────────────────────────────────── */}
@@ -526,9 +534,6 @@ export function ChatInterface() {
       <div
         style={{
           flexShrink: 0,
-          position: "sticky",
-          bottom: 0,
-          zIndex: 10,
           backgroundColor: "rgba(8,9,10,0.85)",
           backdropFilter: "blur(24px) saturate(180%)",
           WebkitBackdropFilter: "blur(24px) saturate(180%)",
