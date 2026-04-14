@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { stagger, fadeSlideUp } from "@/lib/motion";
+import { useState, useEffect, useRef } from "react";
+import { stagger, fadeSlideUp, springs } from "@/lib/motion";
 import { SystemStatusData, Status } from "@/lib/view-models";
 import { CalloutBox, Badge, StatusDot, MarkdownRenderer } from "@/components/ui";
 
@@ -51,6 +52,31 @@ const statusStyles: Record<string, { color: string; bg: string; border: string; 
   },
 };
 
+// E3: Status dot that pulses once on first mount
+function PulseStatusDot({ status, size = 14 }: { status: Status; size?: number }) {
+  const [hasPulsed, setHasPulsed] = useState(false);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+    setHasPulsed(true);
+    const timer = setTimeout(() => setHasPulsed(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <motion.span
+      initial={{ scale: 1 }}
+      animate={hasPulsed ? { scale: [1, 1.5, 1] } : { scale: 1 }}
+      transition={hasPulsed ? { duration: 0.6, ease: "easeInOut" } : { duration: 0 }}
+      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+    >
+      <StatusDot status={status} size={size} />
+    </motion.span>
+  );
+}
+
 // Overall status indicator
 function OverallIndicator({ status, label }: { status: Status; label: string }) {
   const style = statusStyles[status] || statusStyles.stale;
@@ -65,14 +91,7 @@ function OverallIndicator({ status, label }: { status: Status; label: string }) 
       }}
     >
       <div className="relative" style={{ width: 14, height: 14 }}>
-        <StatusDot status={status} size={14} />
-        {/* Pulse animation for active statuses */}
-        {(status === "ok" || status === "fresh") && (
-          <span
-            className="absolute inset-0 rounded-full animate-ping"
-            style={{ background: style.color, opacity: 0.2 }}
-          />
-        )}
+        <PulseStatusDot status={status} size={14} />
       </div>
       <div>
         <p
@@ -157,7 +176,7 @@ export function SystemStatusView({ data, view }: { data: SystemStatusData; view:
                   }}
                 >
                   <div className="mt-1 shrink-0">
-                    <StatusDot status={check.status} size={6} />
+                    <PulseStatusDot status={check.status} size={6} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">

@@ -16,6 +16,53 @@ export interface IntentResult {
   topicQuery?: string;   // resolved topic/project name for topic_overview
 }
 
+// ─── Natural language todo toggle detection ────────────────────────────
+
+export interface ToggleIntent {
+  taskName: string;  // The extracted task name
+  checked: boolean;  // true = mark done, false = mark undone
+}
+
+const DONE_PATTERNS = [
+  /^mark\s+(.+?)\s+as\s+(?:done|complete|finished)$/i,
+  /^mark\s+(.+?)\s+done$/i,
+  /^i\s+(?:finished|completed|done with)\s+(.+)$/i,
+  /^(.+?)\s+is\s+done$/i,
+  /^check\s+off\s+(.+)$/i,
+  /^complete\s+(.+)$/i,
+  /^toggle\s+(.+)$/i,
+  /^i\s+did\s+(.+)$/i,
+  /^finished\s+(.+)$/i,
+  /^done\s+with\s+(.+)$/i,
+];
+
+const UNDONE_PATTERNS = [
+  /^mark\s+(.+?)\s+as\s+(?:not done|incomplete|open|undone)$/i,
+  /^uncheck\s+(.+)$/i,
+  /^mark\s+(.+?)\s+(?:not done|incomplete|open)$/i,
+  /^reopen\s+(.+)$/i,
+];
+
+export function detectToggleIntent(query: string): ToggleIntent | null {
+  const trimmed = query.trim();
+
+  for (const pattern of DONE_PATTERNS) {
+    const match = trimmed.match(pattern);
+    if (match) {
+      return { taskName: match[1].trim(), checked: true };
+    }
+  }
+
+  for (const pattern of UNDONE_PATTERNS) {
+    const match = trimmed.match(pattern);
+    if (match) {
+      return { taskName: match[1].trim(), checked: false };
+    }
+  }
+
+  return null;
+}
+
 // ─── Keyword sets per intent ──────────────────────────────────────────
 
 const INTENT_KEYWORDS: Record<string, { keywords: string[]; files: string[] }> = {

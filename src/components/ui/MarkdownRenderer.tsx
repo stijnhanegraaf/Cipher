@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { motion, AnimatePresence } from "framer-motion";
+import { springs } from "@/lib/motion";
 
 // Design tokens
 const tokens = {
@@ -639,13 +641,20 @@ export function CheckboxIndicator({ checked, onChange }: { checked: boolean; onC
 }
 
 // ─── Status dot component ─────────────────────────────────────────────
-// Renders a 6px colored circle for status indicators
+// Renders an animated colored circle for status indicators
+// Supports hover/click interactions for toggleable tasks
 export function StatusDot({
   status,
   size = 6,
+  checked,
+  interactive = false,
+  onClick,
 }: {
   status: "ok" | "warn" | "error" | "stale" | "fresh" | "in_progress" | "open" | "done" | "blocked" | string;
   size?: number;
+  checked?: boolean;
+  interactive?: boolean;
+  onClick?: () => void;
 }) {
   const colorMap: Record<string, string> = {
     ok: "#10b981",
@@ -660,17 +669,101 @@ export function StatusDot({
   };
 
   const color = colorMap[status] || "#62666d";
+  const isDone = checked !== undefined ? checked : status === "done";
+  const [hovered, setHovered] = useState(false);
+
+  // E2: Animated fill radius (center outward on check, outside inward on uncheck)
+  const [fillRadius, setFillRadius] = useState(isDone ? size / 2 : 0);
+  const prevCheckedRef = useRef(isDone);
+
+  useEffect(() => {
+    if (isDone !== prevCheckedRef.current) {
+      prevCheckedRef.current = isDone;
+      // Animate fill
+      setFillRadius(isDone ? size / 2 : 0);
+    }
+  }, [isDone, size]);
+
+  const dotColor = interactive ? (isDone ? "#5e6ad2" : "transparent") : color;
+  const borderColor = interactive
+    ? isDone
+      ? "#5e6ad2"
+      : "rgba(255,255,255,0.2)"
+    : color;
 
   return (
-    <span
+    <motion.span
       style={{
-        display: "inline-block",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
         width: size,
         height: size,
         borderRadius: "50%",
-        backgroundColor: color,
+        backgroundColor: dotColor,
+        border: interactive
+          ? `1.5px solid ${hovered && !isDone ? "rgba(255,255,255,0.35)" : borderColor}`
+          : "none",
         flexShrink: 0,
+        cursor: interactive ? "pointer" : "default",
+        position: "relative",
+        overflow: "hidden",
+        transition: "border-color 0.15s",
       }}
-    />
+      whileHover={interactive ? { scale: 1.04 } : undefined}
+      whileTap={interactive ? { scale: 0.95 } : undefined}
+      animate={{ scale: isDone && interactive ? [1, 1.3, 0.95, 1] : 1 }}
+      transition={springs.bouncy}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={(e) => {
+        if (!interactive || !onClick) return;
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      {/* E2: Indigo fill expanding from center */}
+      {interactive && (
+        <motion.span
+          style={{
+            position: "absolute",
+            borderRadius: "50%",
+            backgroundColor: "#5e6ad2",
+            top: "50%",
+            left: "50%",
+            x: "-50%",
+            y: "-50%",
+          }}
+          animate={{
+            width: isDone ? size : 0,
+            height: isDone ? size : 0,
+          }}
+          transition={{ duration: 0.25, ease: "easeInOut" }}
+        />
+      )}
+      {/* E2: Checkmark draws in */}
+      <AnimatePresence>
+        {interactive && isDone && (
+          <motion.svg
+            key="check"
+            width={Math.max(size * 0.6, 8)}
+            height={Math.max(size * 0.6, 8)}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            initial={{ opacity: 0, pathLength: 0 }}
+            animate={{ opacity: 1, pathLength: 1 }}
+            exit={{ opacity: 0, pathLength: 0 }}
+            transition={{ pathLength: { duration: 0.3, ease: "easeInOut" }, opacity: { duration: 0.15 } }}
+            style={{ position: "relative", zIndex: 1 }}
+          >
+            <motion.path d="M20 6L9 17l-5-5" pathLength={1} />
+          </motion.svg>
+        )}
+      </AnimatePresence>
+    </motion.span>
   );
 }

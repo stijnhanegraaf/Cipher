@@ -2,15 +2,28 @@
  * Brain — Framer Motion Animation Variants
  *
  * Linear-inspired motion: precise, minimal, engineered.
+ * Spring physics for organic feel. Inspired by Emil Kowalski
+ * and Family wallet animation principles.
  *
  * Usage:
- *   import { fadeSlideUp, stagger } from "@/lib/motion";
+ *   import { fadeSlideUp, stagger, springs } from "@/lib/motion";
  *   <motion.div variants={fadeSlideUp} initial="hidden" animate="show">
  *     <motion.div variants={stagger.item}>...</motion.div>
  *   </motion.div>
  */
 
-import type { Variants, Transition } from "framer-motion";
+import type { Variants, Transition, Spring } from "framer-motion";
+
+/* ── Spring presets ─────────────────────────── */
+export const springs: Record<string, any> = {
+  bouncy: { type: "spring", stiffness: 260, damping: 20, mass: 0.8 },
+  gentle: { type: "spring", stiffness: 200, damping: 25, mass: 1 },
+  snappy: { type: "spring", stiffness: 400, damping: 25, mass: 0.5 },
+  stiff: { type: "spring", stiffness: 500, damping: 30, mass: 1 },
+  hover: { type: "spring", stiffness: 300, damping: 25 },
+  press: { type: "spring", stiffness: 400, damping: 25 },
+  cardEnter: { type: "spring", stiffness: 260, damping: 20, mass: 0.8 },
+};
 
 /* ── Shared easing — Linear-like cubic bezier ──── */
 const ease = {
@@ -84,7 +97,25 @@ export const scaleIn: Variants = {
   },
 };
 
-/** Stagger container + item — wrap parent with stagger.container */
+/* ── E1: Spring-based card entrance with overshoot ──── */
+/** View card entrance — spring physics with scale overshoot */
+export const cardEntrance: Variants = {
+  hidden: { opacity: 0, y: 16, scale: 0.97 },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: [0.97, 1.02, 1.0],
+    transition: springs.cardEnter,
+  },
+  exit: {
+    opacity: 0,
+    y: -8,
+    scale: 0.98,
+    transition: { duration: duration.fast, ease: ease.linear },
+  },
+};
+
+/** Stagger container with group-aware delays */
 export const stagger = {
   container: (staggerDelay: number = 0.04): Variants => ({
     hidden: { opacity: 0 },
@@ -104,6 +135,27 @@ export const stagger = {
       transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] },
     },
   } as Variants,
+  /** E1: Spring-based stagger items with overshoot */
+  springItem: {
+    hidden: { opacity: 0, y: 14, scale: 0.97 },
+    show: {
+      opacity: 1,
+      y: 0,
+      scale: [0.97, 1.02, 1.0],
+      transition: springs.bouncy,
+    },
+  } as Variants,
+  /** E1: Group container — 0.12s stagger between groups */
+  groupContainer: (groupDelay: number = 0.12): Variants => ({
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.06,
+        delayChildren: groupDelay,
+      },
+    },
+  }),
 };
 
 /** Exit animations */
@@ -123,6 +175,29 @@ export const slideUpExit: Variants = {
   hidden: { opacity: 0, y: 8 },
   show: { opacity: 1, y: 0 },
   exit: { opacity: 0, y: 8, transition: { duration: duration.fast, ease: ease.linear } },
+};
+
+/* ── E2: Checkbox toggle keyframes ──── */
+export const checkboxSpring = springs.bouncy;
+
+/* ── E5: Message send animation ──── */
+export const messageSend: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: springs.bouncy,
+  },
+};
+
+/** E8: Scroll-reveal section fade-in */
+export const scrollReveal: Variants = {
+  hidden: { opacity: 0.3, y: 8 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: ease.linear },
+  },
 };
 
 /* ── Convenience re-exports ────────────────── */
