@@ -113,7 +113,7 @@ export function TimelineView({ data, view }: { data: TimelineSynthesisData; view
                     <motion.div
                       key={j}
                       variants={fadeSlideUp}
-                      transition={{ delay: i * 0.1 + j * 0.06 }}
+                      transition={{ delay: i * 0.08 + j * 0.04 }}
                       className="relative flex items-start gap-3"
                     >
                       {/* Dot on line */}

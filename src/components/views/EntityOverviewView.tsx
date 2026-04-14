@@ -23,7 +23,7 @@ export function EntityOverviewView({ data, view }: { data: EntityOverviewData; v
 
   return (
     <motion.div
-      variants={stagger.container(0.1)}
+      variants={stagger.container(0.04)}
       initial="hidden"
       animate="show"
       className="space-y-8"
@@ -68,13 +68,25 @@ export function EntityOverviewView({ data, view }: { data: EntityOverviewData; v
 
       {/* Empty state */}
       {!hasContent && (
-        <motion.div variants={fadeSlideUp} className="flex items-center justify-center py-8">
+        <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-12">
+          <svg
+            width={24}
+            height={24}
+            fill="none"
+            stroke="#62666d"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            style={{ marginBottom: 12 }}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+          </svg>
           <p
-            className="text-[13px]"
+            className="text-[15px]"
             style={{
-              color: "#62666d",
+              color: "#8a8f98",
               fontFamily: "'Inter Variable', sans-serif",
               fontFeatureSettings: '"cv01", "ss03"',
+              lineHeight: 1.6,
             }}
           >
             No additional data available for this entity.

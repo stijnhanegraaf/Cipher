@@ -274,28 +274,18 @@ export function ViewRenderer({ view, index = 0, onNavigate }: ViewRendererProps)
               fontWeight: 510,
               letterSpacing: "0.02em",
               textDecoration: "none",
-              opacity: 0.7,
+              opacity: 0.5,
               cursor: "pointer",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = tokens.text.tertiary;
+              e.currentTarget.style.color = tokens.text.quaternary;
               e.currentTarget.style.opacity = '1';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = tokens.text.quaternary;
-              e.currentTarget.style.opacity = '0.7';
+              e.currentTarget.style.opacity = '0.5';
             }}
           >
-            <svg
-              width={12}
-              height={12}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
             Open in Obsidian
           </a>
         )}

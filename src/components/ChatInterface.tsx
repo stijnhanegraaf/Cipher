@@ -180,20 +180,12 @@ export function ChatInterface() {
     >
       <AnimatePresence>
         {detailPath && (
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 50,
-            }}
-          >
-            <DetailPage
-              key={detailPath}
-              path={detailPath}
-              onBack={() => setDetailPath(null)}
-              onNavigate={setDetailPath}
-            />
-          </div>
+          <DetailPage
+            key={detailPath}
+            path={detailPath}
+            onBack={() => setDetailPath(null)}
+            onNavigate={setDetailPath}
+          />
         )}
       </AnimatePresence>
       {/* ── Header ────────────────────────────────────────────────── */}
@@ -307,7 +299,7 @@ export function ChatInterface() {
                 variants={fadeSlideUp}
                 initial="hidden"
                 animate="show"
-                exit={{ opacity: 0, y: -16, transition: { duration: 0.2 } }}
+                exit={{ opacity: 0, y: -12, transition: { duration: 0.2 } }}
                 transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
                 style={{
                   display: "flex",
@@ -322,7 +314,7 @@ export function ChatInterface() {
                 <motion.h1
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+                  transition={{ delay: 0.1, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
                   style={{
                     fontSize: 64,
                     fontWeight: 510,
@@ -341,7 +333,7 @@ export function ChatInterface() {
                 <motion.p
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+                  transition={{ delay: 0.2, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
                   style={{
                     fontSize: 16,
                     fontWeight: 400,
@@ -360,7 +352,7 @@ export function ChatInterface() {
 
                 {/* ── Quick-action pills ─────────────────────────────── */}
                 <motion.div
-                  variants={stagger.container(0.05)}
+                  variants={stagger.container(0.04)}
                   initial="hidden"
                   animate="show"
                   style={{

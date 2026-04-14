@@ -94,7 +94,7 @@ export function TaskItemRow({ item, index = 0 }: { item: TaskItemType; index?: n
       {/* Content */}
       <div className="flex-1 min-w-0">
         <p
-          className="text-[14px] leading-[1.5]"
+          className="text-[15px] leading-[1.6] tracking-[-0.165px]"
           style={{
             color: item.status === "done" ? tokens.text.quaternary : tokens.text.primary,
             fontFamily: "'Inter Variable', sans-serif",
@@ -149,7 +149,7 @@ export function TaskItemRow({ item, index = 0 }: { item: TaskItemType; index?: n
       {/* Priority */}
       {priority && (
         <span
-          className="text-[11px] font-[510] uppercase tracking-[0.06em] shrink-0 mt-1.5"
+          className="text-[11px] font-[510] uppercase tracking-[0.08em] shrink-0 mt-1.5"
           style={{
             color: priority.color,
             fontFamily: "'Inter Variable', sans-serif",
@@ -171,7 +171,7 @@ export function TaskGroupComponent({ group, index = 0 }: { group: TaskGroupType;
       variants={fadeSlideUp}
       initial="hidden"
       animate="show"
-      transition={{ delay: (index || 0) * 0.08 }}
+      transition={{ delay: (index || 0) * 0.04 }}
       className="rounded-[8px] overflow-hidden"
       style={{
         background: "rgba(255,255,255,0.02)",
@@ -194,9 +194,22 @@ export function TaskGroupComponent({ group, index = 0 }: { group: TaskGroupType;
 
       {/* Task list */}
       <div className="px-4 pb-4">
-        {group.items.map((item, i) => (
-          <TaskItemRow key={item.id} item={item} index={i} />
-        ))}
+        {group.items.length === 0 ? (
+          <p
+            className="text-[15px] py-4 text-center"
+            style={{
+              color: tokens.text.quaternary,
+              fontFamily: "'Inter Variable', sans-serif",
+              fontFeatureSettings: '"cv01", "ss03"',
+            }}
+          >
+            No items
+          </p>
+        ) : (
+          group.items.map((item, i) => (
+            <TaskItemRow key={item.id} item={item} index={i} />
+          ))
+        )}
       </div>
     </motion.div>
   );

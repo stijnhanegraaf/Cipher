@@ -26,7 +26,7 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
 
   return (
     <motion.div
-      variants={stagger.container(0.1)}
+      variants={stagger.container(0.04)}
       initial="hidden"
       animate="show"
       className="space-y-8"
@@ -80,7 +80,7 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
                 <motion.div
                   key={i}
                   variants={fadeSlideUp}
-                  transition={{ delay: i * 0.05 }}
+                  transition={{ delay: i * 0.04 }}
                   className="flex items-start gap-3 px-6 py-4 rounded-[8px]"
                   style={{
                     background: "rgba(245,158,11,0.04)",
@@ -122,7 +122,7 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
                 <motion.div
                   key={i}
                   variants={fadeSlideUp}
-                  transition={{ delay: i * 0.05 }}
+                  transition={{ delay: i * 0.04 }}
                   className="flex items-start gap-3 px-6 py-4 rounded-[8px]"
                   style={{
                     background: "rgba(16,185,129,0.04)",

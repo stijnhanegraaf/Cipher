@@ -504,7 +504,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 borderLeft: `2px solid ${tokens.brand.indigo}`,
                 margin: "0 0 16px",
                 padding: "8px 16px",
-                backgroundColor: "rgba(94,106,210,0.04)",
+                backgroundColor: "rgba(94,106,210,0.06)",
                 color: tokens.text.secondary,
                 fontFamily: fontFamily.inter,
                 fontFeatureSettings: '"cv01", "ss03"',
@@ -557,7 +557,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 textAlign: "left",
                 padding: "8px 12px",
                 fontSize: "0.6875rem", // 11px
-                fontWeight: 590,
+                fontWeight: 510,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase" as const,
                 color: tokens.text.quaternary,

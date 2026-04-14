@@ -58,14 +58,14 @@ function OverallIndicator({ status, label }: { status: Status; label: string }) 
   return (
     <motion.div
       variants={fadeSlideUp}
-      className="flex items-center gap-4 px-5 py-4 rounded-[8px]"
+      className="flex items-center gap-4 px-5 py-5 rounded-[8px]"
       style={{
         background: style.bg,
         border: `1px solid ${style.border}`,
       }}
     >
-      <div className="relative">
-        <StatusDot status={status} size={10} />
+      <div className="relative" style={{ width: 14, height: 14 }}>
+        <StatusDot status={status} size={14} />
         {/* Pulse animation for active statuses */}
         {(status === "ok" || status === "fresh") && (
           <span
@@ -76,7 +76,7 @@ function OverallIndicator({ status, label }: { status: Status; label: string }) 
       </div>
       <div>
         <p
-          className="text-[14px] font-[590]"
+          className="text-[16px] font-[590]"
           style={{
             color: style.color,
             fontFamily: fontFamily.inter,
@@ -86,7 +86,7 @@ function OverallIndicator({ status, label }: { status: Status; label: string }) 
           {label}
         </p>
         <p
-          className="text-[12px] mt-0.5"
+          className="text-[13px] mt-0.5"
           style={{
             color: tokens.text.quaternary,
             fontFamily: fontFamily.inter,
@@ -105,7 +105,7 @@ export function SystemStatusView({ data, view }: { data: SystemStatusData; view:
 
   return (
     <motion.div
-      variants={stagger.container(0.08)}
+      variants={stagger.container(0.04)}
       initial="hidden"
       animate="show"
       className="space-y-8"
@@ -125,53 +125,72 @@ export function SystemStatusView({ data, view }: { data: SystemStatusData; view:
         >
           Checks
         </h3>
-        {status.checks.map((check, i) => {
-          const style = statusStyles[check.status] || statusStyles.stale;
-          const badgeVariant = check.status === "ok" || check.status === "fresh" ? "success" : check.status === "warn" ? "warning" : "error";
-
-          return (
-            <motion.div
-              key={i}
-              variants={fadeSlideUp}
-              className="flex items-start gap-3 p-5 rounded-[8px] transition-colors duration-150"
+        {status.checks.length === 0 ? (
+          <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-8">
+            <p
+              className="text-[15px]"
               style={{
-                background: style.bg,
-                border: `1px solid ${style.border}`,
+                color: "#8a8f98",
+                fontFamily: fontFamily.inter,
+                fontFeatureSettings: '"cv01", "ss03"',
+                lineHeight: 1.6,
               }}
             >
-              <div className="mt-1 shrink-0">
-                <StatusDot status={check.status} size={6} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p
-                    className="text-[14px] font-[510]"
-                    style={{
-                      color: style.color,
-                      fontFamily: fontFamily.inter,
-                      fontFeatureSettings: '"cv01", "ss03"',
-                    }}
-                  >
-                    {check.label}
-                  </p>
-                  <Badge variant={badgeVariant} dot>{style.label}</Badge>
-                </div>
-                {check.detail && (
-                  <div
-                    className="text-[13px] mt-1.5 leading-[1.5]"
-                    style={{
-                      color: tokens.text.quaternary,
-                      fontFamily: fontFamily.inter,
-                      fontFeatureSettings: '"cv01", "ss03"',
-                    }}
-                  >
-                    <MarkdownRenderer content={check.detail} />
+              No checks configured.
+            </p>
+          </motion.div>
+        ) : (
+          <>
+            {status.checks.map((check, i) => {
+              const style = statusStyles[check.status] || statusStyles.stale;
+              const badgeVariant = check.status === "ok" || check.status === "fresh" ? "success" : check.status === "warn" ? "warning" : "error";
+
+              return (
+                <motion.div
+                  key={i}
+                  variants={fadeSlideUp}
+                  className="flex items-start gap-3 p-5 rounded-[8px] transition-colors duration-150 group"
+                  style={{
+                    background: style.bg,
+                    border: `1px solid ${style.border}`,
+                    cursor: "default",
+                  }}
+                >
+                  <div className="mt-1 shrink-0">
+                    <StatusDot status={check.status} size={6} />
                   </div>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p
+                        className="text-[14px] font-[510]"
+                        style={{
+                          color: style.color,
+                          fontFamily: fontFamily.inter,
+                          fontFeatureSettings: '"cv01", "ss03"',
+                        }}
+                      >
+                        {check.label}
+                      </p>
+                      <Badge variant={badgeVariant} dot>{style.label}</Badge>
+                    </div>
+                    {check.detail && (
+                      <div
+                        className="text-[13px] mt-1.5 leading-[1.5]"
+                        style={{
+                          color: tokens.text.quaternary,
+                          fontFamily: fontFamily.inter,
+                          fontFeatureSettings: '"cv01", "ss03"',
+                        }}
+                      >
+                        <MarkdownRenderer content={check.detail} />
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </>
+        )}
       </div>
 
       {/* Attention items */}
