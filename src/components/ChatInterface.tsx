@@ -449,21 +449,32 @@ export function ChatInterface() {
 
     let response: ResponseEnvelope;
 
-    if (USE_REAL_DATA) {
-      // Try the real API first
-      const realData = await fetchRealData(userMessage);
-      if (realData) {
-        response = realData;
+    try {
+      if (USE_REAL_DATA) {
+        // Try the real API first
+        const realData = await fetchRealData(userMessage);
+        if (realData) {
+          response = realData;
+        } else {
+          // Fallback to mock data on failure
+          const intent = await detectIntent(userMessage);
+          response = getMockResponse(intent.viewType);
+        }
       } else {
-        // Fallback to mock data on failure
+        // Use mock data
+        await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 700));
         const intent = await detectIntent(userMessage);
         response = getMockResponse(intent.viewType);
       }
-    } else {
-      // Use mock data
-      await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 700));
-      const intent = await detectIntent(userMessage);
-      response = getMockResponse(intent.viewType);
+    } catch (err) {
+      console.error("handleSubmit fetch error:", err);
+      // Fallback to mock on error
+      try {
+        const intent = await detectIntent(userMessage);
+        response = getMockResponse(intent.viewType);
+      } catch {
+        response = getMockResponse("search_results");
+      }
     }
 
     const assistantMsg: Message = {
