@@ -144,7 +144,7 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
       transition={{ delay: index * 0.12 }}
       className="rounded-[12px] overflow-hidden"
       style={{
-        background: tokens.bg.surface,
+        background: "rgba(255,255,255,0.02)",
         border: `1px solid ${tokens.border.standard}`,
       }}
     >
@@ -203,7 +203,7 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
       )}
 
       {/* View content */}
-      <div className="px-7 py-6">
+      <div className="px-7 py-7">
         <Component data={view.data} view={view} />
       </div>
 
@@ -260,23 +260,27 @@ export function ViewRenderer({ view, index = 0 }: ViewRendererProps) {
             href={getObsidianUrl(sourceFile)}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 transition-colors duration-150"
+            className="inline-flex items-center gap-1.5 transition-colors duration-200"
             style={{
               color: tokens.text.quaternary,
               fontSize: "11px",
-              fontWeight: 400,
+              fontWeight: 510,
               letterSpacing: "0.02em",
               textDecoration: "none",
+              opacity: 0.7,
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = tokens.text.tertiary;
+              e.currentTarget.style.opacity = '1';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = tokens.text.quaternary;
+              e.currentTarget.style.opacity = '0.7';
             }}
           >
             <svg
-              className="w-3 h-3"
+              width={12}
+              height={12}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

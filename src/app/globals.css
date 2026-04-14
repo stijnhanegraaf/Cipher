@@ -910,47 +910,34 @@ pre code {
   list-style: none;
 }
 
-/* Checkbox rendering in markdown — GFM task lists */
+/* Hide the raw GFM checkbox input — our React component renders custom ones */
 .markdown-content li input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255,255,255,0.2);
-  background: transparent;
-  vertical-align: middle;
-  margin-right: 8px;
-  flex-shrink: 0;
-  position: relative;
-  cursor: default;
+  display: none !important;
 }
 
-.markdown-content li input[type="checkbox"]:checked {
-  background: var(--accent-brand);
-  border-color: var(--accent-brand);
+/* Blockquote paragraphs shouldn't add extra margin */
+.markdown-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+.markdown-content blockquote p:first-child {
+  margin-top: 0;
 }
 
-.markdown-content li input[type="checkbox"]:checked::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 4px;
-  width: 5px;
-  height: 8px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+/* Table full width */
+.markdown-content table {
+  width: 100%;
 }
 
-/* Task list items — checkbox text styling */
-.markdown-content li:has(input[type="checkbox"]) {
-  display: flex;
-  align-items: flex-start;
+/* Wiki-link styled links (from [[link]] preprocessing) */
+.markdown-content a[href^="obsidian://"] {
+  color: #7170ff;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(113, 112, 255, 0.4);
+  transition: border-color 0.15s, color 0.15s;
 }
-
-.markdown-content li:has(input[type="checkbox"]:checked) {
-  color: var(--text-quaternary);
+.markdown-content a[href^="obsidian://"]:hover {
+  color: #828fff;
+  border-bottom-color: #7170ff;
 }
 
 /* ── Responsive typography ───────────────── */

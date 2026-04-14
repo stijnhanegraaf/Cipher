@@ -25,7 +25,7 @@ export function CurrentWorkView({ data, view }: { data: CurrentWorkData; view: a
       variants={stagger.container(0.08)}
       initial="hidden"
       animate="show"
-      className="space-y-6"
+      className="space-y-8"
     >
       {/* Highlights strip */}
       {workData.highlights && workData.highlights.length > 0 && (

@@ -227,7 +227,7 @@ export function EntityHeader({ title, kind, summary, whyNow, emoji }: EntityHead
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.15 }}
-          className="flex items-start gap-3 px-4 py-3 rounded-[8px]"
+          className="flex items-start gap-3 px-6 py-4 rounded-[8px]"
           style={{
             background: "rgba(94,106,210,0.06)",
             borderLeft: `2px solid ${tokens.brand.indigo}`,
@@ -259,7 +259,7 @@ interface SectionBlockProps {
 
 export function SectionBlock({ title, subtitle, children }: SectionBlockProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div>
         <h3
           className="text-[11px] font-[510] uppercase tracking-[0.08em]"
@@ -442,7 +442,7 @@ export function CalloutBox({ tone, title, body }: CalloutBoxProps) {
       variants={fadeSlideUp}
       initial="hidden"
       animate="show"
-      className="flex items-start gap-3 p-3.5 rounded-[8px]"
+      className="flex items-start gap-3 p-4 rounded-[8px]"
       style={{
         background: style.bg,
         borderLeft: `2px solid ${style.border}`,

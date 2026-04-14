@@ -18,6 +18,9 @@ export function EntityOverviewView({ data, view }: { data: EntityOverviewData; v
   const entity = data as EntityOverviewData;
   const emoji = entityEmoji[entity.entityType] || "📎";
 
+  // Empty state check
+  const hasContent = entity.relatedEntities?.length || entity.relatedNotes?.length || entity.timeline?.length;
+
   return (
     <motion.div
       variants={stagger.container(0.1)}
@@ -60,6 +63,22 @@ export function EntityOverviewView({ data, view }: { data: EntityOverviewData; v
           <SectionBlock title="Recent activity">
             <TimelineMini items={entity.timeline} />
           </SectionBlock>
+        </motion.div>
+      )}
+
+      {/* Empty state */}
+      {!hasContent && (
+        <motion.div variants={fadeSlideUp} className="flex items-center justify-center py-8">
+          <p
+            className="text-[13px]"
+            style={{
+              color: "#62666d",
+              fontFamily: "'Inter Variable', sans-serif",
+              fontFeatureSettings: '"cv01", "ss03"',
+            }}
+          >
+            No additional data available for this entity.
+          </p>
         </motion.div>
       )}
     </motion.div>
