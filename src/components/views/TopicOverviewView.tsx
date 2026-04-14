@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
 import { TopicOverviewData } from "@/lib/view-models";
-import { EntityHeader, SectionBlock, LinkList, TimelineMini } from "@/components/ui";
+import { EntityHeader, SectionBlock, LinkList, TimelineMini, StatusDot, MarkdownRenderer } from "@/components/ui";
 
 // Design tokens
 const tokens = {
@@ -29,7 +29,7 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
       variants={stagger.container(0.1)}
       initial="hidden"
       animate="show"
-      className="space-y-6"
+      className="space-y-8"
     >
       {/* Hero header */}
       <motion.div variants={fadeSlideUp}>
@@ -47,17 +47,16 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
         <motion.div variants={fadeSlideUp}>
           <SectionBlock title="Current state">
             <div
-              className="flex items-start gap-2.5 px-3.5 py-3 rounded-[8px]"
+              className="flex items-start gap-3 px-4 py-3.5 rounded-[8px]"
               style={{
                 background: "rgba(16,185,129,0.04)",
                 borderLeft: `2px solid ${tokens.status.emerald}`,
               }}
             >
+              <div className="mt-[7px] shrink-0">
+                <StatusDot status="fresh" size={6} />
+              </div>
               <div
-                className="w-1.5 h-1.5 rounded-full mt-[7px] shrink-0"
-                style={{ background: tokens.status.emerald }}
-              />
-              <p
                 className="text-[14px] leading-[1.6]"
                 style={{
                   color: tokens.text.secondary,
@@ -65,8 +64,8 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
                   fontFeatureSettings: '"cv01", "ss03"',
                 }}
               >
-                {topic.currentState}
-              </p>
+                <MarkdownRenderer content={topic.currentState} />
+              </div>
             </div>
           </SectionBlock>
         </motion.div>
@@ -76,13 +75,13 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
       {topic.keyQuestions && topic.keyQuestions.length > 0 && (
         <motion.div variants={fadeSlideUp}>
           <SectionBlock title="Open questions">
-            <div className="space-y-2">
+            <div className="space-y-3">
               {topic.keyQuestions.map((q, i) => (
                 <motion.div
                   key={i}
                   variants={fadeSlideUp}
                   transition={{ delay: i * 0.05 }}
-                  className="flex items-start gap-3 px-3.5 py-2.5 rounded-[8px]"
+                  className="flex items-start gap-3 px-4 py-3 rounded-[8px]"
                   style={{
                     background: "rgba(245,158,11,0.04)",
                     borderLeft: `2px solid ${tokens.status.warning}`,
@@ -118,13 +117,13 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
       {topic.nextSteps && topic.nextSteps.length > 0 && (
         <motion.div variants={fadeSlideUp}>
           <SectionBlock title="Next steps">
-            <div className="space-y-2">
+            <div className="space-y-3">
               {topic.nextSteps.map((s, i) => (
                 <motion.div
                   key={i}
                   variants={fadeSlideUp}
                   transition={{ delay: i * 0.05 }}
-                  className="flex items-start gap-3 px-3.5 py-2.5 rounded-[8px]"
+                  className="flex items-start gap-3 px-4 py-3 rounded-[8px]"
                   style={{
                     background: "rgba(16,185,129,0.04)",
                     borderLeft: `2px solid ${tokens.status.emerald}`,

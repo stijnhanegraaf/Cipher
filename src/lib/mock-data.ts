@@ -10,19 +10,59 @@ export const USE_REAL_DATA = true;
 
 const API_URL = "/api/query";
 
-export async function fetchRealData(query: string): Promise<ResponseEnvelope | null> {
+// ─── Simple cache ─────────────────────────────────────────────────────
+
+interface CacheEntry {
+  response: ResponseEnvelope;
+  timestamp: number;
+}
+
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+const cache = new Map<string, CacheEntry>();
+
+function cacheKey(query: string, entityName?: string): string {
+  return entityName ? `${query}::${entityName}` : query;
+}
+
+export async function fetchRealData(query: string, entityName?: string): Promise<ResponseEnvelope | null> {
+  // Check cache first
+  const key = cacheKey(query, entityName);
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.response;
+  }
+
   try {
+    const body: Record<string, string> = { query };
+    if (entityName) {
+      body.entityName = entityName;
+    }
+
     const res = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify(body),
     });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
+
+    if (!res.ok) {
+      console.warn(`fetchRealData: API returned ${res.status} ${res.statusText} for query "${query}"`);
+      return null;
+    }
+
+    const response: ResponseEnvelope = await res.json();
+
+    // Cache the response
+    cache.set(key, { response, timestamp: Date.now() });
+
+    return response;
+  } catch (error) {
+    console.warn(`fetchRealData: Failed to fetch real data for query "${query}"`, error);
     return null;
   }
 }
+
+// ─── Mock responses ───────────────────────────────────────────────────
 
 const currentWorkResponse: ResponseEnvelope = {
   version: "v1",
@@ -280,7 +320,7 @@ const systemStatusResponse: ResponseEnvelope = {
         actions: [
           { id: "action_open_status", type: "open_note", label: "Open System Status", target: { path: "wiki/system/status.md" }, safety: "safe" },
         ],
-        meta: { confidence: 0.95, freshness: "fresh", generatedAt: "2026-04-13T21:00:00Z" },
+        meta: { confidence: 0.95, freshness: "fresh", generatedAt: "2026-04-13T21:00:00Z", primarySourceCount: 2 },
       },
     ],
     meta: { confidence: 0.95, freshness: "fresh" },

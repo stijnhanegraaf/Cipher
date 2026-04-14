@@ -47,7 +47,7 @@ export function SearchResultsView({ data, view }: { data: SearchResultsData; vie
       variants={stagger.container(0.06)}
       initial="hidden"
       animate="show"
-      className="space-y-5"
+      className="space-y-8"
     >
       {/* Search context */}
       <motion.div variants={fadeSlideUp} className="flex items-center gap-2.5">
@@ -86,11 +86,20 @@ export function SearchResultsView({ data, view }: { data: SearchResultsData; vie
         const config = kindConfig[kind] || { label: kind, variant: "outline" as const };
 
         return (
-          <motion.div key={kind} variants={fadeSlideUp} className="space-y-1.5">
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant={config.variant}>{config.label}</Badge>
+          <motion.div key={kind} variants={fadeSlideUp} className="space-y-2">
+            <div className="flex items-center gap-2 mb-2">
+              <h3
+                className="text-[11px] font-[510] uppercase tracking-[0.08em]"
+                style={{
+                  color: tokens.text.quaternary,
+                  fontFamily: fontFamily.inter,
+                  fontFeatureSettings: '"cv01", "ss03"',
+                }}
+              >
+                {config.label}
+              </h3>
             </div>
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {items.map((result, i) => (
                 <motion.a
                   key={i}
@@ -158,8 +167,8 @@ export function SearchResultsView({ data, view }: { data: SearchResultsData; vie
       {/* Suggested views */}
       {search.suggestedViews && search.suggestedViews.length > 0 && (
         <motion.div variants={fadeSlideUp} className="pt-2">
-          <p
-            className="text-[11px] font-[510] uppercase tracking-[0.08em] mb-2.5"
+          <h3
+            className="text-[11px] font-[510] uppercase tracking-[0.08em] mb-3"
             style={{
               color: tokens.text.quaternary,
               fontFamily: fontFamily.inter,
@@ -167,7 +176,7 @@ export function SearchResultsView({ data, view }: { data: SearchResultsData; vie
             }}
           >
             Related views
-          </p>
+          </h3>
           <div className="flex flex-wrap gap-2">
             {search.suggestedViews.map((sv, i) => (
               <motion.button
