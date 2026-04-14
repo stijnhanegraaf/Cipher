@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { fadeSlideUp } from "@/lib/motion";
 import { TaskGroup as TaskGroupType, TaskItem as TaskItemType } from "@/lib/view-models";
 import { StatusDot } from "@/components/ui";
@@ -73,19 +73,126 @@ const priorityConfig: Record<string, { color: string; label: string }> = {
   low:    { color: tokens.text.quaternary,   label: "Low" },
 };
 
+// ─── Inline Edit Component ───────────────────────────────────────────
+function InlineEdit({ text, onSave, onCancel }: { text: string; onSave: (newText: string) => void; onCancel: () => void }) {
+  const [value, setValue] = useState(text);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  return (
+    <motion.div
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      transition={{ type: "spring", stiffness: 260, damping: 20 }}
+      style={{ overflow: "hidden" }}
+    >
+      <div style={{ marginTop: 4 }}>
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          autoFocus
+          style={{
+            width: "100%",
+            minHeight: 60,
+            padding: "8px 10px",
+            fontSize: 14,
+            lineHeight: 1.5,
+            fontFamily: '"Inter Variable", sans-serif',
+            fontFeatureSettings: '"cv01", "ss03"',
+            color: tokens.text.primary,
+            backgroundColor: "#0f1011",
+            border: `1px solid rgba(255,255,255,0.08)`,
+            borderRadius: 6,
+            resize: "vertical",
+            outline: "none",
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onCancel();
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSave(value);
+          }}
+        />
+        <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+          <button
+            onClick={() => onSave(value)}
+            style={{
+              fontSize: 11,
+              fontWeight: 510,
+              fontFamily: '"Inter Variable", sans-serif',
+              fontFeatureSettings: '"cv01", "ss03"',
+              color: tokens.text.primary,
+              background: "rgba(255,255,255,0.06)",
+              border: `1px solid rgba(255,255,255,0.08)`,
+              borderRadius: 4,
+              padding: "3px 10px",
+              cursor: "pointer",
+            }}
+          >
+            Save
+          </button>
+          <button
+            onClick={onCancel}
+            style={{
+              fontSize: 11,
+              fontWeight: 510,
+              fontFamily: '"Inter Variable", sans-serif',
+              fontFeatureSettings: '"cv01", "ss03"',
+              color: tokens.text.quaternary,
+              background: "transparent",
+              border: "none",
+              borderRadius: 4,
+              padding: "3px 10px",
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── TaskItemRow ──────────────────────────────────────────────────────
-export function TaskItemRow({ item, index = 0, onToggle }: { item: TaskItemType; index?: number; onToggle?: (itemId: string, checked: boolean) => void }) {
+export function TaskItemRow({ item, index = 0, onToggle, filePath, lineIndex }: { item: TaskItemType; index?: number; onToggle?: (itemId: string, checked: boolean) => void; filePath?: string; lineIndex?: number }) {
   const status = statusConfig[item.status] || statusConfig.open;
   const priority = item.priority ? priorityConfig[item.priority] : undefined;
   const isToggleable = item.status === "open" || item.status === "done";
+  const [isDone, setIsDone] = useState(item.status === "done");
   const [flash, setFlash] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const handleToggle = () => {
+  const handleToggle = useCallback(() => {
     if (!isToggleable || !onToggle) return;
+    const newDone = !isDone;
+    setIsDone(newDone);
     setFlash(true);
-    setTimeout(() => setFlash(false), 200);
-    onToggle(item.id, item.status !== "done");
-  };
+    setTimeout(() => setFlash(false), 400);
+    onToggle(item.id, newDone);
+  }, [isDone, isToggleable, onToggle, item.id]);
+
+  const handleEditSave = useCallback(async (newText: string) => {
+    if (!filePath || lineIndex === undefined) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/file", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: filePath, lineIndex, newText }),
+      });
+      if (res.ok) {
+        // Refresh would need to happen at parent level; for now close editor
+        setEditing(false);
+      }
+    } catch {
+      // Silently fail for now
+    }
+    setSaving(false);
+  }, [filePath, lineIndex]);
 
   return (
     <motion.div
@@ -93,95 +200,177 @@ export function TaskItemRow({ item, index = 0, onToggle }: { item: TaskItemType;
       initial="hidden"
       animate="show"
       transition={{ delay: index * 0.04 }}
-      className="flex items-start gap-3 py-3 group rounded-[6px] transition-colors duration-150 -mx-2 px-2"
-      style={{
-        cursor: isToggleable ? "pointer" : "default",
-        ...(isToggleable ? { backgroundColor: "transparent" } : {}),
-      }}
-      onClick={handleToggle}
-      onMouseEnter={(e) => { if (isToggleable) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.03)"; }}
-      onMouseLeave={(e) => { if (isToggleable) e.currentTarget.style.backgroundColor = "transparent"; }}
+      className="group"
     >
-      {/* Status dot — 6px circle */}
-      <div className="pt-1.5 shrink-0" style={{ transition: "transform 0.15s", transform: flash ? "scale(1.4)" : "scale(1)" }}>
-        <StatusDot status={flash ? (item.status === "done" ? "open" : "done") : status.dotStatus} size={6} />
-      </div>
+      {/* Row with green flash background */}
+      <motion.div
+        className="flex items-start gap-3 py-3 rounded-[6px] -mx-2 px-2"
+        style={{ cursor: isToggleable ? "pointer" : "default", position: "relative" }}
+        onClick={handleToggle}
+        onMouseEnter={(e) => { if (isToggleable) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.03)"; }}
+        onMouseLeave={(e) => { if (isToggleable) e.currentTarget.style.backgroundColor = "transparent"; }}
+      >
+        {/* Green flash overlay */}
+        <AnimatePresence>
+          {flash && (
+            <motion.div
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: 6,
+                backgroundColor: "rgba(16,185,129,0.06)",
+                pointerEvents: "none",
+              }}
+            />
+          )}
+        </AnimatePresence>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <p
-          className="text-[15px] leading-[1.6] tracking-[-0.165px]"
-          style={{
-            color: item.status === "done" ? tokens.text.quaternary : tokens.text.primary,
-            fontFamily: "'Inter Variable', sans-serif",
-            fontFeatureSettings: '"cv01", "ss03"',
-            ...(item.status === "done" ? { textDecoration: "line-through" } : {}),
-          }}
-        >
-          {item.text}
-        </p>
-        {item.links && item.links.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-1.5">
-            {item.links.map((link, i) => (
-              <a
-                key={i}
-                href="#"
-                className="inline-flex items-center gap-1 text-[13px] font-[510] transition-colors duration-150 hover:brightness-125"
-                style={{
-                  color: tokens.brand.violet,
-                  fontFamily: "'Inter Variable', sans-serif",
-                  fontFeatureSettings: '"cv01", "ss03"',
-                }}
-              >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-                {link.label}
-              </a>
-            ))}
-          </div>
-        )}
-        {item.related && item.related.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-1.5">
-            {item.related.map((rel, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center px-2 py-0.5 rounded-[2px] text-[11px] font-[510]"
-                style={{
-                  background: "rgba(255,255,255,0.03)",
-                  color: tokens.text.quaternary,
-                  fontFamily: "'Inter Variable', sans-serif",
-                  fontFeatureSettings: '"cv01", "ss03"',
-                }}
-              >
-                {rel.kind && <span style={{ marginRight: 4, opacity: 0.6 }}>{rel.kind}</span>}
-                {rel.label}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
+        {/* Status dot — animated checkbox circle */}
+        <div className="pt-1.5 shrink-0">
+          <StatusDot
+            status={status.dotStatus}
+            size={6}
+            checked={isDone}
+            interactive={isToggleable}
+            onClick={handleToggle}
+          />
+        </div>
 
-      {/* Priority */}
-      {priority && (
-        <span
-          className="text-[11px] font-[510] uppercase tracking-[0.08em] shrink-0 mt-1.5"
-          style={{
-            color: priority.color,
-            fontFamily: "'Inter Variable', sans-serif",
-            fontFeatureSettings: '"cv01", "ss03"',
-          }}
-        >
-          {priority.label}
-        </span>
-      )}
+        {/* Content */}
+        <div className="flex-1 min-w-0" style={{ position: "relative" }}>
+          <p
+            className="text-[15px] leading-[1.6] tracking-[-0.165px]"
+            style={{
+              color: isDone ? tokens.text.quaternary : tokens.text.primary,
+              fontFamily: "'Inter Variable', sans-serif",
+              fontFeatureSettings: '"cv01", "ss03"',
+              transition: "color 0.3s, opacity 0.3s",
+              opacity: isDone ? 0.5 : 1,
+            }}
+          >
+            {/* Strikethrough with animated clip */}
+            <span style={{ position: "relative", display: "inline" }}>
+              {item.text}
+              <motion.span
+                initial={{ scaleX: isDone ? 1 : 0 }}
+                animate={{ scaleX: isDone ? 1 : 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: "50%",
+                  width: "100%",
+                  height: "1px",
+                  backgroundColor: tokens.text.quaternary,
+                  transformOrigin: "left center",
+                  pointerEvents: "none",
+                }}
+              />
+            </span>
+          </p>
+          {item.links && item.links.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-1.5">
+              {item.links.map((link, i) => (
+                <a
+                  key={i}
+                  href="#"
+                  className="inline-flex items-center gap-1 text-[13px] font-[510] transition-colors duration-150 hover:brightness-125"
+                  style={{
+                    color: tokens.brand.violet,
+                    fontFamily: "'Inter Variable', sans-serif",
+                    fontFeatureSettings: '"cv01", "ss03"',
+                  }}
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  {link.label}
+                </a>
+              ))}
+            </div>
+          )}
+          {item.related && item.related.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {item.related.map((rel, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center px-2 py-0.5 rounded-[2px] text-[11px] font-[510]"
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    color: tokens.text.quaternary,
+                    fontFamily: "'Inter Variable', sans-serif",
+                    fontFeatureSettings: '"cv01", "ss03"',
+                  }}
+                >
+                  {rel.kind && <span style={{ marginRight: 4, opacity: 0.6 }}>{rel.kind}</span>}
+                  {rel.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Priority */}
+        {priority && (
+          <span
+            className="text-[11px] font-[510] uppercase tracking-[0.08em] shrink-0 mt-1.5"
+            style={{
+              color: priority.color,
+              fontFamily: "'Inter Variable', sans-serif",
+              fontFeatureSettings: '"cv01", "ss03"',
+            }}
+          >
+            {priority.label}
+          </span>
+        )}
+
+        {/* Edit label — appears on hover */}
+        {filePath && (
+          <button
+            className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0 mt-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditing(true);
+            }}
+            style={{
+              fontSize: 11,
+              fontWeight: 510,
+              color: tokens.text.quaternary,
+              fontFamily: "'Inter Variable', sans-serif",
+              fontFeatureSettings: '"cv01", "ss03"',
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "2px 4px",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = tokens.brand.violet; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = tokens.text.quaternary; }}
+          >
+            edit
+          </button>
+        )}
+      </motion.div>
+
+      {/* Inline edit textarea */}
+      <AnimatePresence>
+        {editing && (
+          <InlineEdit
+            text={item.text}
+            onSave={handleEditSave}
+            onCancel={() => setEditing(false)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
 
 // ─── TaskGroupComponent ──────────────────────────────────────────────
-// Cards on dark surfaces with rgba backgrounds, subtle borders
-export function TaskGroupComponent({ group, index = 0, onToggle }: { group: TaskGroupType; index?: number; onToggle?: (itemId: string, checked: boolean) => void }) {
+export function TaskGroupComponent({ group, index = 0, onToggle, filePath }: { group: TaskGroupType; index?: number; onToggle?: (itemId: string, checked: boolean) => void; filePath?: string }) {
   return (
     <motion.div
       variants={fadeSlideUp}
@@ -223,7 +412,7 @@ export function TaskGroupComponent({ group, index = 0, onToggle }: { group: Task
           </p>
         ) : (
           group.items.map((item, i) => (
-            <TaskItemRow key={item.id} item={item} index={i} onToggle={onToggle} />
+            <TaskItemRow key={item.id} item={item} index={i} onToggle={onToggle} filePath={filePath} lineIndex={item.lineIndex} />
           ))
         )}
       </div>

@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readVaultFile, resolveLink } from "@/lib/vault-reader";
+import { readFile, writeFile } from "fs/promises";
+import { join } from "path";
+
+// Vault path resolution
+function getVaultPath(): string {
+  return process.env.VAULT_PATH || "/root/.openclaw/workspace/Obsidian";
+}
 
 // ─── GET /api/file?path=wiki/work/open.md ─────────────────────────────
 // Returns raw markdown content + parsed metadata for a vault file
@@ -59,6 +66,54 @@ export async function GET(request: NextRequest) {
     console.error("File API error:", error);
     return NextResponse.json(
       { error: "Failed to read file", detail: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
+}
+
+// ─── PUT /api/file ─────────────────────────────────────────────────────
+// Write content back to a vault file
+// Body: { path: string, content: string } or { path: string, lineIndex: number, newText: string }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { path: relPath, content, lineIndex, newText } = body;
+
+    if (!relPath || typeof relPath !== "string") {
+      return NextResponse.json({ error: "Missing or invalid 'path'" }, { status: 400 });
+    }
+
+    const absPath = join(getVaultPath(), relPath);
+
+    if (content !== undefined && typeof content === "string") {
+      // Full content write
+      await writeFile(absPath, content, "utf-8");
+      return NextResponse.json({ success: true, path: relPath });
+    } else if (typeof lineIndex === "number" && typeof newText === "string") {
+      // Line-level edit (for task item inline editing)
+      let fileContent: string;
+      try {
+        fileContent = await readFile(absPath, "utf-8");
+      } catch {
+        return NextResponse.json({ error: "File not found", path: relPath }, { status: 404 });
+      }
+      const lines = fileContent.split("\n");
+      if (lineIndex < 0 || lineIndex >= lines.length) {
+        return NextResponse.json({ error: "Line index out of range" }, { status: 400 });
+      }
+      // Replace the task text portion of the line
+      const line = lines[lineIndex];
+      lines[lineIndex] = line.replace(/(- \[[ x]\] )(.+)/, `$1${newText}`);
+      await writeFile(absPath, lines.join("\n"), "utf-8");
+      return NextResponse.json({ success: true, path: relPath, lineIndex });
+    } else {
+      return NextResponse.json({ error: "Provide 'content' or 'lineIndex'+'newText'" }, { status: 400 });
+    }
+  } catch (error) {
+    console.error("File PUT error:", error);
+    return NextResponse.json(
+      { error: "Failed to write file", detail: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

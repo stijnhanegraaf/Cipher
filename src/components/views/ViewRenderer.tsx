@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { fadeSlideUp } from "@/lib/motion";
+import { cardEntrance, springs } from "@/lib/motion";
 import {
   CurrentWorkData,
   EntityOverviewData,
@@ -140,10 +140,13 @@ export function ViewRenderer({ view, index = 0, onNavigate, onToggle }: ViewRend
 
   return (
     <motion.div
-      variants={fadeSlideUp}
+      variants={cardEntrance}
       initial="hidden"
       animate="show"
-      transition={{ delay: index * 0.12 }}
+      exit="exit"
+      transition={{ ...springs.cardEnter, delay: index * 0.12 }}
+      whileHover={{ y: -1, boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}
+      whileTap={{ scale: 0.995 }}
       className="rounded-[12px] overflow-hidden"
       style={{
         background: "rgba(255,255,255,0.02)",

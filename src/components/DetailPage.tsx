@@ -152,13 +152,19 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeHeading, setActiveHeading] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editContent, setEditContent] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch file data
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setEditMode(false);
 
     fetch(`/api/file?path=${encodeURIComponent(path)}`)
       .then((res) => {
@@ -250,6 +256,62 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
   // Obsidian URL for "Open in Obsidian" link
   const obsidianUrl = `obsidian://open?vault=Obsidian&file=${encodeURIComponent(path)}`;
 
+  // ─── Save function ────────────────────────────────────────────────
+  const saveFile = useCallback(async (content: string) => {
+    if (!data) return;
+    setSaveStatus("saving");
+    try {
+      const res = await fetch("/api/file", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: data.path, content }),
+      });
+      if (res.ok) {
+        setSaveStatus("saved");
+        // Update local data
+        setData((prev) => prev ? { ...prev, content } : prev);
+        setTimeout(() => setSaveStatus("idle"), 2000);
+      } else {
+        setSaveStatus("failed");
+        setTimeout(() => setSaveStatus("idle"), 3000);
+      }
+    } catch {
+      setSaveStatus("failed");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    }
+  }, [data]);
+
+  // ─── Auto-save with debounce ──────────────────────────────────────
+  const handleEditChange = useCallback((value: string) => {
+    setEditContent(value);
+    // Clear existing debounce
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    // Set new debounce - auto-save after 2s of no typing
+    debounceRef.current = setTimeout(() => {
+      saveFile(value);
+    }, 2000);
+  }, [saveFile]);
+
+  // ─── Enter edit mode ──────────────────────────────────────────────
+  const enterEditMode = useCallback(() => {
+    if (!data) return;
+    setEditContent(data.content);
+    setEditMode(true);
+    setSaveStatus("idle");
+  }, [data]);
+
+  // ─── Exit edit mode ───────────────────────────────────────────────
+  const exitEditMode = useCallback((save = false) => {
+    // Clear debounce
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (save && data) {
+      saveFile(editContent).then(() => setEditMode(false));
+    } else {
+      setEditMode(false);
+      setSaveStatus("idle");
+    }
+  }, [editContent, saveFile, data]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -288,75 +350,151 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
             justifyContent: "space-between",
           }}
         >
-          {/* Back button — 28px circle */}
-          <button
-            onClick={onBack}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 28,
-              height: 28,
-              borderRadius: "50%",
-              background: "rgba(255,255,255,0.05)",
-              border: "none",
-              cursor: "pointer",
-              color: tokens.text.tertiary,
-              fontFamily: fontFamily.inter,
-              fontFeatureSettings: '"cv01", "ss03"',
-              transition: "background 0.15s, color 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = tokens.text.secondary;
-              e.currentTarget.style.background = "rgba(255,255,255,0.08)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = tokens.text.tertiary;
-              e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-            }}
-          >
-            <svg
-              width={14}
-              height={14}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {/* Back button — 28px circle */}
+            <button
+              onClick={onBack}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                background: "rgba(255,255,255,0.05)",
+                border: "none",
+                cursor: "pointer",
+                color: tokens.text.tertiary,
+                fontFamily: fontFamily.inter,
+                fontFeatureSettings: '"cv01", "ss03"',
+                transition: "background 0.15s, color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = tokens.text.secondary;
+                e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = tokens.text.tertiary;
+                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+              }}
             >
-              <path d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
+              <svg
+                width={14}
+                height={14}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
 
-          {/* Open in Obsidian — 11px quaternary, subtle */}
-          <a
-            href={obsidianUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              color: tokens.text.quaternary,
-              fontSize: 11,
-              fontWeight: 510,
-              letterSpacing: "0.02em",
-              textDecoration: "none",
-              opacity: 0.5,
-              fontFamily: fontFamily.inter,
-              fontFeatureSettings: '"cv01", "ss03"',
-              transition: "opacity 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = "1";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "0.5";
-            }}
-          >
-            Open in Obsidian
-          </a>
+            {/* Edit / Save / Cancel buttons */}
+            {data && !editMode && (
+              <button
+                onClick={enterEditMode}
+                style={{
+                  fontSize: 11,
+                  fontWeight: 510,
+                  textTransform: "uppercase" as const,
+                  letterSpacing: "0.08em",
+                  color: tokens.text.quaternary,
+                  fontFamily: fontFamily.inter,
+                  fontFeatureSettings: '"cv01", "ss03"',
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  transition: "color 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = tokens.brand.violet; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = tokens.text.quaternary; }}
+              >
+                Edit
+              </button>
+            )}
+            {editMode && (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  onClick={() => exitEditMode(true)}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 510,
+                    color: tokens.text.primary,
+                    fontFamily: fontFamily.inter,
+                    fontFeatureSettings: '"cv01", "ss03"',
+                    background: "rgba(255,255,255,0.06)",
+                    border: `1px solid rgba(255,255,255,0.08)`,
+                    borderRadius: 4,
+                    padding: "3px 10px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => exitEditMode(false)}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 510,
+                    color: tokens.text.quaternary,
+                    fontFamily: fontFamily.inter,
+                    fontFeatureSettings: '"cv01", "ss03"',
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Auto-save indicator */}
+            {editMode && saveStatus === "saved" && (
+              <span style={{ fontSize: 11, color: tokens.text.quaternary, opacity: 0.4, fontFamily: fontFamily.inter, fontFeatureSettings: '"cv01", "ss03"' }}>
+                Saved
+              </span>
+            )}
+            {editMode && saveStatus === "failed" && (
+              <span style={{ fontSize: 11, color: "#ef4444", fontFamily: fontFamily.inter, fontFeatureSettings: '"cv01", "ss03"' }}>
+                Save failed
+              </span>
+            )}
+
+            {/* Open in Obsidian — 11px quaternary, subtle */}
+            <a
+              href={obsidianUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                color: tokens.text.quaternary,
+                fontSize: 11,
+                fontWeight: 510,
+                letterSpacing: "0.02em",
+                textDecoration: "none",
+                opacity: 0.5,
+                fontFamily: fontFamily.inter,
+                fontFeatureSettings: '"cv01", "ss03"',
+                transition: "opacity 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = "1";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = "0.5";
+              }}
+            >
+              Open in Obsidian
+            </a>
+          </div>
         </div>
       </header>
 
@@ -478,8 +616,6 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
                     onClick={() => {
                       setLoading(true);
                       setError(null);
-                      // Re-trigger fetch by re-calling effect
-                      // Simple: reload the page for now
                       window.location.reload();
                     }}
                     style={{
@@ -615,18 +751,98 @@ export function DetailPage({ path, onBack, onNavigate }: DetailPageProps) {
                     }}
                   />
 
-                  {/* ── Rendered markdown ──────────────────────────────────── */}
-                  <MarkdownRenderer
-                    content={data.content}
-                    onNavigate={onNavigate}
-                  />
+                  {/* ── Content: Edit mode or Read mode ─────────────────────── */}
+                  <AnimatePresence mode="wait">
+                    {editMode ? (
+                      <motion.div
+                        key="edit"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <textarea
+                          ref={textareaRef}
+                          value={editContent}
+                          onChange={(e) => handleEditChange(e.target.value)}
+                          style={{
+                            width: "100%",
+                            minHeight: "calc(100vh - 240px)",
+                            padding: "16px 20px",
+                            fontSize: 14,
+                            lineHeight: 1.7,
+                            fontFamily: fontFamily.mono,
+                            color: tokens.text.secondary,
+                            backgroundColor: "#0f1011",
+                            border: `1px solid rgba(255,255,255,0.08)`,
+                            borderRadius: 8,
+                            resize: "vertical",
+                            outline: "none",
+                            tabSize: 2,
+                          }}
+                          onKeyDown={(e) => {
+                            // Cmd/Ctrl+S to save
+                            if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+                              e.preventDefault();
+                              exitEditMode(true);
+                            }
+                            // Escape to cancel
+                            if (e.key === "Escape") {
+                              exitEditMode(false);
+                            }
+                          }}
+                        />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="read"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <MarkdownRenderer
+                          content={data.content}
+                          onNavigate={onNavigate}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* ── Save indicator (shown briefly after save) ────────── */}
+                  <AnimatePresence>
+                    {saveStatus === "saved" && !editMode && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        transition={{ duration: 0.2 }}
+                        style={{
+                          position: "fixed",
+                          bottom: 24,
+                          right: 24,
+                          padding: "6px 14px",
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 510,
+                          color: tokens.text.primary,
+                          background: "rgba(16,185,129,0.15)",
+                          border: "1px solid rgba(16,185,129,0.2)",
+                          fontFamily: fontFamily.inter,
+                          fontFeatureSettings: '"cv01", "ss03"',
+                        }}
+                      >
+                        Saved ✓
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
           {/* ── Table of Contents sidebar ──────────────────────────────── */}
-          {showToc && data && (
+          {showToc && data && !editMode && (
             <div
               style={{
                 paddingTop: 24,

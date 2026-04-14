@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { stagger, fadeSlideUp } from "@/lib/motion";
+import { stagger, fadeSlideUp, springs } from "@/lib/motion";
 import { CurrentWorkData } from "@/lib/view-models";
 import { TaskGroupComponent, Badge } from "@/components/ui";
 
@@ -22,7 +22,7 @@ export function CurrentWorkView({ data, view, onToggle }: { data: CurrentWorkDat
 
   return (
     <motion.div
-      variants={stagger.container(0.04)}
+      variants={stagger.groupContainer(0)}
       initial="hidden"
       animate="show"
       className="space-y-8"
@@ -64,7 +64,10 @@ export function CurrentWorkView({ data, view, onToggle }: { data: CurrentWorkDat
         </motion.div>
       ) : (
         workData.groups.map((group, i) => (
-          <motion.div key={i} variants={stagger.item}>
+          <motion.div key={i} variants={{
+            hidden: { opacity: 0, y: 14, scale: 0.97 },
+            show: { opacity: 1, y: 0, scale: [0.97, 1.02, 1.0], transition: { ...springs.bouncy, delay: i * 0.12 } },
+          }}>
             <TaskGroupComponent group={group} index={i} onToggle={onToggle} />
           </motion.div>
         ))
