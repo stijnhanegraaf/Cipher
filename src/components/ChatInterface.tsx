@@ -9,6 +9,7 @@ import { detectIntent, detectToggleIntent } from "@/lib/intent-detector";
 import { ViewRenderer } from "@/components/views/ViewRenderer";
 import { MarkdownRenderer } from "@/components/ui";
 import { DetailPage } from "@/components/DetailPage";
+import { VaultDrawer } from "@/components/VaultDrawer";
 import { fadeSlideUp, stagger } from "@/lib/motion";
 
 // ────────────────────────────────────────────────────────────────────
@@ -172,6 +173,7 @@ export function ChatInterface() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [detailPath, setDetailPath] = useState<string | null>(null);
+  const [vaultDrawerOpen, setVaultDrawerOpen] = useState(false);
   const [vaultConnected, setVaultConnected] = useState<boolean | null>(null);
   const [vaultPath, setVaultPath] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -515,7 +517,7 @@ export function ChatInterface() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* Cipher icon */}
+            {/* Cipher icon — lock/key symbol */}
             <div
               style={{
                 width: 28,
@@ -528,16 +530,17 @@ export function ChatInterface() {
               }}
             >
               <svg
-                width={16}
-                height={16}
+                width={15}
+                height={15}
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="white"
-                strokeWidth={2}
+                strokeWidth={2.2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0110 0v4" />
               </svg>
             </div>
             <span
@@ -552,36 +555,64 @@ export function ChatInterface() {
               Cipher
             </span>
           </div>
-          <AnimatePresence>
-            {messages.length > 0 && (
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                onClick={handleClear}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 400,
-                  color: colors.quaternaryText,
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "4px 8px",
-                  borderRadius: 6,
-                  fontFeatureSettings: '"cv01", "ss03"',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = colors.secondaryText;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = colors.quaternaryText;
-                }}
-              >
-                Clear
-              </motion.button>
-            )}
-          </AnimatePresence>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Vault structure button */}
+            <motion.button
+              whileHover={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+              whileTap={{ scale: 0.96 }}
+              onClick={() => setVaultDrawerOpen(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 10px",
+                borderRadius: 6,
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "transparent",
+                color: colors.tertiaryText,
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 510,
+                fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+                fontFeatureSettings: '"cv01", "ss03"',
+              }}
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" />
+              </svg>
+              Browse
+            </motion.button>
+            <AnimatePresence>
+              {messages.length > 0 && (
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  onClick={handleClear}
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 400,
+                    color: colors.quaternaryText,
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    fontFeatureSettings: '"cv01", "ss03"',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = colors.secondaryText;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = colors.quaternaryText;
+                  }}
+                >
+                  Clear
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </header>
 
@@ -1134,6 +1165,14 @@ export function ChatInterface() {
           color: #62666d;
         }
       `}</style>
+      <VaultDrawer
+        open={vaultDrawerOpen}
+        onClose={() => setVaultDrawerOpen(false)}
+        onNavigate={(query) => {
+          setVaultDrawerOpen(false);
+          handleSubmit(query);
+        }}
+      />
     </div>
   );
 }
