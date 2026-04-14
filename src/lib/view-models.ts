@@ -22,6 +22,9 @@ export type Intent =
   | "timeline_synthesis"
   | "system_status"
   | "search_results"
+  | "browse_entities"
+  | "browse_projects"
+  | "browse_research"
   | "mixed";
 
 export type Mode = "text" | "structured" | "mixed";
@@ -34,7 +37,10 @@ export type ViewType =
   | "topic_overview"
   | "timeline_synthesis"
   | "system_status"
-  | "search_results";
+  | "search_results"
+  | "browse_entities"
+  | "browse_projects"
+  | "browse_research";
 
 export type Status = "ok" | "warn" | "error" | "stale" | "fresh";
 export type Priority = "high" | "medium" | "low";
@@ -164,13 +170,20 @@ export interface SearchResultsData {
   suggestedViews?: { intent: Intent; label: string }[];
 }
 
+export interface BrowseIndexData {
+  indexType: "entities" | "projects" | "research";
+  items: IndexEntry[];
+  researchItems?: ResearchProject[];
+}
+
 export type ViewData =
   | CurrentWorkData
   | EntityOverviewData
   | TopicOverviewData
   | TimelineSynthesisData
   | SystemStatusData
-  | SearchResultsData;
+  | SearchResultsData
+  | BrowseIndexData;
 
 export interface ViewModel {
   type: ViewType;

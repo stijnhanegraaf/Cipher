@@ -134,6 +134,12 @@ function generateSummary(view: import("@/lib/view-models").ViewModel, viewType: 
       const d = data as import("@/lib/view-models").TimelineSynthesisData;
       return `${d.themes.length} themes in ${d.range.label}.`;
     }
+    case "browse_entities":
+    case "browse_projects":
+    case "browse_research": {
+      const d = data as import("@/lib/view-models").BrowseIndexData;
+      return `${d.items.length} ${d.indexType} found.`;
+    }
     case "topic_overview": {
       const d = data as import("@/lib/view-models").TopicOverviewData;
       return d.summary.slice(0, 150) + (d.summary.length > 150 ? "…" : "");

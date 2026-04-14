@@ -505,7 +505,6 @@ export async function getEntityIndex(): Promise<import("./view-models").IndexEnt
   for (const p of paths) {
     const name = p.split("/").pop()?.replace(".md", "") || "";
     if (name === "entities") continue; // skip hub file
-    // Try to read frontmatter for area/type
     let area: string | undefined;
     let type: string | undefined;
     try {
@@ -518,6 +517,17 @@ export async function getEntityIndex(): Promise<import("./view-models").IndexEnt
     results.push({ name, path: p, area, type });
   }
   return results;
+}
+
+/** List all journal entries as IndexEntry[] */
+export async function getJournalIndex(): Promise<import("./view-models").IndexEntry[]> {
+  const paths = await listVaultFiles("wiki/journal");
+  return paths
+    .filter((p) => p.endsWith(".md") && !p.endsWith("journal.md"))
+    .map((p) => {
+      const name = p.split("/").pop()?.replace(".md", "") || "";
+      return { name, path: p };
+    });
 }
 
 /** List all project files from wiki/projects/ (top-level .md only) as IndexEntry[] */
@@ -677,6 +687,8 @@ export async function searchVault(
     "wiki/knowledge",
     "wiki/projects",
     "wiki/memory",
+    "wiki/journal",
+    "wiki/private",
   ];
 
   const allFiles = new Set<string>();
