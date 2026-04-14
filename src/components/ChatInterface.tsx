@@ -538,126 +538,41 @@ export function ChatInterface() {
         )}
       </AnimatePresence>
       </LayoutGroup>
-      {/* ── Header ────────────────────────────────────────────────── */}
-      <header
+      {/* ── Floating vault browse button ───────────────────── */}
+      <motion.button
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3, duration: 0.3 }}
+        whileHover={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.14)" }}
+        whileTap={{ scale: 0.96 }}
+        onClick={() => setVaultDrawerOpen(true)}
         style={{
-          flexShrink: 0,
-          borderBottom: `1px solid ${colors.borderSubtle}`,
-          backgroundColor: "rgba(8,9,10,0.8)",
-          backdropFilter: "blur(24px) saturate(180%)",
-          WebkitBackdropFilter: "blur(24px) saturate(180%)",
+          position: "fixed",
+          top: 16,
+          right: 16,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "8px 12px",
+          borderRadius: 8,
+          border: "1px solid rgba(255,255,255,0.08)",
+          background: "rgba(8,9,10,0.8)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          color: colors.tertiaryText,
+          cursor: "pointer",
+          fontSize: 13,
+          fontWeight: 510,
+          fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
+          fontFeatureSettings: '"cv01", "ss03"',
+          zIndex: 30,
         }}
       >
-        <div
-          style={{
-            maxWidth: 720,
-            margin: "0 auto",
-            padding: "0 24px",
-            height: 52,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* Cipher icon — lock/key symbol */}
-            <div
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 8,
-                background: colors.brandIndigo,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <svg
-                width={15}
-                height={15}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="white"
-                strokeWidth={2.2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0110 0v4" />
-              </svg>
-            </div>
-            <span
-              style={{
-                fontSize: 15,
-                fontWeight: 510,
-                letterSpacing: -0.165,
-                color: colors.primaryText,
-                fontFeatureSettings: '"cv01", "ss03"',
-              }}
-            >
-              Cipher
-            </span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* Vault structure button */}
-            <motion.button
-              whileHover={{ backgroundColor: "rgba(255,255,255,0.06)" }}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => setVaultDrawerOpen(true)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "6px 10px",
-                borderRadius: 6,
-                border: "1px solid rgba(255,255,255,0.08)",
-                background: "transparent",
-                color: colors.tertiaryText,
-                cursor: "pointer",
-                fontSize: 13,
-                fontWeight: 510,
-                fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                fontFeatureSettings: '"cv01", "ss03"',
-              }}
-            >
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" />
-              </svg>
-              Browse
-            </motion.button>
-            <AnimatePresence>
-              {messages.length > 0 && (
-                <motion.button
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  onClick={handleClear}
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 400,
-                    color: colors.quaternaryText,
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: "4px 8px",
-                    borderRadius: 6,
-                    fontFeatureSettings: '"cv01", "ss03"',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = colors.secondaryText;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = colors.quaternaryText;
-                  }}
-                >
-                  Clear
-                </motion.button>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-      </header>
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" />
+        </svg>
+        Browse
+      </motion.button>
 
       {/* ── Messages area ────────────────────────────────────────── */}
       <div
@@ -685,7 +600,7 @@ export function ChatInterface() {
                   alignItems: "center",
                   paddingTop: 48,
                   paddingBottom: 64,
-                  maxWidth: 560,
+                  maxWidth: 720,
                   margin: "0 auto",
                   width: "100%",
                 }}
