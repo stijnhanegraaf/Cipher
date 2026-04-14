@@ -303,9 +303,9 @@ export function ChatInterface() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
                   style={{
-                    fontSize: 48,
+                    fontSize: 64,
                     fontWeight: 510,
-                    letterSpacing: -1.056,
+                    letterSpacing: -1.408,
                     lineHeight: 1.0,
                     color: colors.primaryText,
                     fontFeatureSettings: '"cv01", "ss03"',
@@ -355,8 +355,9 @@ export function ChatInterface() {
                       key={action.intent}
                       variants={stagger.item}
                       whileHover={{
-                        backgroundColor: "rgba(255,255,255,0.05)",
-                        borderColor: "rgba(255,255,255,0.12)",
+                        backgroundColor: "rgba(255,255,255,0.06)",
+                        borderColor: "rgba(255,255,255,0.14)",
+                        scale: 1.02,
                       }}
                       whileTap={{ scale: 0.97 }}
                       onClick={() => handleSubmit(action.label)}
@@ -364,18 +365,18 @@ export function ChatInterface() {
                         display: "inline-flex",
                         alignItems: "center",
                         gap: 0,
-                        padding: "8px 16px",
+                        padding: "10px 18px",
                         borderRadius: 9999,
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: 510,
-                        letterSpacing: -0.13,
+                        letterSpacing: "-0.13",
                         lineHeight: 1.5,
                         color: colors.secondaryText,
                         backgroundColor: "rgba(255,255,255,0.02)",
                         border: `1px solid ${colors.pillBorder}`,
                         cursor: "pointer",
                         fontFeatureSettings: '"cv01", "ss03"',
-                        transition: "background-color 0.15s, border-color 0.15s",
+                        transition: "background-color 0.2s, border-color 0.2s, transform 0.15s",
                       }}
                     >
                       {action.label}
@@ -512,7 +513,10 @@ export function ChatInterface() {
       <div
         style={{
           flexShrink: 0,
-          backgroundColor: "rgba(8,9,10,0.8)",
+          position: "sticky",
+          bottom: 0,
+          zIndex: 10,
+          backgroundColor: "rgba(8,9,10,0.85)",
           backdropFilter: "blur(24px) saturate(180%)",
           WebkitBackdropFilter: "blur(24px) saturate(180%)",
           borderTop: `1px solid ${colors.borderSubtle}`,

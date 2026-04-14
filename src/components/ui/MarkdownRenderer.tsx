@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -36,7 +36,21 @@ interface MarkdownRendererProps {
   className?: string;
 }
 
+// ─── Wiki-link preprocessor ────────────────────────────────────────
+// Converts [[wiki links]] to [wiki links](obsidian://open?vault=Obsidian&file=PATH)
+// before react-markdown processes the content.
+function preprocessWikiLinks(markdown: string): string {
+  return markdown.replace(/\[\[([^\]]+)\]\]/g, (_match, linkText: string) => {
+    const encoded = encodeURIComponent(linkText);
+    const url = `obsidian://open?vault=Obsidian&file=${encoded}`;
+    return `[${linkText}](${url})`;
+  });
+}
+
 export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
+  // Preprocess wiki links before passing to react-markdown
+  const processedContent = useMemo(() => preprocessWikiLinks(content), [content]);
+
   return (
     <div className={`markdown-content ${className || ""}`}>
       <ReactMarkdown
@@ -176,32 +190,52 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
             <em style={{ fontStyle: "italic" }}>{children}</em>
           ),
 
-          // ── Links ──
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: tokens.brand.violet,
-                textDecoration: "none",
-                borderBottom: "1px solid transparent",
-                transition: "border-color 0.15s, color 0.15s",
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderBottomColor = tokens.brand.violet;
-                e.currentTarget.style.color = tokens.brand.hover;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderBottomColor = "transparent";
-                e.currentTarget.style.color = tokens.brand.violet;
-              }}
-            >
-              {children}
-            </a>
-          ),
+          // ── Links ── (handles both regular links and wiki-link-converted links)
+          a: ({ href, children }) => {
+            const isObsidianLink = href?.startsWith("obsidian://");
+            return (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: isObsidianLink ? tokens.brand.violet : tokens.brand.violet,
+                  textDecoration: "none",
+                  borderBottom: "1px solid transparent",
+                  transition: "border-color 0.15s, color 0.15s",
+                  fontFamily: fontFamily.inter,
+                  fontFeatureSettings: '"cv01", "ss03"',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderBottomColor = tokens.brand.violet;
+                  e.currentTarget.style.color = tokens.brand.hover;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderBottomColor = "transparent";
+                  e.currentTarget.style.color = tokens.brand.violet;
+                }}
+              >
+                {isObsidianLink && (
+                  <svg
+                    style={{
+                      display: "inline-block",
+                      width: 12,
+                      height: 12,
+                      marginRight: 3,
+                      verticalAlign: "-1px",
+                    }}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                )}
+                {children}
+              </a>
+            );
+          },
 
           // ── Bullet lists ──
           ul: ({ children }) => (
@@ -218,7 +252,39 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
               {children}
             </ul>
           ),
-          li: ({ children }) => {
+          li: ({ children, node, ...props }: any) => {
+            // GFM task list: react-markdown passes `checked` prop when item is a task
+            const checked = props.checked;
+            const isTask = checked !== undefined && checked !== null;
+
+            if (isTask) {
+              return (
+                <li
+                  style={{
+                    fontFamily: fontFamily.inter,
+                    fontFeatureSettings: '"cv01", "ss03"',
+                    fontSize: "0.9375rem", // 15px
+                    fontWeight: 400,
+                    lineHeight: 1.6,
+                    letterSpacing: "-0.165px",
+                    color: checked ? tokens.text.quaternary : tokens.text.secondary,
+                    paddingLeft: 0,
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    margin: 0,
+                    listStyle: "none",
+                  }}
+                >
+                  <CheckboxIndicator checked={!!checked} />
+                  <span style={{ flex: 1, ...(checked ? { textDecoration: "line-through" } : {}) }}>
+                    {children}
+                  </span>
+                </li>
+              );
+            }
+
+            // Regular list item
             return (
               <li
                 style={{
@@ -233,6 +299,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                   position: "relative",
                   display: "flex",
                   alignItems: "flex-start",
+                  listStyle: "none",
                 }}
               >
                 <span
@@ -270,8 +337,12 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
           ),
 
           // ── Code inline ──
-          code: ({ inline, className, children, ...props }: any) => {
-            if (inline) {
+          code: ({ className, children, ...props }: any) => {
+            // If there's a language class, it's a code block (handled by pre)
+            const isCodeBlock = className && className.startsWith("language-");
+            if (isCodeBlock || !className) {
+              // Check if inside <pre> by looking at parent — we handle inline only here
+              // The pre component handles block code
               return (
                 <code
                   style={{
@@ -288,13 +359,15 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                 </code>
               );
             }
-            // Code block
             return (
               <code
                 style={{
                   fontFamily: fontFamily.mono,
-                  fontSize: "0.8125rem", // 13px
-                  lineHeight: 1.6,
+                  fontSize: "0.875em",
+                  backgroundColor: "rgba(255,255,255,0.04)",
+                  padding: "0.15em 0.4em",
+                  borderRadius: 4,
+                  color: tokens.brand.violet,
                 }}
                 {...props}
               >
@@ -409,14 +482,14 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
             </td>
           ),
 
-          // ── Checkbox items (GFM task lists) ──
+          // ── Checkbox input (GFM task lists) ──
+          // We suppress the raw input element; rendering is handled by the li component
           input: ({ checked, ...props }) => {
-            // We don't render the raw input — we handle it in li
             return null;
           },
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );

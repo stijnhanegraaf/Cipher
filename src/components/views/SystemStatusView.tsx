@@ -108,7 +108,7 @@ export function SystemStatusView({ data, view }: { data: SystemStatusData; view:
       variants={stagger.container(0.08)}
       initial="hidden"
       animate="show"
-      className="space-y-6"
+      className="space-y-8"
     >
       {/* Overall status */}
       <OverallIndicator status={status.overall.status} label={status.overall.label} />
@@ -133,7 +133,7 @@ export function SystemStatusView({ data, view }: { data: SystemStatusData; view:
             <motion.div
               key={i}
               variants={fadeSlideUp}
-              className="flex items-start gap-3 p-4 rounded-[8px] transition-colors duration-150"
+              className="flex items-start gap-3 p-5 rounded-[8px] transition-colors duration-150"
               style={{
                 background: style.bg,
                 border: `1px solid ${style.border}`,

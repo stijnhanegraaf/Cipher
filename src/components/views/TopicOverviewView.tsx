@@ -47,7 +47,7 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
         <motion.div variants={fadeSlideUp}>
           <SectionBlock title="Current state">
             <div
-              className="flex items-start gap-3 px-4 py-3.5 rounded-[8px]"
+              className="flex items-start gap-3 px-6 py-4 rounded-[8px]"
               style={{
                 background: "rgba(16,185,129,0.04)",
                 borderLeft: `2px solid ${tokens.status.emerald}`,
@@ -57,7 +57,7 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
                 <StatusDot status="fresh" size={6} />
               </div>
               <div
-                className="text-[14px] leading-[1.6]"
+                className="text-[15px] leading-[1.6] tracking-[-0.165px]"
                 style={{
                   color: tokens.text.secondary,
                   fontFamily: "'Inter Variable', sans-serif",
@@ -81,7 +81,7 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
                   key={i}
                   variants={fadeSlideUp}
                   transition={{ delay: i * 0.05 }}
-                  className="flex items-start gap-3 px-4 py-3 rounded-[8px]"
+                  className="flex items-start gap-3 px-6 py-4 rounded-[8px]"
                   style={{
                     background: "rgba(245,158,11,0.04)",
                     borderLeft: `2px solid ${tokens.status.warning}`,
@@ -123,7 +123,7 @@ export function TopicOverviewView({ data, view }: { data: TopicOverviewData; vie
                   key={i}
                   variants={fadeSlideUp}
                   transition={{ delay: i * 0.05 }}
-                  className="flex items-start gap-3 px-4 py-3 rounded-[8px]"
+                  className="flex items-start gap-3 px-6 py-4 rounded-[8px]"
                   style={{
                     background: "rgba(16,185,129,0.04)",
                     borderLeft: `2px solid ${tokens.status.emerald}`,

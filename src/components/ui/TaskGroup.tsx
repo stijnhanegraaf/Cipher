@@ -174,12 +174,12 @@ export function TaskGroupComponent({ group, index = 0 }: { group: TaskGroupType;
       transition={{ delay: (index || 0) * 0.08 }}
       className="rounded-[8px] overflow-hidden"
       style={{
-        background: "rgba(255,255,255,0.03)",
+        background: "rgba(255,255,255,0.02)",
         border: `1px solid rgba(255,255,255,0.08)`,
       }}
     >
       {/* Group header — section label style */}
-      <div className="px-5 pt-5 pb-2">
+      <div className="px-6 pt-6 pb-2">
         <h3
           className="text-[11px] font-[510] uppercase tracking-[0.08em]"
           style={{
@@ -193,7 +193,7 @@ export function TaskGroupComponent({ group, index = 0 }: { group: TaskGroupType;
       </div>
 
       {/* Task list */}
-      <div className="px-3 pb-3">
+      <div className="px-4 pb-4">
         {group.items.map((item, i) => (
           <TaskItemRow key={item.id} item={item} index={i} />
         ))}
