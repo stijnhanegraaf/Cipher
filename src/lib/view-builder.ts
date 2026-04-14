@@ -649,7 +649,7 @@ export async function buildTimelineSynthesis(): Promise<ViewModel> {
     else if (content.includes("backoffice") || content.includes("home in the") || content.includes("hardware store")) theme = "Product & Backoffice";
     else if (content.includes("nova") || content.includes("agent") || content.includes("vault") || content.includes("obsidian") || content.includes("system") || content.includes("cron")) theme = "Nova & System";
     else if (content.includes("review") || content.includes("performance") || content.includes("values") || content.includes("promotion")) theme = "Review & Growth";
-    else if (content.includes("brain frontend") || content.includes("schema") || content.includes("visual") || content.includes("ui") || content.includes("component")) theme = "AI Visual Brain";
+    else if (content.includes("brain frontend") || content.includes("schema") || content.includes("visual") || content.includes("ui") || content.includes("component")) theme = "AI Visual Cipher";
     else if (content.includes("tebi") || content.includes("pos") || content.includes("hospitality")) theme = "Tebi";
     else if (content.includes("research") || content.includes("deep dive") || content.includes("competitive")) theme = "Research";
     else if (content.includes("mr") || content.includes("merge") || content.includes("feedback")) theme = "Process & Delivery";

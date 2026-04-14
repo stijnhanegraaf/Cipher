@@ -1,5 +1,5 @@
 /**
- * Brain — Framer Motion Animation Variants
+ * Cipher — Framer Motion Animation Variants
  *
  * Linear-inspired motion: precise, minimal, engineered.
  * Spring physics for organic feel. Inspired by Emil Kowalski

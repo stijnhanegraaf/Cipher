@@ -56,7 +56,7 @@ const quickActions = [
   { label: "System health", intent: "system_status" },
   { label: "What changed this month", intent: "timeline_synthesis" },
   { label: "About Tebi", intent: "entity_overview" },
-  { label: "AI Visual Brain Frontend", intent: "topic_overview" },
+  { label: "AI Visual Cipher", intent: "topic_overview" },
   { label: "Search review prep", intent: "search_results" },
 ];
 
@@ -515,7 +515,7 @@ export function ChatInterface() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* Brain icon */}
+            {/* Cipher icon */}
             <div
               style={{
                 width: 28,
@@ -549,7 +549,7 @@ export function ChatInterface() {
                 fontFeatureSettings: '"cv01", "ss03"',
               }}
             >
-              Brain
+              Cipher
             </span>
           </div>
           <AnimatePresence>
@@ -615,7 +615,7 @@ export function ChatInterface() {
                   paddingBottom: 64,
                 }}
               >
-                {/* ── Brain headline ──────────────────────────────── */}
+                {/* ── Cipher headline ──────────────────────────────── */}
                 <motion.h1
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -631,7 +631,7 @@ export function ChatInterface() {
                     marginBottom: 16,
                   }}
                 >
-                  Brain
+                  Cipher
                 </motion.h1>
 
                 {/* ── Tagline ──────────────────────────────────────── */}
@@ -848,7 +848,7 @@ export function ChatInterface() {
                   ) : (
                     /* ── AI response ─────────────────────────────────────── */
                     <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }} data-msg-role="assistant">
-                      {/* Brain avatar */}
+                      {/* Cipher avatar */}
                       <div
                         style={{
                           width: 28,

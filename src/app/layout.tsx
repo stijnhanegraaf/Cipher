@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Brain — Visual Knowledge Interface",
+  title: "Cipher — Visual Knowledge Interface",
   description: "AI-native frontend over a canonical markdown brain",
   icons: {
     icon: "/favicon.ico",
