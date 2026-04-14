@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { fadeSlideUp } from "@/lib/motion";
 import { TaskGroup as TaskGroupType, TaskItem as TaskItemType } from "@/lib/view-models";
@@ -73,9 +74,18 @@ const priorityConfig: Record<string, { color: string; label: string }> = {
 };
 
 // ─── TaskItemRow ──────────────────────────────────────────────────────
-export function TaskItemRow({ item, index = 0 }: { item: TaskItemType; index?: number }) {
+export function TaskItemRow({ item, index = 0, onToggle }: { item: TaskItemType; index?: number; onToggle?: (itemId: string, checked: boolean) => void }) {
   const status = statusConfig[item.status] || statusConfig.open;
   const priority = item.priority ? priorityConfig[item.priority] : undefined;
+  const isToggleable = item.status === "open" || item.status === "done";
+  const [flash, setFlash] = useState(false);
+
+  const handleToggle = () => {
+    if (!isToggleable || !onToggle) return;
+    setFlash(true);
+    setTimeout(() => setFlash(false), 200);
+    onToggle(item.id, item.status !== "done");
+  };
 
   return (
     <motion.div
@@ -84,11 +94,17 @@ export function TaskItemRow({ item, index = 0 }: { item: TaskItemType; index?: n
       animate="show"
       transition={{ delay: index * 0.04 }}
       className="flex items-start gap-3 py-3 group rounded-[6px] transition-colors duration-150 -mx-2 px-2"
-      style={{ cursor: "default" }}
+      style={{
+        cursor: isToggleable ? "pointer" : "default",
+        ...(isToggleable ? { backgroundColor: "transparent" } : {}),
+      }}
+      onClick={handleToggle}
+      onMouseEnter={(e) => { if (isToggleable) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.03)"; }}
+      onMouseLeave={(e) => { if (isToggleable) e.currentTarget.style.backgroundColor = "transparent"; }}
     >
       {/* Status dot — 6px circle */}
-      <div className="pt-1.5 shrink-0">
-        <StatusDot status={status.dotStatus} size={6} />
+      <div className="pt-1.5 shrink-0" style={{ transition: "transform 0.15s", transform: flash ? "scale(1.4)" : "scale(1)" }}>
+        <StatusDot status={flash ? (item.status === "done" ? "open" : "done") : status.dotStatus} size={6} />
       </div>
 
       {/* Content */}
@@ -165,7 +181,7 @@ export function TaskItemRow({ item, index = 0 }: { item: TaskItemType; index?: n
 
 // ─── TaskGroupComponent ──────────────────────────────────────────────
 // Cards on dark surfaces with rgba backgrounds, subtle borders
-export function TaskGroupComponent({ group, index = 0 }: { group: TaskGroupType; index?: number }) {
+export function TaskGroupComponent({ group, index = 0, onToggle }: { group: TaskGroupType; index?: number; onToggle?: (itemId: string, checked: boolean) => void }) {
   return (
     <motion.div
       variants={fadeSlideUp}
@@ -207,7 +223,7 @@ export function TaskGroupComponent({ group, index = 0 }: { group: TaskGroupType;
           </p>
         ) : (
           group.items.map((item, i) => (
-            <TaskItemRow key={item.id} item={item} index={i} />
+            <TaskItemRow key={item.id} item={item} index={i} onToggle={onToggle} />
           ))
         )}
       </div>

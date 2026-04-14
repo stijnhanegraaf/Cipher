@@ -17,7 +17,7 @@ const tokens = {
   border: { subtle: "rgba(255,255,255,0.05)", standard: "rgba(255,255,255,0.08)", solid: "#23252a" },
 };
 
-export function CurrentWorkView({ data, view }: { data: CurrentWorkData; view: any }) {
+export function CurrentWorkView({ data, view, onToggle }: { data: CurrentWorkData; view: any; onToggle?: (itemId: string, checked: boolean) => void }) {
   const workData = data as CurrentWorkData;
 
   return (
@@ -65,7 +65,7 @@ export function CurrentWorkView({ data, view }: { data: CurrentWorkData; view: a
       ) : (
         workData.groups.map((group, i) => (
           <motion.div key={i} variants={stagger.item}>
-            <TaskGroupComponent group={group} index={i} />
+            <TaskGroupComponent group={group} index={i} onToggle={onToggle} />
           </motion.div>
         ))
       )}

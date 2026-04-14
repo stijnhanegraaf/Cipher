@@ -108,6 +108,100 @@ export function ChatInterface() {
 
   // Textarea is fixed height — no auto-resize needed
 
+  const handleToggle = async (itemId: string, checked: boolean) => {
+    // Find the item in messages, get sourceFile and lineIndex
+    for (const msg of messages) {
+      if (msg.role !== "assistant" || !msg.response) continue;
+      for (const view of msg.response.response.views) {
+        if (view.type !== "current_work") continue;
+        const data = view.data as import("@/lib/view-models").CurrentWorkData;
+        for (const group of data.groups) {
+          for (const item of group.items) {
+            if (item.id !== itemId) continue;
+            if (item.lineIndex === undefined || !view.sourceFile) return;
+
+            // Optimistic update
+            const newStatus = checked ? "done" as const : "open" as const;
+            setMessages((prev) =>
+              prev.map((m) => {
+                if (m.id !== msg.id || !m.response) return m;
+                const newResponse = { ...m.response };
+                const newViews = newResponse.response.views.map((v) => {
+                  if (v.viewId !== view.viewId) return v;
+                  const vData = { ...(v.data as import("@/lib/view-models").CurrentWorkData) };
+                  vData.groups = vData.groups.map((g) => ({
+                    ...g,
+                    items: g.items.map((it) =>
+                      it.id === itemId ? { ...it, status: newStatus } : it
+                    ),
+                  }));
+                  return { ...v, data: vData };
+                });
+                newResponse.response = { ...newResponse.response, views: newViews };
+                return { ...m, response: newResponse };
+              })
+            );
+
+            // Server request
+            try {
+              const res = await fetch("/api/toggle", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path: view.sourceFile, lineIndex: item.lineIndex, checked }),
+              });
+              if (!res.ok) {
+                // Revert on failure
+                const revertStatus = !checked ? "done" as const : "open" as const;
+                setMessages((prev) =>
+                  prev.map((m) => {
+                    if (m.id !== msg.id || !m.response) return m;
+                    const newResponse = { ...m.response };
+                    const newViews = newResponse.response.views.map((v) => {
+                      if (v.viewId !== view.viewId) return v;
+                      const vData = { ...(v.data as import("@/lib/view-models").CurrentWorkData) };
+                      vData.groups = vData.groups.map((g) => ({
+                        ...g,
+                        items: g.items.map((it) =>
+                          it.id === itemId ? { ...it, status: revertStatus } : it
+                        ),
+                      }));
+                      return { ...v, data: vData };
+                    });
+                    newResponse.response = { ...newResponse.response, views: newViews };
+                    return { ...m, response: newResponse };
+                  })
+                );
+              }
+            } catch {
+              // Revert on error
+              const revertStatus = !checked ? "done" as const : "open" as const;
+              setMessages((prev) =>
+                prev.map((m) => {
+                  if (m.id !== msg.id || !m.response) return m;
+                  const newResponse = { ...m.response };
+                  const newViews = newResponse.response.views.map((v) => {
+                    if (v.viewId !== view.viewId) return v;
+                    const vData = { ...(v.data as import("@/lib/view-models").CurrentWorkData) };
+                    vData.groups = vData.groups.map((g) => ({
+                      ...g,
+                      items: g.items.map((it) =>
+                        it.id === itemId ? { ...it, status: revertStatus } : it
+                      ),
+                    }));
+                    return { ...v, data: vData };
+                  });
+                  newResponse.response = { ...newResponse.response, views: newViews };
+                  return { ...m, response: newResponse };
+                })
+              );
+            }
+            return;
+          }
+        }
+      }
+    }
+  };
+
   const handleSubmit = async (query?: string) => {
     const userMessage = query || input.trim();
     if (!userMessage || isProcessing) return;
@@ -585,7 +679,7 @@ export function ChatInterface() {
                         )}
                         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                           {msg.response?.response.views.map((view, viewIndex) => (
-                            <ViewRenderer key={view.viewId} view={view} index={viewIndex} onNavigate={setDetailPath} />
+                            <ViewRenderer key={view.viewId} view={view} index={viewIndex} onNavigate={setDetailPath} onToggle={handleToggle} />
                           ))}
                         </div>
                       </div>

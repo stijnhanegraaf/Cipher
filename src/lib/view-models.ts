@@ -53,6 +53,7 @@ export interface TaskItem {
   priority?: Priority;
   links?: LinkRef[];
   related?: LinkRef[];
+  lineIndex?: number;
 }
 
 export interface TaskGroup {
