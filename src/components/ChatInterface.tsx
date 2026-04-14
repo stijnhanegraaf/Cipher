@@ -917,8 +917,9 @@ export function ChatInterface() {
                             style={{
                               display: "flex",
                               flexWrap: "wrap",
-                              gap: 6,
-                              marginTop: 12,
+                              gap: 8,
+                              marginTop: 24,
+                              marginBottom: 8,
                             }}
                           >
                             {getQuickReplies(msg.response.response.views, msg.response.request?.entityName).map((reply) => (
