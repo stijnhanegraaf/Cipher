@@ -68,7 +68,7 @@ function PulseStatusDot({ status, size = 14 }: { status: Status; size?: number }
   return (
     <motion.span
       initial={{ scale: 1 }}
-      animate={hasPulsed ? { scale: [1, 1.5, 1] } : { scale: 1 }}
+      animate={hasPulsed ? { scale: 1.5, transition: { repeatType: "reverse", repeat: 1, duration: 0.3 } } : { scale: 1 }}
       transition={hasPulsed ? { duration: 0.6, ease: "easeInOut" } : { duration: 0 }}
       style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}
     >

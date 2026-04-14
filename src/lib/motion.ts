@@ -104,7 +104,7 @@ export const cardEntrance: Variants = {
   show: {
     opacity: 1,
     y: 0,
-    scale: [0.97, 1.02, 1.0],
+    scale: 1.02,
     transition: springs.cardEnter,
   },
   exit: {
@@ -141,7 +141,7 @@ export const stagger = {
     show: {
       opacity: 1,
       y: 0,
-      scale: [0.97, 1.02, 1.0],
+      scale: 1.02,
       transition: springs.bouncy,
     },
   } as Variants,
