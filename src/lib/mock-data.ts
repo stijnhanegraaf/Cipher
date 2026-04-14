@@ -86,7 +86,7 @@ const currentWorkResponse: ResponseEnvelope = {
         data: {
           groups: [
             {
-              label: "AI Visual Brain Frontend",
+              label: "AI Visual Cipher",
               items: [
                 {
                   id: "task_1",
@@ -97,7 +97,7 @@ const currentWorkResponse: ResponseEnvelope = {
                     { label: "Project Spec", path: "wiki/projects/ai-visual-brain-frontend-product-spec.md" },
                   ],
                   related: [
-                    { label: "AI Visual Brain Frontend", path: "wiki/projects/ai-visual-brain-frontend.md", kind: "topic" },
+                    { label: "AI Visual Cipher", path: "wiki/projects/ai-visual-brain-frontend.md", kind: "topic" },
                   ],
                 },
                 {
@@ -159,7 +159,7 @@ const currentWorkResponse: ResponseEnvelope = {
             week: { label: "This Week", path: "wiki/work/weeks/2026/W15.md" },
             month: { label: "This Month", path: "wiki/work/log/2026/april.md" },
           },
-          highlights: ["6 active tasks", "2 high-priority items", "AI Visual Brain Frontend is the main focus"],
+          highlights: ["6 active tasks", "2 high-priority items", "AI Visual Cipher is the main focus"],
         },
         sources: [
           { label: "Open Work", path: "wiki/work/open.md", kind: "canonical_note", role: "current_state", relevance: "high" },
@@ -263,7 +263,7 @@ const timelineResponse: ResponseEnvelope = {
               ],
             },
             {
-              label: "AI Visual Brain Frontend",
+              label: "AI Visual Cipher",
               summary: "Research, specs, and architecture decisions for the new frontend.",
               items: [
                 { date: "2026-04-12", label: "Defined UI schema and component catalog" },
@@ -369,16 +369,16 @@ const topicOverviewResponse: ResponseEnvelope = {
     id: "req_006",
     intent: "topic_overview",
     mode: "structured",
-    query: "What is the AI Visual Brain Frontend project about?",
+    query: "What is the AI Visual Cipher project about?",
   },
   response: {
-    title: "AI Visual Brain Frontend",
+    title: "AI Visual Cipher",
     summary: "A chat-native interface that turns a canonical markdown brain into a usable operating system for work, memory, and context.",
     views: [
       {
         type: "topic_overview",
         viewId: "view_topic_avbf",
-        title: "AI Visual Brain Frontend",
+        title: "AI Visual Cipher",
         layout: "stack",
         data: {
           topicType: "project",
@@ -412,7 +412,7 @@ const topicOverviewResponse: ResponseEnvelope = {
           ],
         },
         sources: [
-          { label: "AI Visual Brain Frontend", path: "wiki/projects/ai-visual-brain-frontend.md", kind: "canonical_note", role: "topic", relevance: "high" },
+          { label: "AI Visual Cipher", path: "wiki/projects/ai-visual-brain-frontend.md", kind: "canonical_note", role: "topic", relevance: "high" },
           { label: "Product Spec", path: "wiki/projects/ai-visual-brain-frontend-product-spec.md", kind: "canonical_note", role: "topic" },
         ],
         meta: { confidence: 0.93, freshness: "fresh" },

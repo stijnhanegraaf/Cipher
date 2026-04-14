@@ -1,10 +1,10 @@
-# Brain Frontend
+# Cipher
 
 A chat-native, AI-powered visual interface over a canonical markdown knowledge base.
 
 ## What it is
 
-**Brain** is a read-only prototype of an AI-native frontend that renders structured visual views from a markdown-backed knowledge system. It's not a notes app with an AI sidebar — it's a chat-first operating layer where AI shapes what gets shown.
+**Cipher** is a read-only prototype of an AI-native frontend that renders structured visual views from a markdown-backed knowledge system. It's not a notes app with an AI sidebar — it's a chat-first operating layer where AI shapes what gets shown.
 
 ### Core idea
 
@@ -54,7 +54,7 @@ One input (chat), many possible outputs (dashboards, entity pages, timelines, st
 |------|-------------|---------------|
 | `current_work` | Operational dashboard — tasks, highlights, period links | "What matters now?" |
 | `entity_overview` | Entity page — summary, connections, timeline | "Tell me about Tebi" |
-| `topic_overview` | Topic/project page — current state, questions, next steps | "What is the AI Visual Brain Frontend?" |
+| `topic_overview` | Topic/project page — current state, questions, next steps | "What is the AI Visual Cipher?" |
 | `timeline_synthesis` | Temporal view — themes, events, gaps | "What changed this month?" |
 | `system_status` | Health panel — checks, warnings, attention items | "System health" |
 | `search_results` | Fallback — clustered results with suggested views | "review prep" |
