@@ -37,6 +37,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [focusId, setFocusId] = useState<string | null>(null);
 
   // View transform (pan + zoom). stored in a ref so the animation loop
   // can read it without triggering re-renders.
@@ -47,6 +48,9 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
   const rafRef = useRef<number | null>(null);
   const draggingRef = useRef<{ kind: "pan" | "node"; id?: string; lastX: number; lastY: number } | null>(null);
   const mouseRef = useRef<{ x: number; y: number } | null>(null);
+  const inhaleRef = useRef(0); // 0 → 1 over 300ms on mount
+  const pulseRef = useRef<{ id: string; startedAt: number } | null>(null);
+  const mountTimeRef = useRef<number>(0);
 
   // Which nodes are "active" given filters. ids not in this set render faded.
   const activeIds = useMemo(() => {
@@ -88,18 +92,55 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     simEdgesRef.current = graph.edges;
     tickCountRef.current = 0;
     viewRef.current = { tx: 0, ty: 0, scale: 1 };
+    mountTimeRef.current = performance.now();
+    inhaleRef.current = 0;
 
     // Kick off the animation loop.
     const tick = () => {
       step();
+      const now = performance.now();
+      const inhaleElapsed = now - mountTimeRef.current;
+      inhaleRef.current = Math.min(1, inhaleElapsed / 300);
+
+      // Idle pulse — start a new one every ~4s if none active.
+      if (!pulseRef.current && inhaleRef.current >= 1) {
+        if (Math.random() < 0.012) {
+          // Pick a random bright or hub node.
+          const candidates = simNodesRef.current.filter((n) => n.backlinks >= 3);
+          if (candidates.length > 0) {
+            const pick = candidates[Math.floor(Math.random() * candidates.length)];
+            pulseRef.current = { id: pick.id, startedAt: now };
+          }
+        }
+      } else if (pulseRef.current) {
+        const age = now - pulseRef.current.startedAt;
+        if (age > 600) pulseRef.current = null;
+      }
+
       draw();
       tickCountRef.current++;
       // Run ~400 ticks for layout to settle, then keep drawing on interactions only.
       if (tickCountRef.current < 400) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
-        // Keep a light idle loop to redraw on hover/zoom state.
-        const idle = () => { draw(); rafRef.current = requestAnimationFrame(idle); };
+        // Keep a light idle loop to redraw for hover/zoom state and idle pulses.
+        const idle = () => {
+          const now2 = performance.now();
+          if (!pulseRef.current) {
+            if (Math.random() < 0.012) {
+              const candidates = simNodesRef.current.filter((n) => n.backlinks >= 3);
+              if (candidates.length > 0) {
+                const pick = candidates[Math.floor(Math.random() * candidates.length)];
+                pulseRef.current = { id: pick.id, startedAt: now2 };
+              }
+            }
+          } else {
+            const age = now2 - pulseRef.current.startedAt;
+            if (age > 600) pulseRef.current = null;
+          }
+          draw();
+          rafRef.current = requestAnimationFrame(idle);
+        };
         rafRef.current = requestAnimationFrame(idle);
       }
     };
@@ -261,6 +302,13 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     const byId = new Map<string, SimNode>();
     for (const n of nodes) byId.set(n.id, n);
 
+    // Inhale: nodes scale from 0.5 → 1 and edges fade in 0 → 1 over 300ms.
+    const inhaleScale = 0.5 + 0.5 * inhaleRef.current;
+    const inhaleAlpha = inhaleRef.current;
+
+    // Focus neighbors — computed once per frame when focus is active.
+    const neighborSet = focusId ? getOneHopNeighbors(focusId, edges) : null;
+
     ctx.lineWidth = 0.4 / scale;
     for (const e of edges) {
       const a = byId.get(e.source);
@@ -270,9 +318,15 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       const aActive = activeIds.size === 0 || activeIds.has(a.id);
       const bActive = activeIds.size === 0 || activeIds.has(b.id);
       const alpha = isConnected ? 1 : (aActive && bActive ? 1 : 0.12);
+      // Focus dimming — edges not touching the focused node fade back.
+      let edgeFocusMul = 1;
+      if (focusId) {
+        const inFocus = a.id === focusId || b.id === focusId;
+        if (!inFocus) edgeFocusMul = 0.15;
+      }
       ctx.strokeStyle = isConnected ? colRayHover : colRay;
       ctx.lineWidth = isConnected ? 0.6 / scale : 0.4 / scale;
-      ctx.globalAlpha = alpha;
+      ctx.globalAlpha = alpha * inhaleAlpha * edgeFocusMul;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
@@ -281,6 +335,8 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     ctx.globalAlpha = 1;
 
     // Nodes.
+    const pulse = pulseRef.current;
+    const nowPerf = performance.now();
     for (const n of nodes) {
       const active = activeIds.size === 0 || activeIds.has(n.id);
       const hovered = n.id === hoveredId;
@@ -288,8 +344,21 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       const isHub = n.backlinks >= 8;
       const isBright = !isHub && n.backlinks >= 3;
 
+      // Idle pulse — if this node is pulsing, multiply opacity by a sine bump.
+      let pulseMul = 1;
+      if (pulse && pulse.id === n.id) {
+        const age = (nowPerf - pulse.startedAt) / 600;
+        pulseMul = 0.8 + 0.2 * Math.sin(age * Math.PI);
+      }
+
+      // Focus dimming — nodes outside the focused subgraph fade back.
+      let focusAlpha = 1;
+      if (focusId && neighborSet) {
+        if (n.id !== focusId && !neighborSet.has(n.id)) focusAlpha = 0.1;
+      }
+
       ctx.beginPath();
-      ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+      ctx.arc(n.x, n.y, n.radius * inhaleScale, 0, Math.PI * 2);
 
       if (hovered || selected) {
         ctx.fillStyle = colAccent;
@@ -308,15 +377,15 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         ctx.shadowBlur = 0;
       }
 
-      ctx.globalAlpha = active ? 1 : 0.15;
+      ctx.globalAlpha = (active ? 1 : 0.15) * inhaleAlpha * pulseMul * focusAlpha;
       ctx.fill();
       ctx.shadowBlur = 0;
 
       if (selected) {
         ctx.beginPath();
-        ctx.arc(n.x, n.y, n.radius + 4 / scale, 0, Math.PI * 2);
+        ctx.arc(n.x, n.y, n.radius * inhaleScale + 4 / scale, 0, Math.PI * 2);
         ctx.strokeStyle = colAccent;
-        ctx.globalAlpha = 0.4;
+        ctx.globalAlpha = 0.4 * inhaleAlpha;
         ctx.lineWidth = 2 / scale;
         ctx.stroke();
       }
@@ -349,7 +418,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         ctx.fillText(label, boxX + pad, boxY + boxH / 2);
       }
     }
-  }, [hoveredId, selectedId, activeIds]);
+  }, [hoveredId, selectedId, activeIds, focusId]);
 
   function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
     ctx.beginPath();
@@ -359,6 +428,15 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     ctx.arcTo(x, y + h, x, y, r);
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
+  }
+
+  function getOneHopNeighbors(nodeId: string, edges: GraphEdge[]): Set<string> {
+    const set = new Set<string>();
+    for (const e of edges) {
+      if (e.source === nodeId) set.add(e.target);
+      else if (e.target === nodeId) set.add(e.source);
+    }
+    return set;
   }
 
   // ── Hit-testing ──────────────────────────────────────────────────
@@ -476,12 +554,20 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       else if (e.key === "ArrowUp") v.ty += 40;
       else if (e.key === "ArrowDown") v.ty -= 40;
       else if (e.key === "f" || e.key === "F") fitToView();
-      else if (e.key === "Escape") { viewRef.current = { tx: 0, ty: 0, scale: 1 }; setSelectedId(null); }
+      else if (e.key === "Escape") {
+        if (focusId) {
+          setFocusId(null);
+          e.preventDefault();
+          return;
+        }
+        viewRef.current = { tx: 0, ty: 0, scale: 1 };
+        setSelectedId(null);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [focusId]);
 
   const fitToView = useCallback(() => {
     const container = containerRef.current;
@@ -523,6 +609,13 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={() => { setHoveredId(null); mouseRef.current = null; }}
+        onDoubleClick={(e) => {
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+          const rect = canvas.getBoundingClientRect();
+          const hit = pickNode(e.clientX - rect.left, e.clientY - rect.top);
+          if (hit) setFocusId(hit.id);
+        }}
         style={{ display: "block", touchAction: "none" }}
       />
       {/* Keyboard hint */}
