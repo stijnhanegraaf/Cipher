@@ -19,7 +19,11 @@ const RANGE_MS: Record<Exclude<Range, "all">, number> = {
 };
 
 async function fetchTimeline(): Promise<TimelineSynthesisData | null> {
-  const res = await fetch("/api/query?intent=timeline_synthesis");
+  const res = await fetch("/api/query", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query: "what changed this month" }),
+  });
   if (!res.ok) return null;
   const payload = await res.json();
   return (payload?.response?.views?.[0]?.data as TimelineSynthesisData) ?? null;

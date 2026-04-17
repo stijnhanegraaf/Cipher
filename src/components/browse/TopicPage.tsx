@@ -8,7 +8,11 @@ import { useVault } from "@/lib/hooks/useVault";
 import type { TopicOverviewData, ViewModel } from "@/lib/view-models";
 
 async function fetchTopic(name: string): Promise<{ view: ViewModel | null; data: TopicOverviewData | null }> {
-  const res = await fetch(`/api/query?intent=topic_overview&name=${encodeURIComponent(name)}`);
+  const res = await fetch("/api/query", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query: `tell me about ${name}` }),
+  });
   if (!res.ok) return { view: null, data: null };
   const payload = await res.json();
   const view = payload?.response?.views?.[0] ?? null;
