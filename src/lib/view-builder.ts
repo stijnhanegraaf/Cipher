@@ -642,23 +642,21 @@ export async function buildTimelineSynthesis(): Promise<ViewModel> {
   ];
 
   const paths = currentMonthPaths();
-  const currentFile = await readVaultFile(paths.current);
-  const previousFile = await readVaultFile(paths.previous);
 
   const themes: ThemeGroup[] = [];
   const dateEntries: { date: string; label: string; summary: string; body: string }[] = [];
   const sourceFiles: string[] = [];
 
-  // Parse daily ### headings from current month
-  if (currentFile) {
-    sourceFiles.push(paths.current);
-    extractDayEntries(currentFile, new Date().getFullYear(), dateEntries, monthNames);
-  }
-  if (previousFile) {
-    sourceFiles.push(paths.previous);
-    const prevDate = new Date();
-    prevDate.setMonth(prevDate.getMonth() - 1);
-    extractDayEntries(previousFile, prevDate.getFullYear(), dateEntries, monthNames);
+  // Walk backward up to 12 months (current + 11 previous) so the timeline
+  // surfaces real history, not just "this month + last month".
+  const nowTs = new Date();
+  for (let offset = 0; offset < 12; offset++) {
+    const d = new Date(nowTs.getFullYear(), nowTs.getMonth() - offset, 1);
+    const rel = `wiki/work/log/${d.getFullYear()}/${monthNames[d.getMonth()]}.md`;
+    const file = await readVaultFile(rel);
+    if (!file) continue;
+    sourceFiles.push(rel);
+    extractDayEntries(file, d.getFullYear(), dateEntries, monthNames);
   }
 
   // Group entries into themes by keyword detection

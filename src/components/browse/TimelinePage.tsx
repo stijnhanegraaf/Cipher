@@ -34,7 +34,7 @@ export function TimelinePage() {
   const [data, setData] = useState<TimelineSynthesisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [range, setRange] = useState<Range>("month");
+  const [range, setRange] = useState<Range>("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -162,7 +162,7 @@ export function TimelinePage() {
             >
               <span
                 className="mono-label"
-                style={{ width: 64, color: "var(--text-quaternary)", flexShrink: 0, letterSpacing: "0.04em" }}
+                style={{ width: 104, color: "var(--text-quaternary)", flexShrink: 0, letterSpacing: "0.04em", whiteSpace: "nowrap" }}
               >
                 {item.date}
               </span>
