@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { SlashCommandMenu } from "@/components/SlashCommandMenu";
 
 interface Props {
   onSubmit: (query: string) => void;
@@ -12,15 +13,17 @@ interface Props {
  */
 export function ChatEmptyState({ onSubmit }: Props) {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [value, setValue] = useState("");
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // When the slash menu is open it captures Enter itself (window-level listener).
+    if (value.startsWith("/")) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      const value = inputRef.current?.value ?? "";
       if (value.trim()) onSubmit(value.trim());
     }
   };
@@ -76,11 +79,17 @@ export function ChatEmptyState({ onSubmit }: Props) {
           padding: "0 16px",
         }}
       >
+        <SlashCommandMenu
+          value={value}
+          onSelect={() => setValue("")}
+        />
         <textarea
           ref={inputRef}
           rows={1}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKey}
-          placeholder="Type a question…"
+          placeholder="Type a question — or /"
           className="focus-ring"
           style={{
             width: "100%",
