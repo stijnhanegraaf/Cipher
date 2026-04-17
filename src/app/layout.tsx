@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { AppShell } from "@/components/AppShell";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -53,7 +54,7 @@ export default function RootLayout({
         className="font-sans antialiased min-h-dvh"
         style={{ backgroundColor: 'var(--bg-marketing)', color: 'var(--text-primary)' }}
       >
-        {children}
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
