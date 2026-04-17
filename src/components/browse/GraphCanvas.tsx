@@ -81,7 +81,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         y: h / 2 + Math.sin(angle) * r,
         vx: 0,
         vy: 0,
-        radius: Math.max(2.5, Math.min(10, 2.5 + Math.sqrt(n.backlinks) * 0.9)),
+        radius: Math.max(1.5, Math.min(6, 1.5 + Math.sqrt(n.backlinks) * 0.8)),
       };
     });
     simNodesRef.current = simNodes;
@@ -149,7 +149,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     for (const n of nodes) byId.set(n.id, n);
 
     // 1. Repulsion — O(n²), fine for <800 nodes.
-    const REPULSION = 1200;
+    const REPULSION = 900;
     for (let i = 0; i < nodes.length; i++) {
       const a = nodes[i];
       for (let j = i + 1; j < nodes.length; j++) {
@@ -169,7 +169,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     }
 
     // 2. Spring force on edges (Hooke's law toward target distance).
-    const TARGET = 50;
+    const TARGET = 70;
     const STIFFNESS = 0.05;
     for (const e of edges) {
       const a = byId.get(e.source);
@@ -195,7 +195,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     }
 
     // 4. Integrate with damping.
-    const DAMPING = 0.85;
+    const DAMPING = 0.88;
     for (const n of nodes) {
       n.vx *= DAMPING;
       n.vy *= DAMPING;
@@ -217,15 +217,40 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     const nodes = simNodesRef.current;
     const edges = simEdgesRef.current;
 
-    // Clear.
-    ctx.clearRect(0, 0, w, h);
-
-    // Theme-aware colors from CSS vars.
+    // Theme-aware cosmic palette.
     const style = getComputedStyle(document.documentElement);
-    const colNode = style.getPropertyValue("--text-quaternary").trim() || "#62666d";
-    const colEdge = style.getPropertyValue("--border-standard").trim() || "rgba(255,255,255,0.08)";
-    const colAccent = style.getPropertyValue("--accent-brand").trim() || "#5e6ad2";
-    const colLabel = style.getPropertyValue("--text-secondary").trim() || "#d0d6e0";
+    const isLight = document.documentElement.classList.contains("light");
+
+    const bgStart = isLight ? "#fafaf5" : "#0b0e18";
+    const bgEnd   = isLight ? "#f0f0ea" : "#05060a";
+    const colStar        = isLight ? "rgba(74,81,102,0.85)"  : "rgba(168,178,209,0.85)";
+    const colStarBright  = isLight ? "#23252a"              : "#ffffff";
+    const colStarHub     = isLight ? (style.getPropertyValue("--accent-brand").trim() || "#5e6ad2") : "#ffffff";
+    const colRay         = isLight ? "rgba(94,106,210,0.20)" : "rgba(180,200,255,0.18)";
+    const colRayHover    = isLight ? "rgba(94,106,210,0.70)" : "rgba(200,220,255,0.70)";
+    const colAccent      = style.getPropertyValue("--accent-brand").trim() || "#5e6ad2";
+    const colLabel       = style.getPropertyValue("--text-primary").trim() || "#f7f8f8";
+    const colTooltipBg   = style.getPropertyValue("--bg-tooltip").trim() || "#0d0e0f";
+
+    // Clear then paint cosmic backdrop.
+    ctx.clearRect(0, 0, w, h);
+    const grd = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.7);
+    grd.addColorStop(0, bgStart);
+    grd.addColorStop(1, bgEnd);
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, w, h);
+
+    // Nebula wash — two soft radials.
+    const nebulaA = ctx.createRadialGradient(w * 0.35, h * 0.6, 0, w * 0.35, h * 0.6, w * 0.4);
+    nebulaA.addColorStop(0, isLight ? "rgba(94,106,210,0.12)" : "rgba(120,100,200,0.15)");
+    nebulaA.addColorStop(1, "transparent");
+    ctx.fillStyle = nebulaA;
+    ctx.fillRect(0, 0, w, h);
+    const nebulaB = ctx.createRadialGradient(w * 0.65, h * 0.4, 0, w * 0.65, h * 0.4, w * 0.4);
+    nebulaB.addColorStop(0, isLight ? "rgba(120,160,220,0.10)" : "rgba(90,130,220,0.12)");
+    nebulaB.addColorStop(1, "transparent");
+    ctx.fillStyle = nebulaB;
+    ctx.fillRect(0, 0, w, h);
 
     // Apply pan+zoom.
     ctx.save();
@@ -236,7 +261,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     const byId = new Map<string, SimNode>();
     for (const n of nodes) byId.set(n.id, n);
 
-    ctx.lineWidth = 0.5 / scale;
+    ctx.lineWidth = 0.4 / scale;
     for (const e of edges) {
       const a = byId.get(e.source);
       const b = byId.get(e.target);
@@ -244,8 +269,9 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       const isConnected = hoveredId && (a.id === hoveredId || b.id === hoveredId);
       const aActive = activeIds.size === 0 || activeIds.has(a.id);
       const bActive = activeIds.size === 0 || activeIds.has(b.id);
-      const alpha = isConnected ? 0.9 : (aActive && bActive ? 0.5 : 0.12);
-      ctx.strokeStyle = isConnected ? colAccent : colEdge;
+      const alpha = isConnected ? 1 : (aActive && bActive ? 1 : 0.12);
+      ctx.strokeStyle = isConnected ? colRayHover : colRay;
+      ctx.lineWidth = isConnected ? 0.6 / scale : 0.4 / scale;
       ctx.globalAlpha = alpha;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
@@ -259,16 +285,33 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       const active = activeIds.size === 0 || activeIds.has(n.id);
       const hovered = n.id === hoveredId;
       const selected = n.id === selectedId;
+      const isHub = n.backlinks >= 8;
+      const isBright = !isHub && n.backlinks >= 3;
+
       ctx.beginPath();
       ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
-      if (selected || hovered) {
+
+      if (hovered || selected) {
         ctx.fillStyle = colAccent;
+        ctx.shadowColor = colAccent;
+        ctx.shadowBlur = 12;
+      } else if (isHub) {
+        ctx.fillStyle = colStarHub;
+        ctx.shadowColor = isLight ? "rgba(94,106,210,0.5)" : "rgba(200,220,255,0.9)";
+        ctx.shadowBlur = 8;
+      } else if (isBright) {
+        ctx.fillStyle = colStarBright;
+        ctx.shadowColor = isLight ? "rgba(94,106,210,0.35)" : "rgba(200,220,255,0.9)";
+        ctx.shadowBlur = 4;
       } else {
-        ctx.fillStyle = colNode;
+        ctx.fillStyle = colStar;
+        ctx.shadowBlur = 0;
       }
+
       ctx.globalAlpha = active ? 1 : 0.15;
       ctx.fill();
-      // Selection ring.
+      ctx.shadowBlur = 0;
+
       if (selected) {
         ctx.beginPath();
         ctx.arc(n.x, n.y, n.radius + 4 / scale, 0, Math.PI * 2);
@@ -296,7 +339,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         const boxH = 22;
         const boxX = sx + n.radius * scale + 8;
         const boxY = sy - boxH / 2;
-        ctx.fillStyle = style.getPropertyValue("--bg-tooltip").trim() || "#0d0e0f";
+        ctx.fillStyle = colTooltipBg;
         ctx.globalAlpha = 0.95;
         roundRect(ctx, boxX, boxY, boxW, boxH, 4);
         ctx.fill();
