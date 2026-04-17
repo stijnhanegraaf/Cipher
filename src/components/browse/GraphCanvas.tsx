@@ -93,42 +93,37 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     tickCountRef.current = 0;
     viewRef.current = { tx: 0, ty: 0, scale: 1 };
 
-    // Pre-settle the layout silently so nodes don't fly around on mount.
-    // 120 ticks is enough for <800 nodes to reach a near-stable configuration.
-    for (let i = 0; i < 120; i++) step();
+    // Pre-settle the layout to equilibrium BEFORE the first paint. We run
+    // up to 600 ticks or until total kinetic energy is negligible — whichever
+    // comes first. The animation that follows does NOT run any physics, so
+    // what the user sees is a completely still graph fading in.
+    for (let i = 0; i < 600; i++) {
+      step();
+      if (i > 80 && i % 20 === 0) {
+        let energy = 0;
+        for (const n of simNodes) energy += n.vx * n.vx + n.vy * n.vy;
+        if (energy < 0.02) break;
+      }
+    }
+    // Zero residual velocities so the frozen layout doesn't drift during fade.
+    for (const n of simNodes) { n.vx = 0; n.vy = 0; }
 
     mountTimeRef.current = performance.now();
     inhaleRef.current = 0;
 
-    // Kick off the animation loop.
-    const tick = () => {
-      step();
+    // Fade-in loop: draw only, no physics. 500ms ease-out.
+    const FADE_MS = 500;
+    const fade = () => {
       const now = performance.now();
-      const inhaleElapsed = now - mountTimeRef.current;
-      inhaleRef.current = Math.min(1, inhaleElapsed / 400);
-
-      // Idle pulse — start a new one every ~4s if none active.
-      if (!pulseRef.current && inhaleRef.current >= 1) {
-        if (Math.random() < 0.012) {
-          // Pick a random bright or hub node.
-          const candidates = simNodesRef.current.filter((n) => n.backlinks >= 3);
-          if (candidates.length > 0) {
-            const pick = candidates[Math.floor(Math.random() * candidates.length)];
-            pulseRef.current = { id: pick.id, startedAt: now };
-          }
-        }
-      } else if (pulseRef.current) {
-        const age = now - pulseRef.current.startedAt;
-        if (age > 600) pulseRef.current = null;
-      }
-
+      const t = Math.min(1, (now - mountTimeRef.current) / FADE_MS);
+      // Ease-out cubic.
+      inhaleRef.current = 1 - Math.pow(1 - t, 3);
       draw();
-      tickCountRef.current++;
-      // Run ~400 ticks for layout to settle, then keep drawing on interactions only.
-      if (tickCountRef.current < 400) {
-        rafRef.current = requestAnimationFrame(tick);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(fade);
       } else {
-        // Keep a light idle loop to redraw for hover/zoom state and idle pulses.
+        inhaleRef.current = 1;
+        // After fade, a light idle loop for hover/zoom redraws + idle pulses.
         const idle = () => {
           const now2 = performance.now();
           if (!pulseRef.current) {
@@ -149,7 +144,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         rafRef.current = requestAnimationFrame(idle);
       }
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = requestAnimationFrame(fade);
 
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
