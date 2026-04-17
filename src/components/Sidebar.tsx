@@ -94,41 +94,6 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
       activeWhen: () => pathname === "/browse/graph",
     },
     {
-      id: "tasks",
-      label: "Tasks",
-      icon: (
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-        </svg>
-      ),
-      onClick: () => onAsk("what matters now"),
-      activeKinds: ["current_work"],
-    },
-    {
-      id: "entities",
-      label: "Entities",
-      icon: (
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="8" r="4" />
-          <path d="M4 20c0-4 3.5-7 8-7s8 3 8 7" />
-        </svg>
-      ),
-      onClick: () => onAsk("show me my entities"),
-      activeKinds: ["entity_overview", "browse_entities"],
-    },
-    {
-      id: "projects",
-      label: "Projects",
-      icon: (
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="7" width="18" height="13" rx="2" />
-          <path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
-        </svg>
-      ),
-      onClick: () => onAsk("show me my projects"),
-      activeKinds: ["topic_overview", "browse_projects"],
-    },
-    {
       id: "system",
       label: "System",
       icon: (
@@ -136,8 +101,8 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
         </svg>
       ),
-      onClick: () => onAsk("system health"),
-      activeKinds: ["system_status"],
+      onClick: () => router.push("/browse/system"),
+      activeWhen: () => pathname === "/browse/system",
     },
     {
       id: "timeline",
@@ -147,8 +112,8 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
-      onClick: () => onAsk("what changed this month"),
-      activeKinds: ["timeline_synthesis"],
+      onClick: () => router.push("/browse/timeline"),
+      activeWhen: () => pathname === "/browse/timeline",
     },
   ];
 
