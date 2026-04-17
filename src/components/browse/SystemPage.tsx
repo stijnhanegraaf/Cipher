@@ -8,7 +8,11 @@ import type { SystemStatusData, Status } from "@/lib/view-models";
 
 /** Fetch system status via the existing /api/query pipeline. */
 async function fetchSystemData(): Promise<SystemStatusData | null> {
-  const res = await fetch("/api/query?intent=system_status");
+  const res = await fetch("/api/query", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query: "system health" }),
+  });
   if (!res.ok) return null;
   const payload = await res.json();
   const view = payload?.response?.views?.[0];

@@ -8,7 +8,11 @@ import type { SearchResultsData } from "@/lib/view-models";
 
 async function fetchSearch(q: string): Promise<SearchResultsData | null> {
   if (!q) return null;
-  const res = await fetch(`/api/query?intent=search_results&q=${encodeURIComponent(q)}`);
+  const res = await fetch("/api/query", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query: q }),
+  });
   if (!res.ok) return null;
   const payload = await res.json();
   return (payload?.response?.views?.[0]?.data as SearchResultsData) ?? null;
