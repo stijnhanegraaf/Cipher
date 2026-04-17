@@ -51,6 +51,8 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
   const inhaleRef = useRef(0); // 0 → 1 over 300ms on mount
   const pulseRef = useRef<{ id: string; startedAt: number } | null>(null);
   const mountTimeRef = useRef<number>(0);
+  // Holds the latest `draw` so the rAF loop doesn't call a stale closure.
+  const drawRef = useRef<() => void>(() => {});
 
   // Which nodes are "active" given filters. ids not in this set render faded.
   const activeIds = useMemo(() => {
@@ -119,7 +121,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       const t = Math.min(1, (now - mountTimeRef.current) / FADE_MS);
       // Ease-out cubic.
       inhaleRef.current = 1 - Math.pow(1 - t, 3);
-      draw();
+      drawRef.current();
       if (t < 1) {
         rafRef.current = requestAnimationFrame(fade);
       } else {
@@ -139,7 +141,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
             const age = now2 - pulseRef.current.startedAt;
             if (age > 600) pulseRef.current = null;
           }
-          draw();
+          drawRef.current();
           rafRef.current = requestAnimationFrame(idle);
         };
         rafRef.current = requestAnimationFrame(idle);
@@ -425,6 +427,12 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       }
     }
   }, [hoveredId, selectedId, activeIds, focusId]);
+
+  // Keep drawRef pointing at the latest draw so the rAF loop (which is
+  // created once per `graph` change) always renders with current state.
+  useEffect(() => {
+    drawRef.current = draw;
+  }, [draw]);
 
   function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
     ctx.beginPath();
