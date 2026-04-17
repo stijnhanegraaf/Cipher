@@ -1,79 +1,25 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState, useEffect, useRef } from "react";
-import { stagger, fadeSlideUp, springs } from "@/lib/motion";
+import { stagger, fadeSlideUp } from "@/lib/motion";
 import { SystemStatusData, Status } from "@/lib/view-models";
 import { CalloutBox, Badge, StatusDot, MarkdownRenderer } from "@/components/ui";
 
-// Design tokens
-const tokens = {
-  text: { primary: "#f7f8f8", secondary: "#d0d6e0", tertiary: "#8a8f98", quaternary: "#62666d" },
-  status: { success: "#27a644", emerald: "#10b981", warning: "#f59e0b", error: "#ef4444" },
-  bg: { surface: "#191a1b" },
-  border: { subtle: "rgba(255,255,255,0.05)", standard: "rgba(255,255,255,0.08)", solid: "#23252a" },
-};
-
-const fontFamily = {
-  inter: "'Inter Variable', 'SF Pro Display', -apple-system, system-ui, sans-serif",
-};
-
-// Status visual configuration
+// Status visual configuration — derived from status CSS vars.
 const statusStyles: Record<string, { color: string; bg: string; border: string; label: string }> = {
-  ok: {
-    color: tokens.status.emerald,
-    bg: "rgba(16,185,129,0.06)",
-    border: "rgba(16,185,129,0.15)",
-    label: "Healthy",
-  },
-  warn: {
-    color: tokens.status.warning,
-    bg: "rgba(245,158,11,0.06)",
-    border: "rgba(245,158,11,0.15)",
-    label: "Warning",
-  },
-  error: {
-    color: tokens.status.error,
-    bg: "rgba(239,68,68,0.06)",
-    border: "rgba(239,68,68,0.15)",
-    label: "Error",
-  },
-  stale: {
-    color: tokens.text.quaternary,
-    bg: "rgba(255,255,255,0.02)",
-    border: "rgba(255,255,255,0.05)",
-    label: "Stale",
-  },
-  fresh: {
-    color: tokens.status.emerald,
-    bg: "rgba(16,185,129,0.06)",
-    border: "rgba(16,185,129,0.15)",
-    label: "Fresh",
-  },
+  ok:    { color: "var(--status-done)",        bg: "color-mix(in srgb, var(--status-done) 6%, transparent)",        border: "color-mix(in srgb, var(--status-done) 15%, transparent)",        label: "Healthy" },
+  warn:  { color: "var(--status-in-progress)", bg: "color-mix(in srgb, var(--status-in-progress) 6%, transparent)", border: "color-mix(in srgb, var(--status-in-progress) 15%, transparent)", label: "Warning" },
+  error: { color: "var(--status-blocked)",     bg: "color-mix(in srgb, var(--status-blocked) 6%, transparent)",     border: "color-mix(in srgb, var(--status-blocked) 15%, transparent)",     label: "Error" },
+  stale: { color: "var(--text-quaternary)",    bg: "var(--bg-surface-alpha-2)",                                      border: "var(--border-subtle)",                                            label: "Stale" },
+  fresh: { color: "var(--status-done)",        bg: "color-mix(in srgb, var(--status-done) 6%, transparent)",        border: "color-mix(in srgb, var(--status-done) 15%, transparent)",        label: "Fresh" },
 };
 
-// E3: Status dot that pulses once on first mount
+// Status dot — uses CSS .pulse-subtle on first mount for a calm breathe, not a scale pop.
 function PulseStatusDot({ status, size = 14 }: { status: Status; size?: number }) {
-  const [hasPulsed, setHasPulsed] = useState(false);
-  const mountedRef = useRef(false);
-
-  useEffect(() => {
-    if (mountedRef.current) return;
-    mountedRef.current = true;
-    setHasPulsed(true);
-    const timer = setTimeout(() => setHasPulsed(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
-
   return (
-    <motion.span
-      initial={{ scale: 1 }}
-      animate={hasPulsed ? { scale: 1.5, transition: { repeatType: "reverse", repeat: 1, duration: 0.3 } } : { scale: 1 }}
-      transition={hasPulsed ? { duration: 0.6, ease: "easeInOut" } : { duration: 0 }}
-      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-    >
+    <span className="pulse-subtle" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
       <StatusDot status={status} size={size} />
-    </motion.span>
+    </span>
   );
 }
 
@@ -84,7 +30,7 @@ function OverallIndicator({ status, label }: { status: Status; label: string }) 
   return (
     <motion.div
       variants={fadeSlideUp}
-      className="flex items-center gap-4 px-5 py-5 rounded-[8px]"
+      className="flex items-center gap-3 p-4 rounded-[8px]"
       style={{
         background: style.bg,
         border: `1px solid ${style.border}`,
@@ -94,24 +40,10 @@ function OverallIndicator({ status, label }: { status: Status; label: string }) 
         <PulseStatusDot status={status} size={14} />
       </div>
       <div>
-        <p
-          className="text-[16px] font-[590]"
-          style={{
-            color: style.color,
-            fontFamily: fontFamily.inter,
-            fontFeatureSettings: '"cv01", "ss03"',
-          }}
-        >
+        <p className="body-emphasis" style={{ color: style.color }}>
           {label}
         </p>
-        <p
-          className="text-[13px] mt-0.5"
-          style={{
-            color: tokens.text.quaternary,
-            fontFamily: fontFamily.inter,
-            fontFeatureSettings: '"cv01", "ss03"',
-          }}
-        >
+        <p className="caption text-text-quaternary mt-0.5">
           Overall system health
         </p>
       </div>
@@ -119,7 +51,7 @@ function OverallIndicator({ status, label }: { status: Status; label: string }) 
   );
 }
 
-export function SystemStatusView({ data, view }: { data: SystemStatusData; view: any }) {
+export function SystemStatusView({ data, view, onNavigate }: { data: SystemStatusData; view: any; onNavigate?: (path: string) => void }) {
   const status = data as SystemStatusData;
 
   return (
@@ -134,43 +66,28 @@ export function SystemStatusView({ data, view }: { data: SystemStatusData; view:
 
       {/* Checks */}
       <div className="space-y-3">
-        <h3
-          className="text-[11px] font-[510] uppercase tracking-[0.08em]"
-          style={{
-            color: tokens.text.quaternary,
-            fontFamily: fontFamily.inter,
-            fontFeatureSettings: '"cv01", "ss03"',
-          }}
-        >
+        <h3 className="micro uppercase tracking-[0.08em] text-text-quaternary">
           Checks
         </h3>
         {status.checks.length === 0 ? (
           <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-16">
             <motion.svg
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 0.3, scale: 1 }}
-              transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.3 }}
+              transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
               width={48}
               height={48}
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#62666d"
+              stroke="currentColor"
               strokeWidth={1.5}
               strokeLinecap="round"
               strokeLinejoin="round"
-              style={{ marginBottom: 16 }}
+              className="mb-4 text-text-quaternary"
             >
               <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </motion.svg>
-            <p
-              className="text-[14px]"
-              style={{
-                color: "#62666d",
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
-                lineHeight: 1.6,
-              }}
-            >
+            <p className="caption-large text-text-quaternary" style={{ lineHeight: 1.6 }}>
               No checks configured.
             </p>
           </motion.div>
@@ -184,7 +101,7 @@ export function SystemStatusView({ data, view }: { data: SystemStatusData; view:
                 <motion.div
                   key={i}
                   variants={fadeSlideUp}
-                  className="flex items-start gap-3 p-5 rounded-[8px] transition-colors duration-150 group"
+                  className="flex items-start gap-3 p-4 rounded-[8px] transition-colors duration-150 group"
                   style={{
                     background: style.bg,
                     border: `1px solid ${style.border}`,
@@ -196,28 +113,14 @@ export function SystemStatusView({ data, view }: { data: SystemStatusData; view:
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p
-                        className="text-[14px] font-[510]"
-                        style={{
-                          color: style.color,
-                          fontFamily: fontFamily.inter,
-                          fontFeatureSettings: '"cv01", "ss03"',
-                        }}
-                      >
+                      <p className="caption-large" style={{ color: style.color }}>
                         {check.label}
                       </p>
                       <Badge variant={badgeVariant} dot>{style.label}</Badge>
                     </div>
                     {check.detail && (
-                      <div
-                        className="text-[13px] mt-1.5 leading-[1.5]"
-                        style={{
-                          color: tokens.text.quaternary,
-                          fontFamily: fontFamily.inter,
-                          fontFeatureSettings: '"cv01", "ss03"',
-                        }}
-                      >
-                        <MarkdownRenderer content={check.detail} />
+                      <div className="caption text-text-quaternary mt-1.5" style={{ lineHeight: 1.5 }}>
+                        <MarkdownRenderer content={check.detail} onNavigate={onNavigate} />
                       </div>
                     )}
                   </div>
@@ -235,6 +138,7 @@ export function SystemStatusView({ data, view }: { data: SystemStatusData; view:
             tone="warning"
             title="Needs attention"
             body={status.attention.join(". ") + "."}
+            onNavigate={onNavigate}
           />
         </motion.div>
       )}

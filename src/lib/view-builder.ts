@@ -77,6 +77,33 @@ function extractLinksFromCheckbox(text: string): LinkRef[] {
   return links;
 }
 
+/**
+ * Resolve every LinkRef's `path` through the vault resolver so downstream
+ * consumers (DetailPage, MarkdownRenderer) always receive an absolute vault
+ * path — never a raw wiki label like "Foo". Unresolvable links are dropped.
+ *
+ * Deduplicates by resolved path so the same target appearing under different
+ * labels doesn't render twice.
+ */
+async function normalizeLinks<T extends { path: string; label: string }>(links: T[]): Promise<T[]> {
+  const out: T[] = [];
+  const seen = new Set<string>();
+  for (const link of links) {
+    if (!link.path) continue;
+    // Skip if already absolute (ends .md with a slash) — still dedupe.
+    const isAbsolute = link.path.includes("/") && link.path.toLowerCase().endsWith(".md");
+    let resolvedPath: string | null = link.path;
+    if (!isAbsolute) {
+      resolvedPath = await resolveLink(link.path);
+    }
+    if (!resolvedPath) continue;
+    if (seen.has(resolvedPath)) continue;
+    seen.add(resolvedPath);
+    out.push({ ...link, path: resolvedPath });
+  }
+  return out;
+}
+
 function stripLinks(text: string): string {
   return text.replace(/\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g, (_, p, l) => l || p);
 }
@@ -101,7 +128,7 @@ function sourceRef(label: string, path: string, role?: string, relevance?: strin
 }
 
 function kindFromPath(path: string): string {
-  if (path.includes("/entities/") || path.includes("tebi-brain")) return "entity";
+  if (path.includes("/entities/")) return "entity";
   if (path.includes("/projects/")) return "project";
   if (path.includes("/research/")) return "research";
   if (path.includes("/system/")) return "system";
@@ -115,6 +142,27 @@ function kindFromPath(path: string): string {
 function nameFromPath(entry: string | IndexEntry | ResearchProject): string {
   if (typeof entry === "string") return entry.split("/").pop()?.replace(/\.md$/, "") || "";
   return entry.name; // IndexEntry or ResearchProject
+}
+
+/**
+ * Infer a theme label from arbitrary entry body — generic, vault-agnostic.
+ * Priority: first markdown heading, then first wiki-link, then first #tag.
+ * Falls back to "General" when nothing useful surfaces.
+ */
+function inferTheme(body: string | undefined): string | null {
+  if (!body) return null;
+  // First heading (## or ###) inside the body is the most common "topic" signal.
+  const headingMatch = body.match(/^#{2,4}\s+(.+?)\s*$/m);
+  if (headingMatch) return headingMatch[1].trim().slice(0, 40);
+  // First wiki-link — often names the primary subject.
+  const wikiMatch = body.match(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/);
+  if (wikiMatch) return wikiMatch[1].trim().slice(0, 40);
+  // First #tag.
+  const tagMatch = body.match(/(?:^|\s)#([a-zA-Z][\w-]+)/);
+  if (tagMatch) {
+    return tagMatch[1].split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ").slice(0, 40);
+  }
+  return null;
 }
 
 function currentMonthPaths(): { current: string; previous: string; currentLabel: string; previousLabel: string } {
@@ -262,6 +310,16 @@ export async function buildCurrentWork(): Promise<ViewModel> {
     path: `wiki/work/log/${now.getFullYear()}/${monthNames[now.getMonth()]}.md`,
   };
 
+  // Normalize every task item's links — unresolvable raw wiki labels drop out,
+  // survivors become absolute vault paths so the UI always clicks through.
+  for (const group of groups) {
+    for (const item of group.items) {
+      if (item.links && item.links.length > 0) {
+        item.links = await normalizeLinks(item.links);
+      }
+    }
+  }
+
   const data: CurrentWorkData = {
     groups,
     highlights,
@@ -302,23 +360,26 @@ function getWeekNumber(d: Date): number {
 // ─── Entity Overview ──────────────────────────────────────────────────
 
 export async function buildEntityOverview(entityName?: string): Promise<ViewModel> {
-  const name = entityName || "tebi";
-
-  // Determine files to read
-  const files: string[] = [];
-  let primaryFile: string;
-
-  if (name === "tebi") {
-    files.push("wiki/knowledge/tebi-brain.md");
-    files.push("wiki/knowledge/entities/tebi.md");
-    primaryFile = "wiki/knowledge/tebi-brain.md";
-  } else {
-    primaryFile = `wiki/knowledge/entities/${name}.md`;
-    files.push(primaryFile);
+  // No default entity — if the caller didn't specify one, we can't build an overview.
+  if (!entityName) {
+    return {
+      type: "entity_overview",
+      viewId: uid("view_ent"),
+      title: "No entity specified",
+      layout: "stack",
+      data: {
+        entityType: "unknown",
+        summary: "Ask about a specific person, project, or topic by name.",
+      } as EntityOverviewData,
+      meta: { confidence: 0.1, freshness: "unknown" },
+    };
   }
 
+  const name = entityName;
+  const primaryFile = `wiki/knowledge/entities/${name}.md`;
+
   // Read primary file
-  const mainFile = await readVaultFile(files[0]);
+  const mainFile = await readVaultFile(primaryFile);
   if (!mainFile) {
     return {
       type: "entity_overview",
@@ -334,54 +395,17 @@ export async function buildEntityOverview(entityName?: string): Promise<ViewMode
     };
   }
 
-  // Read entity file for structured data
-  const entityFile = name === "tebi"
-    ? await readVaultFile("wiki/knowledge/entities/tebi.md")
-    : mainFile;
-
   // Use parseEntity for rich extraction
-  let entityData: EntityData | null = null;
-  if (entityFile) {
-    entityData = await parseEntity(entityFile);
-  }
+  const entityData: EntityData | null = await parseEntity(mainFile);
 
-  // Extract summary
+  // Extract summary from Core framing
   let summary = "";
-
-  // Try Core framing from entity data first
   if (entityData && entityData.coreFraming) {
     summary = entityData.coreFraming.split("\n")
       .map((l) => l.trim())
       .filter((l) => l.length > 10 && !l.startsWith("#"))
       .join(" ")
       .slice(0, 300);
-  }
-
-  // For tebi, also try Quick Snapshot table "What" row
-  if (name === "tebi" && !summary) {
-    const quickSnapshot = getSection(mainFile, "Quick Snapshot");
-    if (quickSnapshot) {
-      const table = parseTable(quickSnapshot.body);
-      if (table.headers.length > 0) {
-        for (const row of table.rows) {
-          const firstCol = Object.values(row)[0] || "";
-          if (firstCol.toLowerCase().includes("what")) {
-            summary = Object.values(row).slice(1).join(" ").replace(/\*\*/g, "").trim();
-            break;
-          }
-        }
-      }
-      // Fallback to first meaningful non-table line
-      if (!summary) {
-        for (const line of quickSnapshot.body.split("\n")) {
-          const t = line.trim();
-          if (t && !t.startsWith("|") && !t.startsWith(">") && !t.startsWith("---") && t.length > 20) {
-            summary = t;
-            break;
-          }
-        }
-      }
-    }
   }
 
   // Fallback: first meaningful line from the whole file
@@ -414,24 +438,22 @@ export async function buildEntityOverview(entityName?: string): Promise<ViewMode
   // Also extract links from the main file
   const mainLinks = extractLinks(mainFile.content);
   for (const link of mainLinks) {
-    addLink(link, name === "tebi" ? "entity" : "note");
+    addLink(link, "note");
   }
 
-  // Extract timeline from tebi-brain if available
+  // Generic Timeline section parser — any entity file can have a ## Timeline table.
   const timeline: TimelineItem[] = [];
-  if (name === "tebi") {
-    const timelineSection = getSection(mainFile, "Timeline");
-    if (timelineSection) {
-      const table = parseTable(timelineSection.body);
-      if (table.headers.length > 0) {
-        for (const row of table.rows) {
-          const cells = Object.values(row);
-          if (cells.length >= 2 && !cells[0].includes("---") && cells[0].toLowerCase() !== "date") {
-            timeline.push({
-              date: cells[0].replace(/\*\*/g, "").trim(),
-              label: cells.slice(1).join(" ").replace(/\*\*/g, "").trim(),
-            });
-          }
+  const timelineSection = getSection(mainFile, "Timeline");
+  if (timelineSection) {
+    const table = parseTable(timelineSection.body);
+    if (table.headers.length > 0) {
+      for (const row of table.rows) {
+        const cells = Object.values(row);
+        if (cells.length >= 2 && !cells[0].includes("---") && cells[0].toLowerCase() !== "date") {
+          timeline.push({
+            date: cells[0].replace(/\*\*/g, "").trim(),
+            label: cells.slice(1).join(" ").replace(/\*\*/g, "").trim(),
+          });
         }
       }
     }
@@ -440,42 +462,45 @@ export async function buildEntityOverview(entityName?: string): Promise<ViewMode
   // Build "why now" from open work
   const openFile = await readVaultFile("wiki/work/open.md");
   let whyNow: string | undefined;
-  if (openFile && openFile.content.toLowerCase().includes(name)) {
+  if (openFile && openFile.content.toLowerCase().includes(name.toLowerCase())) {
     whyNow = `There are active work items referencing ${name.charAt(0).toUpperCase() + name.slice(1).replace(/-/g, " ")}.`;
   }
 
   const entityType = (entityData?.frontmatter?.area as string) || (mainFile.frontmatter.area as string) || "entity";
 
+  // Normalize every LinkRef so the UI always gets absolute, reachable paths.
+  // Unresolvable raw wiki labels drop out here rather than rendering dead pills.
+  const normalizedNotes = await normalizeLinks(relatedNotes);
+  const normalizedEntities = await normalizeLinks(relatedEntities);
+
   const data: EntityOverviewData = {
     entityType,
     summary: summary.slice(0, 500),
     whyNow,
-    relatedNotes: relatedNotes.slice(0, 10),
-    relatedEntities: relatedEntities.slice(0, 5),
+    relatedNotes: normalizedNotes.slice(0, 10),
+    relatedEntities: normalizedEntities.slice(0, 5),
     timeline: timeline.length > 0 ? timeline.slice(0, 15) : undefined,
   };
 
-  const displayName = name === "tebi"
-    ? "Tebi"
-    : name.split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  const displayName = name.split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 
   return {
     type: "entity_overview",
     viewId: uid("view_ent"),
     title: displayName,
-    subtitle: name === "tebi" ? "Payments and hospitality software" : undefined,
+    subtitle: undefined,
     layout: "stack",
     data,
-    sources: files.map((f) => sourceRef(
-      nameFromPath(f).replace(/-/g, " ") || f,
-      f,
+    sources: [sourceRef(
+      nameFromPath(primaryFile).replace(/-/g, " ") || primaryFile,
+      primaryFile,
       "entity"
-    )),
+    )],
     actions: [
       { id: uid("act"), type: "open_note", label: "Open in Obsidian", target: { path: primaryFile }, safety: "safe" },
     ],
     sourceFile: primaryFile,
-    meta: { confidence: 0.92, freshness: "recent", generatedAt: new Date().toISOString(), primarySourceCount: files.length },
+    meta: { confidence: 0.92, freshness: "recent", generatedAt: new Date().toISOString(), primarySourceCount: 1 },
   };
 }
 
@@ -639,21 +664,11 @@ export async function buildTimelineSynthesis(): Promise<ViewModel> {
   // Group entries into themes by keyword detection
   const topicMap = new Map<string, TimelineItem[]>();
 
+  // Generic topic inference — pick the most frequent top-level heading or first
+  // heading encountered within each entry body. If nothing useful surfaces, bucket
+  // under "General". No hardcoded keyword list — that would tie us to one vault.
   for (const entry of dateEntries) {
-    const content = (entry.body || "").toLowerCase();
-    let theme = "General";
-
-    // More specific matches first
-    if (content.includes("reservation mail") || content.includes("backoffice home") || content.includes("refer-a-friend")) theme = "Product & Backoffice";
-    else if (content.includes("floorplan") || (content.includes("table") && content.includes("seat"))) theme = "Floorplan";
-    else if (content.includes("backoffice") || content.includes("home in the") || content.includes("hardware store")) theme = "Product & Backoffice";
-    else if (content.includes("nova") || content.includes("agent") || content.includes("vault") || content.includes("obsidian") || content.includes("system") || content.includes("cron")) theme = "Nova & System";
-    else if (content.includes("review") || content.includes("performance") || content.includes("values") || content.includes("promotion")) theme = "Review & Growth";
-    else if (content.includes("brain frontend") || content.includes("schema") || content.includes("visual") || content.includes("ui") || content.includes("component")) theme = "AI Visual Cipher";
-    else if (content.includes("tebi") || content.includes("pos") || content.includes("hospitality")) theme = "Tebi";
-    else if (content.includes("research") || content.includes("deep dive") || content.includes("competitive")) theme = "Research";
-    else if (content.includes("mr") || content.includes("merge") || content.includes("feedback")) theme = "Process & Delivery";
-
+    const theme = inferTheme(entry.body) || "General";
     if (!topicMap.has(theme)) topicMap.set(theme, []);
     topicMap.get(theme)!.push({
       date: entry.date,
@@ -904,6 +919,9 @@ export async function buildTopicOverview(query?: string): Promise<ViewModel> {
     }
   }
 
+  // Normalize links so every pill in the UI clicks through.
+  const normalizedRelated = await normalizeLinks(relatedNotes);
+
   const data: TopicOverviewData = {
     topicType: researchMatch ? "research" : "project",
     currentState,
@@ -911,8 +929,8 @@ export async function buildTopicOverview(query?: string): Promise<ViewModel> {
     whyNow,
     keyQuestions: keyQuestions.length > 0 ? keyQuestions.slice(0, 6) : undefined,
     nextSteps: nextSteps.length > 0 ? nextSteps.slice(0, 5) : undefined,
-    relatedNotes: relatedNotes.length > 0 ? relatedNotes : undefined,
-    relatedEntities: relatedNotes
+    relatedNotes: normalizedRelated.length > 0 ? normalizedRelated : undefined,
+    relatedEntities: normalizedRelated
       .filter((n) => n.kind === "entity" || n.path.includes("entities"))
       .slice(0, 5),
     timeline: timeline.length > 0 ? timeline : undefined,
@@ -1037,7 +1055,7 @@ function inferSuggestedViews(query: string): { intent: Intent; label: string }[]
   const q = query.toLowerCase();
 
   if (q.includes("work") || q.includes("task") || q.includes("todo")) suggestions.push({ intent: "current_work", label: "View current work" });
-  if (q.includes("tebi") || q.includes("company")) suggestions.push({ intent: "entity_overview", label: "View Tebi entity" });
+  // Intent suggestions — generic only; entity-specific suggestions come from vault content.
   if (q.includes("system") || q.includes("health") || q.includes("status")) suggestions.push({ intent: "system_status", label: "View system status" });
   if (q.includes("timeline") || q.includes("history") || q.includes("recently")) suggestions.push({ intent: "timeline_synthesis", label: "View timeline" });
   if (q.includes("project") || q.includes("research")) suggestions.push({ intent: "topic_overview", label: "View project" });

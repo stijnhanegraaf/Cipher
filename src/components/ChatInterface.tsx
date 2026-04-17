@@ -10,7 +10,16 @@ import { ViewRenderer } from "@/components/views/ViewRenderer";
 import { MarkdownRenderer } from "@/components/ui";
 import { DetailPage } from "@/components/DetailPage";
 import { VaultDrawer } from "@/components/VaultDrawer";
+import { HintChip } from "@/components/HintChip";
+import { Avatar } from "@/components/ui";
+import { CommandPalette, type PaletteAction } from "@/components/CommandPalette";
+import { Sidebar } from "@/components/Sidebar";
+import { TriageInbox } from "@/components/browse/TriageInbox";
+import { GraphView } from "@/components/browse/GraphView";
 import { fadeSlideUp, stagger } from "@/lib/motion";
+import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
+import { useUser } from "@/lib/hooks/useUser";
+import { useVault } from "@/lib/hooks/useVault";
 
 // ────────────────────────────────────────────────────────────────────
 // Types
@@ -29,36 +38,38 @@ interface Message {
 // Design tokens (from DESIGN.md — single source of truth)
 // ────────────────────────────────────────────────────────────────────
 
-const colors = {
-  bg: "#08090a",
-  panelDark: "#0f1011",
-  level3: "#191a1b",
-  secondarySurface: "#28282c",
-  primaryText: "#f7f8f8",
-  secondaryText: "#d0d6e0",
-  tertiaryText: "#8a8f98",
-  quaternaryText: "#62666d",
-  brandIndigo: "#5e6ad2",
-  accentViolet: "#7170ff",
-  accentHover: "#828fff",
-  successGreen: "#27a644",
-  emerald: "#10b981",
-  borderSubtle: "rgba(255,255,255,0.05)",
-  borderStandard: "rgba(255,255,255,0.08)",
-  pillBorder: "#23252a",
+// Theme-aware token indirection — values point to CSS custom properties
+// defined in globals.css, so light/dark mode switching is automatic.
+// Status/brand colors that are constant across themes stay as hex.
+const palette = {
+  bg: "var(--bg-marketing)",
+  panelDark: "var(--bg-panel)",
+  level3: "var(--bg-surface)",
+  secondarySurface: "var(--bg-elevated)",
+  primaryText: "var(--text-primary)",
+  secondaryText: "var(--text-secondary)",
+  tertiaryText: "var(--text-tertiary)",
+  quaternaryText: "var(--text-quaternary)",
+  brandIndigo: "var(--accent-brand)",
+  accentViolet: "var(--accent-violet)",
+  accentHover: "var(--accent-hover)",
+  successGreen: "var(--success)",
+  emerald: "var(--success-pill)",
+  borderSubtle: "var(--border-subtle)",
+  borderStandard: "var(--border-standard)",
+  pillBorder: "var(--border-solid-primary)",
 } as const;
 
 // ────────────────────────────────────────────────────────────────────
 // Quick actions
 // ────────────────────────────────────────────────────────────────────
 
+// Three fully generic starter prompts — no vault-specific entity names.
+// The command palette covers more specific routes once the user knows the vault's content.
 const quickActions = [
   { label: "What matters now", intent: "current_work" },
   { label: "System health", intent: "system_status" },
   { label: "What changed this month", intent: "timeline_synthesis" },
-  { label: "About Tebi", intent: "entity_overview" },
-  { label: "AI Visual Cipher", intent: "topic_overview" },
-  { label: "Search review prep", intent: "search_results" },
 ];
 
 // ────────────────────────────────────────────────────────────────────
@@ -119,46 +130,29 @@ function getQuickReplies(views: ViewModel[], entityName?: string): QuickReply[] 
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Word-by-word animated text component (A2)
+// AnimatedText — single-shot fade
 // ────────────────────────────────────────────────────────────────────
 
+/**
+ * Whole-message fade, 140ms. Linear doesn't do typewriter reveals.
+ * The message appears — you read it. Reveal callback fires next tick
+ * so view cards can animate in right after the copy lands.
+ */
 function AnimatedText({ text, onComplete }: { text: string; onComplete?: () => void }) {
-  const words = useMemo(() => text.split(/(\s+)/), [text]);
-  const [revealed, setRevealed] = useState(0);
-
   useEffect(() => {
-    setRevealed(0);
-    if (words.length === 0) { onComplete?.(); return; }
-    const totalDelay = words.length * 30;
-    const timer = setTimeout(() => {
-      onComplete?.();
-    }, totalDelay + 50);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => onComplete?.(), 140);
+    return () => clearTimeout(t);
   }, [text]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (revealed < words.length) {
-      const t = setTimeout(() => setRevealed((r) => r + 1), 30);
-      return () => clearTimeout(t);
-    }
-  }, [revealed, words.length]);
-
   return (
-    <span>
-      {words.map((word, i) => {
-        if (/^\s+$/.test(word)) return <span key={i}>{word}</span>;
-        return (
-          <motion.span
-            key={i}
-            initial={{ opacity: 0, y: 4 }}
-            animate={i < revealed ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-            transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            style={{ display: "inline-block" }}
-          >
-            {word}
-          </motion.span>
-        );
-      })}
+    <span
+      key={text}
+      style={{
+        display: "inline",
+        animation: "cipher-text-fade 140ms cubic-bezier(0.25, 0.1, 0.25, 1) both",
+      }}
+    >
+      {text}
     </span>
   );
 }
@@ -167,15 +161,55 @@ function AnimatedText({ text, onComplete }: { text: string; onComplete?: () => v
 // Component
 // ────────────────────────────────────────────────────────────────────
 
-export function ChatInterface() {
+export function ChatInterface({ view = "chat" }: { view?: "chat" | "triage" | "graph" } = {}) {
+  const user = useUser();
+  const vault = useVault();
+  const [vaultError, setVaultError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [detailPath, setDetailPath] = useState<string | null>(null);
+  // Navigation stack — push chat scrollY when opening a detail sheet, restore on Back.
+  // Lets users return to the exact spot in the chat they were reading.
+  const navStackRef = useRef<{ path: string; scrollY: number }[]>([]);
+
+  // Open detail sheet. Capture the chat's current scroll position so we can
+  // restore it when the user backs out.
+  const openDetail = useCallback((path: string) => {
+    const scrollY = scrollContainerRef.current?.scrollTop ?? 0;
+    navStackRef.current.push({ path, scrollY });
+    setDetailPath(path);
+  }, []);
+
+  // Close detail sheet. Pop the stack; if we still have a detail below, swap
+  // to that (nested navigation). If empty, clear and restore chat scrollY.
+  const closeDetail = useCallback(() => {
+    navStackRef.current.pop();
+    const prev = navStackRef.current[navStackRef.current.length - 1];
+    if (prev) {
+      setDetailPath(prev.path);
+      return;
+    }
+    setDetailPath(null);
+    // Restore chat scroll after the sheet has unmounted — defer to next frame.
+    requestAnimationFrame(() => {
+      const target = navStackRef.current.length === 0 ? null : navStackRef.current[0].scrollY;
+      if (target != null && scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = target;
+      }
+    });
+  }, []);
+
+  // Deep-navigate from inside a detail sheet — e.g. clicking a wiki-link.
+  // Pushes a new entry onto the stack without capturing a fresh scrollY
+  // (the chat scroll we want to restore is the one captured on first open).
+  const navigateDetail = useCallback((path: string) => {
+    navStackRef.current.push({ path, scrollY: navStackRef.current[0]?.scrollY ?? 0 });
+    setDetailPath(path);
+  }, []);
   const [vaultDrawerOpen, setVaultDrawerOpen] = useState(false);
-  const [vaultConnected, setVaultConnected] = useState<boolean | null>(null);
-  const [vaultPath, setVaultPath] = useState<string>("");
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -185,16 +219,7 @@ export function ChatInterface() {
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
 
-  // Check vault connection on mount
-  useEffect(() => {
-    fetch("/api/query")
-      .then((r) => r.json())
-      .then((data) => {
-        setVaultConnected(data.vault?.connected ?? false);
-        setVaultPath(data.vault?.path ?? "");
-      })
-      .catch(() => setVaultConnected(false));
-  }, []);
+  // Vault connection state comes from useVault() hook — no local fetch.
 
   // Fetch open tasks for home view
   useEffect(() => {
@@ -512,6 +537,157 @@ export function ChatInterface() {
     setIsProcessing(false);
   };
 
+  // Global keyboard shortcuts — Linear-style.
+  // `/` focuses the chat input (unless already typing).
+  // `Esc` clears the current conversation and returns to the welcome screen.
+  // `⌘K` / `Ctrl+K` opens the command palette.
+  // Memoized so the hook doesn't re-register every render.
+  const shortcuts = useMemo(
+    () => [
+      {
+        key: "/",
+        handler: () => {
+          inputRef.current?.focus();
+        },
+        description: "Focus chat",
+      },
+      {
+        key: "Escape",
+        // Allow Esc even from inside the textarea — it's the universal "get me out" key.
+        when: () => true,
+        handler: () => {
+          if (paletteOpen) {
+            setPaletteOpen(false);
+            return;
+          }
+          // If user is typing, prefer clearing the input first over resetting everything.
+          if (input.length > 0) {
+            setInput("");
+            return;
+          }
+          // If we're on the welcome screen with an empty input, blur to release focus.
+          if (showWelcome && messages.length === 0) {
+            inputRef.current?.blur();
+            return;
+          }
+          handleClear();
+        },
+        description: "Return home",
+      },
+      {
+        key: "k",
+        modifiers: ["meta"] as const,
+        handler: () => setPaletteOpen((v) => !v),
+        description: "Open command palette",
+      },
+      {
+        key: "k",
+        modifiers: ["ctrl"] as const,
+        handler: () => setPaletteOpen((v) => !v),
+        description: "Open command palette",
+      },
+    ],
+    // handleClear is referentially stable enough for the hook's effect-dep comparison.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [input, showWelcome, messages.length, paletteOpen]
+  );
+  useKeyboardShortcuts(shortcuts);
+
+  // Palette actions — computed from current state so Recent Queries stays fresh.
+  const handleToggleTheme = useCallback(() => {
+    const html = document.documentElement;
+    const isLight = html.classList.contains("light");
+    if (isLight) {
+      html.classList.remove("light");
+      html.classList.add("dark");
+      localStorage.setItem("brain-theme", "dark");
+    } else {
+      html.classList.add("light");
+      html.classList.remove("dark");
+      localStorage.setItem("brain-theme", "light");
+    }
+  }, []);
+
+  const paletteActions = useMemo<PaletteAction[]>(() => {
+    const navIcon = (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    );
+    const actions: PaletteAction[] = [
+      {
+        id: "nav-home",
+        group: "Navigation",
+        label: "Home",
+        description: "Return to welcome screen",
+        icon: navIcon,
+        shortcut: ["Esc"],
+        run: handleClear,
+      },
+      {
+        id: "nav-vault",
+        group: "Navigation",
+        label: "Open vault drawer",
+        description: "Browse entities, projects, research",
+        icon: navIcon,
+        run: () => setVaultDrawerOpen(true),
+      },
+      {
+        id: "ask-current-work",
+        group: "Ask",
+        label: "What matters now",
+        description: "Show current work and open tasks",
+        run: () => handleSubmit("what matters now"),
+      },
+      {
+        id: "ask-system",
+        group: "Ask",
+        label: "System health",
+        description: "Show system status and attention items",
+        run: () => handleSubmit("system health"),
+      },
+      {
+        id: "ask-changed",
+        group: "Ask",
+        label: "What changed this month",
+        description: "Timeline synthesis for the month",
+        run: () => handleSubmit("what changed this month"),
+      },
+      ...recentQueries.slice(0, 5).map((q, i): PaletteAction => ({
+        id: `recent-${i}`,
+        group: "Recent",
+        label: q,
+        run: () => handleSubmit(q),
+      })),
+      {
+        id: "action-clear",
+        group: "Actions",
+        label: "Clear conversation",
+        description: "Reset messages and return home",
+        run: handleClear,
+      },
+      {
+        id: "action-theme",
+        group: "Actions",
+        label: "Toggle theme",
+        description: "Switch between light and dark mode",
+        run: handleToggleTheme,
+      },
+      {
+        id: "action-disconnect-vault",
+        group: "Actions",
+        label: "Disconnect vault",
+        description: "Unlink the current vault and return to the connect screen",
+        run: () => {
+          vault.disconnect?.();
+          handleClear();
+        },
+      },
+    ];
+    return actions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recentQueries, handleToggleTheme]);
+
   const handleTextRevealComplete = (msgId: string) => {
     setRevealedMessages((prev) => {
       const next = new Set(prev);
@@ -524,105 +700,163 @@ export function ChatInterface() {
   // Render
   // ────────────────────────────────────────────────────────────────
 
+  // Derive the currently-active view kind so the sidebar highlights the
+  // matching nav item (Tasks / Entities / Projects / System / Timeline).
+  const activeKind = useMemo(() => {
+    const last = messages[messages.length - 1];
+    return last?.response?.response.views[0]?.type ?? null;
+  }, [messages]);
+
   return (
     <div
       style={{
         display: "flex",
-        flexDirection: "column",
+        flexDirection: "row",
         height: "100dvh",
-        backgroundColor: colors.bg,
-        fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-        fontFeatureSettings: '"cv01", "ss03"',
-        color: colors.primaryText,
+        backgroundColor: palette.bg,
+        color: palette.primaryText,
         position: "relative",
       }}
     >
+      {/* ── Persistent left sidebar ─────────────────────────────
+          Hidden below 768px (hamburger falls back to palette ⌘K). */}
+      <div className="sidebar-container">
+        <Sidebar
+          onAsk={handleSubmit}
+          onHome={handleClear}
+          onBrowse={() => setVaultDrawerOpen(true)}
+          onPalette={() => setPaletteOpen(true)}
+          onToggleTheme={handleToggleTheme}
+          activeKind={activeKind}
+          recentQueries={recentQueries}
+        />
+      </div>
+
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          height: "100dvh",
+        }}
+      >
       <LayoutGroup>
       <AnimatePresence mode="wait">
         {detailPath && (
           <DetailPage
             key={detailPath}
             path={detailPath}
-            onBack={() => setDetailPath(null)}
-            onNavigate={setDetailPath}
+            onBack={closeDetail}
+            onNavigate={navigateDetail}
+            onAsk={(query) => {
+              // Close the sheet, then fire the query in the chat.
+              navStackRef.current = [];
+              setDetailPath(null);
+              handleSubmit(query);
+            }}
+            onHome={() => {
+              navStackRef.current = [];
+              setDetailPath(null);
+              handleClear();
+            }}
           />
         )}
       </AnimatePresence>
       </LayoutGroup>
-      {/* ── Floating home button (visible in chat mode) ──── */}
-      {!showWelcome && messages.length > 0 && (
-        <motion.button
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.2 }}
-          whileHover={{ backgroundColor: "rgba(255,255,255,0.06)" }}
-          whileTap={{ scale: 0.96 }}
-          onClick={handleClear}
-          style={{
-            position: "fixed",
-            top: 16,
-            left: 16,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "6px 10px",
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.08)",
-            background: "rgba(8,9,10,0.8)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            color: colors.secondaryText,
-            cursor: "pointer",
-            fontSize: 13,
-            fontWeight: 510,
-            letterSpacing: -0.1,
-            fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-            fontFeatureSettings: '"cv01", "ss03"',
-            zIndex: 30,
-          }}
-        >
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0110 0v4" />
-          </svg>
-          Cipher
-        </motion.button>
-      )}
-      {/* ── Floating vault browse button ───────────────────── */}
-      <motion.button
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3, duration: 0.3 }}
-        whileHover={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.14)" }}
-        whileTap={{ scale: 0.96 }}
-        onClick={() => setVaultDrawerOpen(true)}
+      {/* ── Slim top bar — Cipher/vault now live in sidebar. ──
+          Mobile: hamburger opens palette (escape hatch). Desktop: empty left. */}
+      <div
         style={{
-          position: "fixed",
-          top: 16,
-          right: 16,
-          display: "inline-flex",
+          flexShrink: 0,
+          height: 48,
+          borderBottom: `1px solid ${palette.borderSubtle}`,
+          background: "color-mix(in srgb, var(--bg-marketing) 72%, transparent)",
+          backdropFilter: "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          display: "flex",
           alignItems: "center",
-          gap: 6,
-          padding: "8px 12px",
-          borderRadius: 8,
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(8,9,10,0.8)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          color: colors.tertiaryText,
-          cursor: "pointer",
-          fontSize: 13,
-          fontWeight: 510,
-          fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-          fontFeatureSettings: '"cv01", "ss03"',
+          justifyContent: "space-between",
+          padding: "0 16px",
+          position: "sticky",
+          top: 0,
           zIndex: 30,
         }}
       >
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" />
-        </svg>
-        Browse
-      </motion.button>
+        {/* Mobile hamburger (visible only when sidebar is hidden) */}
+        <button
+          type="button"
+          onClick={() => setPaletteOpen(true)}
+          aria-label="Menu"
+          className="sidebar-mobile-trigger focus-ring"
+          style={{
+            display: "none",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 32,
+            height: 32,
+            borderRadius: 6,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: palette.tertiaryText,
+          }}
+        >
+          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18M3 12h18M3 18h18" />
+          </svg>
+        </button>
+        {/* Left spacer (breadcrumbs appear in DetailPage, not here). */}
+        <div />
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            title="Command palette"
+            className="focus-ring"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "4px 8px", borderRadius: 6, border: "none",
+              background: "transparent", cursor: "pointer", color: palette.tertiaryText,
+              fontSize: 12, fontWeight: 500,
+              transition: "background-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-surface-alpha-2)"; e.currentTarget.style.color = palette.primaryText; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = palette.tertiaryText; }}
+          >
+            <kbd className="mono-label" style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              padding: "1px 5px", borderRadius: 4,
+              border: `1px solid ${palette.borderStandard}`,
+              background: palette.level3,
+              fontSize: 11, color: palette.tertiaryText, letterSpacing: "0.04em",
+            }}>
+              ⌘K
+            </kbd>
+          </button>
+          <div style={{ width: 1, height: 16, background: palette.borderSubtle, margin: "0 4px" }} />
+          <button
+            type="button"
+            onClick={() => setVaultDrawerOpen(true)}
+            title="Browse vault"
+            className="focus-ring"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "4px 8px", borderRadius: 6, border: "none",
+              background: "transparent", cursor: "pointer", color: palette.tertiaryText,
+              fontSize: 12, fontWeight: 510, letterSpacing: -0.1,
+              transition: "background-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-surface-alpha-2)"; e.currentTarget.style.color = palette.primaryText; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = palette.tertiaryText; }}
+          >
+            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" />
+            </svg>
+            Browse
+          </button>
+        </div>
+      </div>
 
       {/* ── Messages area ────────────────────────────────────────── */}
       <div
@@ -632,529 +866,523 @@ export function ChatInterface() {
           overflowY: "auto",
           overflowX: "hidden",
           scrollbarWidth: "thin",
-          scrollbarColor: `${colors.quaternaryText} transparent`,
+          scrollbarColor: `${palette.quaternaryText} transparent`,
         }}
       >
-        <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 24px 120px" }}>
-          <AnimatePresence mode="popLayout">
-            {showWelcome && (
+        {(() => {
+          const isWideView = showWelcome && vault.connected && (view === "triage" || view === "graph");
+          return (
+        <div
+          style={{
+            // Triage list + graph want edge-to-edge width; chat/welcome stays at 880px max for readability.
+            maxWidth: isWideView ? "none" : 880,
+            margin: "0 auto",
+            padding: isWideView ? 0 : "0 32px 120px",
+            minHeight: showWelcome ? "calc(100vh - 48px - 88px)" : undefined,
+            display: showWelcome ? "flex" : undefined,
+            flexDirection: showWelcome ? "column" : undefined,
+            // Triage/graph anchor at top; chat welcome centers vertically.
+            justifyContent: showWelcome
+              ? (isWideView ? "flex-start" : "center")
+              : undefined,
+            height: showWelcome && view === "graph" && vault.connected ? "calc(100vh - 48px)" : undefined,
+          }}
+        >
+          <AnimatePresence>
+            {showWelcome && view === "triage" && vault.connected && (
               <motion.div
-                key="welcome"
-                initial={{ opacity: 0 }}
+                key="triage"
+                initial={false}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0, y: -12, transition: { duration: 0.2 } }}
-                transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+                exit={{ opacity: 0, transition: { duration: 0.14 } }}
                 style={{
                   display: "flex",
                   flexDirection: "column",
-                  alignItems: "center",
-                  paddingTop: 48,
-                  paddingBottom: 64,
-                  maxWidth: 720,
-                  margin: "0 auto",
+                  width: "100%",
+                  // Fill available vertical space so the triage list scrolls internally.
+                  minHeight: "calc(100vh - 48px - 88px)",
+                }}
+              >
+                <TriageInbox onOpen={openDetail} onAsk={handleSubmit} />
+              </motion.div>
+            )}
+            {showWelcome && view === "graph" && vault.connected && (
+              <motion.div
+                key="graph"
+                initial={false}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, transition: { duration: 0.14 } }}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  width: "100%",
+                  // Graph is edge-to-edge and needs an explicit height so the
+                  // canvas inside can fill it.
+                  height: "calc(100vh - 48px - 88px)",
+                }}
+              >
+                <GraphView onOpen={openDetail} />
+              </motion.div>
+            )}
+            {showWelcome && !((view === "triage" || view === "graph") && vault.connected) && (
+              <motion.div
+                key="welcome"
+                // Linear-style: content appears instantly on first paint.
+                // Only animate on exit so the transition to chat feels intentional.
+                initial={false}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, transition: { duration: 0.14 } }}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
                   width: "100%",
                 }}
               >
-                {/* ── Header ──────────────────────────────────────── */}
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    marginBottom: 4,
-                    alignSelf: "flex-start",
-                    width: "100%",
-                  }}
-                >
+                {!vault.loading && !vault.connected ? (
+                  /* ────────────────────────────────────────────────
+                     STATE 1 — No vault: centered takeover wizard.
+                     Single task, single focal point. Nothing else renders.
+                     ──────────────────────────────────────────────── */
                   <div
                     style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 6,
-                      background: colors.brandIndigo,
+                      flex: 1,
                       display: "flex",
+                      flexDirection: "column",
                       alignItems: "center",
                       justifyContent: "center",
+                      paddingTop: 80,
+                      paddingBottom: 80,
+                      gap: 24,
                     }}
                   >
-                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0110 0v4" />
-                    </svg>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 20,
-                      fontWeight: 510,
-                      letterSpacing: -0.3,
-                      color: colors.primaryText,
-                      fontFeatureSettings: '"cv01", "ss03"',
-                    }}
-                  >
-                    Cipher
-                  </span>
-                </motion.div>
-                <motion.p
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.04, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 400,
-                    lineHeight: 1.5,
-                    color: colors.tertiaryText,
-                    fontFeatureSettings: '"cv01", "ss03"',
-                    margin: 0,
-                    marginBottom: 28,
-                    alignSelf: "flex-start",
-                  }}
-                >
-                  Ask about your work, systems, people, or projects.
-                </motion.p>
-
-                {/* ── Open tasks ─────────────────────────────────── */}
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.08, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-                  style={{
-                    width: "100%",
-                    marginBottom: 24,
-                    alignSelf: "flex-start",
-                    fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                    fontFeatureSettings: '"cv01", "ss03"',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 510,
-                      color: colors.tertiaryText,
-                      letterSpacing: 0.5,
-                      textTransform: "uppercase",
-                      marginBottom: 10,
-                    }}
-                  >
-                    Open
-                  </div>
-                  {loadingTasks ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {[0, 1, 2].map((i) => (
-                        <div
-                          key={i}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            padding: "8px 0",
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 16,
-                              height: 16,
-                              borderRadius: 4,
-                              background: colors.level3,
-                            border: `1px solid ${colors.borderStandard}`,
-                            flexShrink: 0,
-                            animation: "skeleton-pulse 1.5s ease-in-out infinite",
-                              animationDelay: `${i * 0.15}s`,
-                            opacity: 0.4,
-                            alignSelf: "center",
-                            marginTop: 1,
-                            }}
-                          />
-                          <div
-                            style={{
-                              height: 14,
-                              width: `${60 + i * 15}%`,
-                              borderRadius: 4,
-                              background: colors.level3,
-                              animation: "skeleton-pulse 1.5s ease-in-out infinite",
-                              animationDelay: `${i * 0.15}s`,
-                              opacity: 0.4,
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : openTasks.length > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      {openTasks.map((task) => (
-                        <motion.button
-                          key={task.id}
-                          whileHover={{ backgroundColor: "rgba(255,255,255,0.03)" }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => handleSubmit(`show details for ${task.text}`)}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            padding: "7px 8px",
-                            margin: "0 -8px",
-                            borderRadius: 6,
-                            border: "none",
-                            background: "transparent",
-                            cursor: "pointer",
-                            width: "calc(100% + 16px)",
-                            textAlign: "left",
-                            fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                            fontFeatureSettings: '"cv01", "ss03"',
-                            transition: "background-color 0.15s",
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 16,
-                              height: 16,
-                              borderRadius: 4,
-                              background: task.status === "done" ? colors.brandIndigo : "transparent",
-                              border: `1.5px solid ${task.status === "done" ? colors.brandIndigo : colors.quaternaryText}`,
-                              flexShrink: 0,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              marginTop: 1,
-                            }}
-                          >
-                            {task.status === "done" && (
-                              <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M20 6L9 17l-5-5" />
-                              </svg>
-                            )}
-                          </div>
-                          <span
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 400,
-                              lineHeight: 1.4,
-                              color: colors.primaryText,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                              flex: 1,
-                            }}
-                          >
-                            {task.text.length > 60 ? task.text.slice(0, 57) + "..." : task.text}
-                          </span>
-                          {task.priority && task.priority !== "low" && (
-                            <span
-                              style={{
-                                fontSize: 11,
-                                fontWeight: 510,
-                                color: task.priority === "high" ? "#f87171" : colors.tertiaryText,
-                                background: task.priority === "high" ? "rgba(248,113,113,0.1)" : colors.level3,
-                                padding: "2px 6px",
-                                borderRadius: 4,
-                                flexShrink: 0,
-                              }}
-                            >
-                              {task.priority}
-                            </span>
-                          )}
-                        </motion.button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
                       style={{
-                        fontSize: 13,
-                        color: colors.quaternaryText,
-                        padding: "8px 0",
-                      }}
-                    >
-                      No open tasks
-                    </div>
-                  )}
-                  {/* View all CTA */}
-                  {openTasks.length > 0 && (
-                    <motion.button
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.15, duration: 0.2 }}
-                      onClick={() => handleSubmit("What am I working on?")}
-                      style={{
-                        display: "inline-flex",
+                        width: 44,
+                        height: 44,
+                        borderRadius: 11,
+                        background: palette.brandIndigo,
+                        display: "flex",
                         alignItems: "center",
-                        gap: 4,
-                        marginTop: 8,
-                        padding: "4px 0",
-                        background: "transparent",
-                        border: "none",
-                        color: colors.brandIndigo,
-                        fontSize: 13,
-                        fontWeight: 510,
-                        letterSpacing: -0.1,
-                        cursor: "pointer",
-                        fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                        fontFeatureSettings: '"cv01", "ss03"',
-                        transition: "opacity 0.15s",
+                        justifyContent: "center",
+                        boxShadow: "0 8px 24px rgba(94,106,210,0.25), 0 0 0 1px rgba(255,255,255,0.06) inset",
                       }}
-                      onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.7"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
                     >
-                      View all open tasks
-                      <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0110 0v4" />
                       </svg>
-                    </motion.button>
-                  )}
-                </motion.div>
-
-                {/* ── Vault connection (if not connected) ────────── */}
-                {vaultConnected === false && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.16, duration: 0.3 }}
-                    style={{
-                      width: "100%",
-                      marginBottom: 24,
-                      padding: "16px 20px",
-                      borderRadius: 8,
-                      background: "rgba(245,158,11,0.06)",
-                      border: "1px solid rgba(245,158,11,0.15)",
-                      fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                      fontFeatureSettings: '"cv01", "ss03"',
-                    }}
-                  >
-                    <p style={{ fontSize: 13, fontWeight: 510, color: "#f59e0b", margin: 0, marginBottom: 4 }}>
-                      No Obsidian vault connected
-                    </p>
-                    <p style={{ fontSize: 13, color: "#8a8f98", margin: 0, marginBottom: 12 }}>
-                      Enter the path to your Obsidian vault folder.
-                    </p>
-                    <form
+                    </motion.div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
+                      style={{ textAlign: "center", maxWidth: 420 }}
+                    >
+                      <h1
+                        style={{
+                          fontSize: 32,
+                          fontWeight: 560,
+                          letterSpacing: -0.8,
+                          lineHeight: 1.1,
+                          color: palette.primaryText,
+                          margin: 0,
+                          marginBottom: 8,
+                        }}
+                      >
+                        Connect your vault
+                      </h1>
+                      <p
+                        style={{
+                          fontSize: 14,
+                          lineHeight: 1.55,
+                          color: palette.tertiaryText,
+                          margin: 0,
+                        }}
+                      >
+                        Point Cipher at a folder of markdown notes. Your Obsidian vault, research notes, anything.
+                      </p>
+                    </motion.div>
+                    <motion.form
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
                       onSubmit={async (e) => {
                         e.preventDefault();
                         const form = e.currentTarget;
                         const pathInput = (form.elements[0] as HTMLInputElement).value.trim();
                         if (!pathInput) return;
-                        const res = await fetch("/api/vault", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ path: pathInput }),
-                        });
-                        if (res.ok) {
-                          setVaultPath(pathInput);
-                          setVaultConnected(true);
+                        setVaultError(null);
+                        const result = await vault.connect(pathInput);
+                        if (!result.ok) {
+                          setVaultError(result.error ?? "Could not connect");
                         }
                       }}
-                      style={{ display: "flex", gap: 8, width: "100%" }}
+                      style={{ width: "100%", maxWidth: 420, display: "flex", flexDirection: "column", gap: 10 }}
                     >
-                      <input
-                        type="text"
-                        placeholder="/path/to/your/Obsidian"
-                        style={{
-                          flex: 1,
-                          padding: "8px 12px",
-                          borderRadius: 6,
-                          border: "1px solid rgba(255,255,255,0.08)",
-                          background: "rgba(255,255,255,0.02)",
-                          color: colors.secondaryText,
-                          fontSize: 13,
-                          fontFamily: '"Berkeley Mono", ui-monospace, monospace',
-                          fontFeatureSettings: '"cv01", "ss03"',
-                          outline: "none",
-                        }}
-                      />
-                      <button
-                        type="submit"
-                        style={{
-                          padding: "8px 16px",
-                          borderRadius: 6,
-                          border: "none",
-                          background: colors.brandIndigo,
-                          color: "#fff",
-                          fontSize: 13,
-                          fontWeight: 510,
-                          cursor: "pointer",
-                          fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                          fontFeatureSettings: '"cv01", "ss03"',
-                        }}
-                      >
-                        Connect
-                      </button>
-                    </form>
-                  </motion.div>
-                )}
-                {vaultConnected === true && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.16, duration: 0.3 }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      marginBottom: 24,
-                      width: "100%",
-                      fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                      fontFeatureSettings: '"cv01", "ss03"',
-                    }}
-                  >
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} />
-                    <span style={{ fontSize: 11, fontWeight: 510, color: "#62666d", letterSpacing: "0.02em" }}>
-                      Vault connected
-                    </span>
-                  </motion.div>
-                )}
-
-                {/* ── Shortcuts ──────────────────────────────────── */}
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.24, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-                  style={{
-                    width: "100%",
-                    marginBottom: 24,
-                    fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                    fontFeatureSettings: '"cv01", "ss03"',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 510,
-                      color: colors.tertiaryText,
-                      letterSpacing: 0.5,
-                      textTransform: "uppercase",
-                      marginBottom: 10,
-                    }}
-                  >
-                    Shortcuts
-                  </div>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 8,
-                    }}
-                  >
-                    {[
-                      { label: "Current Work", icon: (
-                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                        </svg>
-                      ), query: "What matters now" },
-                      { label: "System Status", icon: (
-                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                      ), query: "System health" },
-                      { label: "Tebi", icon: (
-                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                      ), query: "About Tebi" },
-                      { label: "Timeline", icon: (
-                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      ), query: "What changed this month" },
-                      { label: "Browse Vault", icon: (
-                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" />
-                        </svg>
-                      ), query: "Browse vault" },
-                      { label: "Search", icon: (
-                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                      ), query: "Search review prep" },
-                    ].map((shortcut, i) => (
-                      <motion.button
-                        key={shortcut.label}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.28 + i * 0.04, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-                        whileHover={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)" }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => handleSubmit(shortcut.query)}
+                      <div
                         style={{
                           display: "flex",
                           alignItems: "center",
                           gap: 8,
-                          padding: "10px 12px",
+                          padding: 6,
                           borderRadius: 8,
-                          border: `1px solid ${colors.borderStandard}`,
-                          background: colors.level3,
-                          color: colors.secondaryText,
-                          cursor: "pointer",
-                          fontSize: 13,
-                          fontWeight: 510,
-                          fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                          fontFeatureSettings: '"cv01", "ss03"',
-                          transition: "background-color 0.15s, border-color 0.15s",
+                          background: palette.level3,
+                          border: `1px solid ${palette.borderStandard}`,
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
                         }}
                       >
-                        <span style={{ display: "flex", alignItems: "center", color: colors.tertiaryText }}>{shortcut.icon}</span>
-                        {shortcut.label}
-                      </motion.button>
-                    ))}
-                  </div>
-                </motion.div>
-
-                {/* ── Recent ─────────────────────────────────────── */}
-                {recentQueries.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-                    style={{
-                      width: "100%",
-                      fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                      fontFeatureSettings: '"cv01", "ss03"',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 510,
-                        color: colors.tertiaryText,
-                        letterSpacing: 0.5,
-                        textTransform: "uppercase",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Recent
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      {recentQueries.map((query, i) => (
-                        <motion.button
-                          key={i}
-                          whileHover={{ backgroundColor: "rgba(255,255,255,0.03)" }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => handleSubmit(query)}
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="~/Documents/Obsidian"
                           style={{
-                            display: "block",
-                            padding: "6px 8px",
-                            margin: "0 -8px",
-                            borderRadius: 4,
+                            flex: 1,
+                            padding: "8px 10px",
+                            borderRadius: 6,
                             border: "none",
                             background: "transparent",
-                            cursor: "pointer",
-                            textAlign: "left",
+                            color: palette.primaryText,
                             fontSize: 13,
-                            fontWeight: 400,
-                            lineHeight: 1.4,
-                            color: colors.secondaryText,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                            fontFeatureSettings: '"cv01", "ss03"',
+                            fontFamily: "var(--font-mono)",
+                            outline: "none",
+                          }}
+                        />
+                        <button
+                          type="submit"
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: 6,
+                            border: "none",
+                            background: palette.brandIndigo,
+                            color: "var(--text-on-brand)",
+                            fontSize: 13,
+                            fontWeight: 510,
+                            letterSpacing: -0.1,
+                            cursor: "pointer",
                             transition: "background-color 0.15s",
                           }}
                         >
-                          {query}
-                        </motion.button>
-                      ))}
-                    </div>
-                  </motion.div>
+                          Connect
+                        </button>
+                      </div>
+                      {vaultError && (
+                        <p style={{ fontSize: 12, color: "var(--status-blocked)", margin: 0, textAlign: "center" }}>
+                          {vaultError}
+                        </p>
+                      )}
+                    </motion.form>
+                  </div>
+                ) : (
+                  /* ────────────────────────────────────────────────
+                     STATE 2 — Connected: no big hero. Dense,
+                     Linear-style information surface. Single row of
+                     starter chips + 2-col grid of Recent + Open.
+                     The bottom input is the action surface, not a
+                     giant headline.
+                     ──────────────────────────────────────────────── */
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      width: "100%",
+                      paddingTop: 48,
+                      paddingBottom: 48,
+                      gap: 48,
+                    }}
+                  >
+                    {/* Starter chips — clean filter-style, no chevrons */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.28, ease: [0.25, 0.1, 0.25, 1] }}
+                    >
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                        <span
+                          className="mono-label"
+                          style={{
+                            color: palette.quaternaryText,
+                            letterSpacing: "0.04em",
+                            marginRight: 6,
+                          }}
+                        >
+                          Try
+                        </span>
+                        {quickActions.map((qa) => (
+                          <button
+                            key={qa.label}
+                            onClick={() => handleSubmit(qa.label)}
+                            className="welcome-chip"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                              padding: "4px 10px",
+                              borderRadius: 999,
+                              border: `1px solid ${palette.borderStandard}`,
+                              background: "transparent",
+                              color: palette.secondaryText,
+                              fontSize: 12,
+                              fontWeight: 500,
+                              letterSpacing: -0.05,
+                              cursor: "pointer",
+                              transition: "background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s",
+                            }}
+                          >
+                            {qa.label}
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+
+                    {/* Dense 2-col grid — use minmax(0,1fr) so long
+                        content truncates instead of blowing out the column. */}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
+                      className="welcome-grid"
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                        gap: 48,
+                      }}
+                    >
+                      {/* Recent column */}
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            marginBottom: 12,
+                            paddingBottom: 8,
+                            borderBottom: `1px solid ${palette.borderSubtle}`,
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                            <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: palette.quaternaryText }}>
+                              <path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" />
+                            </svg>
+                            <span className="mono-label" style={{ color: palette.tertiaryText, letterSpacing: "0.04em" }}>
+                              Recent
+                            </span>
+                          </div>
+                          {recentQueries.length > 0 && (
+                            <span className="mono-label" style={{ color: palette.quaternaryText, fontVariantNumeric: "tabular-nums", letterSpacing: "0.04em" }}>
+                              {recentQueries.length}
+                            </span>
+                          )}
+                        </div>
+                        {recentQueries.length === 0 ? (
+                          <p style={{ fontSize: 12, color: palette.quaternaryText, margin: 0, padding: "6px 0" }}>
+                            Your recent questions will appear here.
+                          </p>
+                        ) : (
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            {recentQueries.slice(0, 6).map((query, i) => (
+                              <button
+                                key={i}
+                                onClick={() => handleSubmit(query)}
+                                className="welcome-row"
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 10,
+                                  padding: "8px 12px",
+                                  height: 32,
+                                  margin: "0 -10px",
+                                  borderRadius: 6,
+                                  border: "none",
+                                  background: "transparent",
+                                  cursor: "pointer",
+                                  textAlign: "left",
+                                  color: palette.secondaryText,
+                                  fontSize: 13,
+                                  fontWeight: 400,
+                                  lineHeight: 1.35,
+                                  transition: "background-color 0.12s, color 0.12s",
+                                  minWidth: 0,
+                                  width: "calc(100% + 20px)",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    width: 14, height: 14, borderRadius: "50%",
+                                    background: "transparent",
+                                    border: `1px solid ${palette.borderStandard}`,
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  <span
+                                    className="mono-label"
+                                    style={{
+                                      fontSize: 9,
+                                      color: palette.quaternaryText,
+                                      letterSpacing: 0,
+                                      fontVariantNumeric: "tabular-nums",
+                                    }}
+                                  >
+                                    {i + 1}
+                                  </span>
+                                </span>
+                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+                                  {query}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Open tasks column */}
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            marginBottom: 12,
+                            paddingBottom: 8,
+                            borderBottom: `1px solid ${palette.borderSubtle}`,
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                            <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: palette.quaternaryText }}>
+                              <rect x="4" y="4" width="16" height="16" rx="3" />
+                              <path d="M9 12l2 2 4-4" />
+                            </svg>
+                            <span className="mono-label" style={{ color: palette.tertiaryText, letterSpacing: "0.04em" }}>
+                              Open tasks
+                            </span>
+                          </div>
+                          {!loadingTasks && openTasks.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleSubmit("What am I working on?")}
+                              className="mono-label"
+                              style={{
+                                color: palette.quaternaryText,
+                                fontVariantNumeric: "tabular-nums",
+                                background: "transparent",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: 0,
+                                letterSpacing: "0.04em",
+                                transition: "color 0.12s",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.color = palette.secondaryText; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.color = palette.quaternaryText; }}
+                            >
+                              View all
+                              <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M5 12h14M12 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                        {loadingTasks ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            {[0, 1, 2, 3].map((i) => (
+                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", height: 32 }}>
+                                <div
+                                  className="animate-shimmer"
+                                  style={{
+                                    width: 14, height: 14, borderRadius: 4,
+                                    border: `1px solid ${palette.borderStandard}`,
+                                    flexShrink: 0, animationDelay: `${i * 0.12}s`,
+                                  }}
+                                />
+                                <div
+                                  className="animate-shimmer"
+                                  style={{
+                                    height: 11, width: `${50 + i * 10}%`, borderRadius: 3,
+                                    animationDelay: `${i * 0.12}s`,
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ) : openTasks.length === 0 ? (
+                          <p style={{ fontSize: 12, color: palette.quaternaryText, margin: 0, padding: "6px 0" }}>
+                            No open tasks.
+                          </p>
+                        ) : (
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            {openTasks.slice(0, 6).map((task) => {
+                              const priorityColor = task.priority === "high"
+                                ? "var(--status-blocked)"
+                                : task.priority === "medium"
+                                ? "var(--status-in-progress)"
+                                : null;
+                              return (
+                                <button
+                                  key={task.id}
+                                  onClick={() => handleSubmit(`show details for ${task.text}`)}
+                                  className="welcome-row"
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 10,
+                                    padding: "8px 12px",
+                                  height: 32,
+                                    margin: "0 -10px",
+                                    borderRadius: 6,
+                                    border: "none",
+                                    background: "transparent",
+                                    cursor: "pointer",
+                                    textAlign: "left",
+                                    transition: "background-color 0.12s",
+                                    minWidth: 0,
+                                    width: "calc(100% + 20px)",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      width: 14, height: 14, borderRadius: 4,
+                                      background: "transparent",
+                                      border: `1.5px solid ${palette.quaternaryText}`,
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                  <span
+                                    style={{
+                                      fontSize: 13,
+                                      fontWeight: 400,
+                                      lineHeight: 1.35,
+                                      color: palette.primaryText,
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                      flex: 1,
+                                      minWidth: 0,
+                                    }}
+                                  >
+                                    {task.text}
+                                  </span>
+                                  {priorityColor && (
+                                    <span
+                                      style={{
+                                        width: 5, height: 5, borderRadius: "50%",
+                                        background: priorityColor, flexShrink: 0,
+                                        boxShadow: `0 0 0 2px ${palette.panelDark}`,
+                                      }}
+                                    />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  </div>
                 )}
               </motion.div>
             )}
@@ -1169,16 +1397,15 @@ export function ChatInterface() {
                   variants={fadeSlideUp}
                   initial="hidden"
                   animate="show"
-                  layout
                 >
                   {msg.role === "user" ? (
                     /* ── User message ──────────────────────────────────── */
-                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, alignItems: "flex-start" }}>
                       <div
                         style={{
                           maxWidth: "75%",
-                          backgroundColor: colors.brandIndigo,
-                          borderRadius: 16,
+                          backgroundColor: palette.brandIndigo,
+                          borderRadius: 12,
                           borderBottomRightRadius: 4,
                           padding: "10px 16px",
                           boxShadow: `rgba(0,0,0,0.2) 0px 0px 0px 1px`,
@@ -1189,35 +1416,24 @@ export function ChatInterface() {
                             fontSize: 15,
                             fontWeight: 400,
                             lineHeight: 1.5,
-                            color: "#ffffff",
+                            color: "var(--text-on-brand)",
                             margin: 0,
-                            fontFeatureSettings: '"cv01", "ss03"',
                           }}
                         >
                           {msg.content}
                         </p>
                       </div>
+                      {/* User avatar — neutral tone, paired with AI's brand tone */}
+                      <div style={{ marginTop: 2 }}>
+                        <Avatar initial={user.initial} tone="neutral" label={`${user.name} avatar`} />
+                      </div>
                     </div>
                   ) : (
                     /* ── AI response ─────────────────────────────────────── */
                     <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }} data-msg-role="assistant">
-                      {/* Cipher avatar */}
-                      <div
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 8,
-                          background: colors.brandIndigo,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                          marginTop: 2,
-                        }}
-                      >
-                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                        </svg>
+                      {/* Cipher avatar — brand tone, initial-based (Linear "AI as peer" treatment) */}
+                      <div style={{ marginTop: 2 }}>
+                        <Avatar initial="C" tone="brand" label="Cipher" />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         {/* A1: Conversational AI text with A2: word-by-word animation */}
@@ -1228,9 +1444,8 @@ export function ChatInterface() {
                                 fontSize: 15,
                                 fontWeight: 400,
                                 lineHeight: 1.6,
-                                color: colors.secondaryText,
+                                color: palette.secondaryText,
                                 margin: 0,
-                                fontFeatureSettings: '"cv01", "ss03"',
                               }}
                             >
                               <AnimatedText
@@ -1247,15 +1462,11 @@ export function ChatInterface() {
                             return (
                               <motion.div
                                 key={view.viewId}
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={isRevealed ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-                                transition={{
-                                  duration: 0.3,
-                                  ease: [0.25, 0.1, 0.25, 1],
-                                  delay: isRevealed ? viewIndex * 0.06 : 0,
-                                }}
+                                initial={{ opacity: 0, y: 4 }}
+                                animate={isRevealed ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+                                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                               >
-                                <ViewRenderer view={view} index={viewIndex} onNavigate={setDetailPath} onToggle={handleToggle} />
+                                <ViewRenderer view={view} index={viewIndex} onNavigate={openDetail} onToggle={handleToggle} onAsk={handleSubmit} />
                               </motion.div>
                             );
                           })}
@@ -1265,7 +1476,7 @@ export function ChatInterface() {
                           <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            transition={{ delay: 0.2, duration: 0.3 }}
+                            transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
                             style={{
                               display: "flex",
                               flexWrap: "wrap",
@@ -1280,9 +1491,7 @@ export function ChatInterface() {
                                 whileHover={{
                                   backgroundColor: "rgba(255,255,255,0.06)",
                                   borderColor: "rgba(255,255,255,0.14)",
-                                  scale: 1.02,
                                 }}
-                                whileTap={{ scale: 0.97 }}
                                 onClick={() => handleSubmit(reply.query)}
                                 style={{
                                   display: "inline-flex",
@@ -1293,11 +1502,10 @@ export function ChatInterface() {
                                   fontWeight: 510,
                                   letterSpacing: "-0.13",
                                   lineHeight: 1.5,
-                                  color: colors.tertiaryText,
+                                  color: palette.tertiaryText,
                                   backgroundColor: "rgba(255,255,255,0.02)",
-                                  border: `1px solid ${colors.pillBorder}`,
+                                  border: `1px solid ${palette.pillBorder}`,
                                   cursor: "pointer",
-                                  fontFeatureSettings: '"cv01", "ss03"',
                                   transition: "background-color 0.15s, border-color 0.15s",
                                 }}
                               >
@@ -1316,10 +1524,10 @@ export function ChatInterface() {
               <AnimatePresence>
                 {isProcessing && (
                   <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4, transition: { duration: 0.15 } }}
-                    transition={{ duration: 0.25 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                    transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
                     style={{ display: "flex", alignItems: "center", gap: 8 }}
                   >
                     <div
@@ -1327,7 +1535,7 @@ export function ChatInterface() {
                         width: 28,
                         height: 28,
                         borderRadius: 8,
-                        background: colors.brandIndigo,
+                        background: palette.brandIndigo,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -1346,16 +1554,17 @@ export function ChatInterface() {
                         <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                       </svg>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      {[0, 150, 300].map((delay) => (
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, height: 12 }}>
+                      {/* Opacity-only breathe, 800ms cycle, staggered. Single dimension of motion. */}
+                      {[0, 200, 400].map((delay) => (
                         <span
                           key={delay}
                           style={{
-                            width: 5,
-                            height: 5,
+                            width: 4,
+                            height: 4,
                             borderRadius: "50%",
-                            backgroundColor: colors.quaternaryText,
-                            animation: "dot-pulse 1.4s ease-in-out infinite",
+                            backgroundColor: palette.quaternaryText,
+                            animation: "wave-pulse 1.2s ease-in-out infinite",
                             animationDelay: `${delay}ms`,
                           }}
                         />
@@ -1369,6 +1578,8 @@ export function ChatInterface() {
             </div>
           </div>
         </div>
+          );
+        })()}
       </div>
 
       {/* ── Chat input ─────────────────────────────────────────────── */}
@@ -1378,10 +1589,10 @@ export function ChatInterface() {
           backgroundColor: "rgba(8,9,10,0.85)",
           backdropFilter: "blur(24px) saturate(180%)",
           WebkitBackdropFilter: "blur(24px) saturate(180%)",
-          borderTop: `1px solid ${colors.borderSubtle}`,
+          borderTop: `1px solid ${palette.borderSubtle}`,
         }}
       >
-        <div style={{ maxWidth: 720, margin: "0 auto", padding: "20px 24px 24px" }}>
+        <div style={{ maxWidth: 880, margin: "0 auto", padding: "20px 32px 24px" }}>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -1393,8 +1604,8 @@ export function ChatInterface() {
                 position: "relative",
                 display: "flex",
                 alignItems: "flex-end",
-                backgroundColor: colors.level3,
-                border: `1px solid ${colors.borderStandard}`,
+                backgroundColor: palette.level3,
+                border: `1px solid ${palette.borderStandard}`,
                 borderRadius: 12,
                 transition: "border-color 0.2s, box-shadow 0.2s",
                 boxShadow: "rgba(0,0,0,0.4) 0px 2px 4px",
@@ -1405,7 +1616,7 @@ export function ChatInterface() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about work, people, projects, systems…"
+                placeholder="Ask anything — tasks, notes, people, systems…"
                 rows={1}
                 disabled={isProcessing}
                 style={{
@@ -1413,14 +1624,11 @@ export function ChatInterface() {
                   resize: "none",
                   background: "transparent",
                   border: "none",
-                  outline: "none",
-                  padding: "14px 52px 14px 16px",
-                  fontSize: 16,
+                  padding: "12px 52px 12px 16px",
+                  fontSize: 15,
                   fontWeight: 400,
                   lineHeight: 1.5,
-                  color: colors.primaryText,
-                  fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                  fontFeatureSettings: '"cv01", "ss03"',
+                  color: palette.primaryText,
                   height: 48,
                   overflowY: "auto",
                 }}
@@ -1435,7 +1643,7 @@ export function ChatInterface() {
                   width: 32,
                   height: 32,
                   borderRadius: 6,
-                  backgroundColor: input.trim() && !isProcessing ? colors.brandIndigo : "rgba(255,255,255,0.05)",
+                  backgroundColor: input.trim() && !isProcessing ? palette.brandIndigo : "rgba(255,255,255,0.05)",
                   border: "none",
                   cursor: input.trim() && !isProcessing ? "pointer" : "default",
                   display: "flex",
@@ -1450,8 +1658,8 @@ export function ChatInterface() {
                   height={16}
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke={input.trim() && !isProcessing ? "#ffffff" : colors.tertiaryText}
-                  strokeWidth={2.5}
+                  stroke={input.trim() && !isProcessing ? "var(--text-on-brand)" : palette.tertiaryText}
+                  strokeWidth={2}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
@@ -1465,28 +1673,70 @@ export function ChatInterface() {
 
       {/* ── Global overrides ─────────────────────────────────────── */}
       <style>{`
-        @keyframes dot-pulse {
-          0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-          40% { transform: scale(1); opacity: 1; }
+        /* Typing indicator — opacity-only breathe, single axis.
+           Linear doesn't bounce. */
+        @keyframes wave-pulse {
+          0%, 100% { opacity: 0.3; }
+          50%      { opacity: 1; }
         }
         @keyframes skeleton-pulse {
           0%, 100% { opacity: 0.15; }
           50% { opacity: 0.35; }
         }
+        /* AI reply fade — single pass, 140ms. No typewriter. */
+        @keyframes cipher-text-fade {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
         textarea::placeholder {
-          color: #8a8f98;
+          color: var(--text-tertiary);
           opacity: 1;
         }
         textarea::-webkit-input-placeholder {
-          color: #8a8f98;
+          color: var(--text-tertiary);
           opacity: 1;
         }
         textarea::-moz-placeholder {
-          color: #8a8f98;
+          color: var(--text-tertiary);
           opacity: 1;
         }
         textarea:focus::placeholder {
-          color: #62666d;
+          color: var(--text-quaternary);
+        }
+        @media (max-width: 720px) {
+          .welcome-grid {
+            grid-template-columns: 1fr !important;
+            gap: 28px !important;
+          }
+        }
+        /* Welcome chip — subtle, settles on hover. No motion.button overhead. */
+        .welcome-chip:hover {
+          background-color: var(--bg-surface-alpha-2);
+          border-color: var(--border-solid-primary);
+          color: var(--text-primary);
+        }
+        /* Row hover — subtle fill + 2px brand rail on the leading edge.
+           Linear uses this exact pattern for list rows: gentle invitation, not a shout. */
+        .welcome-row {
+          position: relative;
+        }
+        .welcome-row::before {
+          content: "";
+          position: absolute;
+          left: 0;
+          top: 6px;
+          bottom: 6px;
+          width: 2px;
+          border-radius: 2px;
+          background: transparent;
+          transition: background 0.12s ease-out;
+        }
+        .welcome-row:hover {
+          background-color: var(--bg-surface-alpha-2);
+          color: var(--text-primary);
+        }
+        .welcome-row:hover::before {
+          background: var(--accent-brand);
         }
       `}</style>
       <VaultDrawer
@@ -1498,9 +1748,17 @@ export function ChatInterface() {
         }}
         onOpenFile={(path) => {
           setVaultDrawerOpen(false);
-          setDetailPath(path);
+          openDetail(path);
         }}
       />
+      {/* Persistent shortcut hint — hides while typing, detail page open, drawer open, or palette open */}
+      <HintChip hidden={input.length > 0 || !!detailPath || vaultDrawerOpen || paletteOpen} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        actions={paletteActions}
+      />
+      </div>
     </div>
   );
 }

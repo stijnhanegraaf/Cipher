@@ -5,15 +5,7 @@ import { stagger, fadeSlideUp } from "@/lib/motion";
 import { TimelineSynthesisData } from "@/lib/view-models";
 import { Badge, CalloutBox } from "@/components/ui";
 
-// Design tokens
-const tokens = {
-  text: { primary: "#f7f8f8", secondary: "#d0d6e0", tertiary: "#8a8f98", quaternary: "#62666d" },
-  brand: { indigo: "#5e6ad2", violet: "#7170ff" },
-  bg: { surface: "#191a1b" },
-  border: { subtle: "rgba(255,255,255,0.05)", standard: "rgba(255,255,255,0.08)" },
-};
-
-// Theme color palette
+// Theme color palette — dot + bg tint + border tint per cycling theme
 const themeAccents = [
   { dot: "#5e6ad2", bg: "rgba(94,106,210,0.06)",  border: "rgba(94,106,210,0.15)" },
   { dot: "#7170ff", bg: "rgba(113,112,255,0.06)",  border: "rgba(113,112,255,0.15)" },
@@ -22,12 +14,7 @@ const themeAccents = [
   { dot: "#8a8f98", bg: "rgba(138,143,152,0.04)",   border: "rgba(138,143,152,0.08)" },
 ];
 
-const fontFamily = {
-  inter: "'Inter Variable', 'SF Pro Display', -apple-system, system-ui, sans-serif",
-  mono: "'Berkeley Mono', ui-monospace, 'SF Mono', Menlo, monospace",
-};
-
-export function TimelineView({ data, view }: { data: TimelineSynthesisData; view: any }) {
+export function TimelineView({ data, view, onNavigate }: { data: TimelineSynthesisData; view: any; onNavigate?: (path: string) => void }) {
   const timeline = data as TimelineSynthesisData;
 
   return (
@@ -40,14 +27,7 @@ export function TimelineView({ data, view }: { data: TimelineSynthesisData; view
       {/* Range badge */}
       <motion.div variants={fadeSlideUp} className="flex items-center gap-2">
         <Badge variant="indigo">{timeline.range.label}</Badge>
-        <span
-          className="text-[12px] font-[510]"
-          style={{
-            color: tokens.text.quaternary,
-            fontFamily: fontFamily.inter,
-            fontFeatureSettings: '"cv01", "ss03"',
-          }}
-        >
+        <span className="label-medium text-text-quaternary">
           {timeline.themes.length} {timeline.themes.length === 1 ? "theme" : "themes"}
         </span>
       </motion.div>
@@ -66,89 +46,70 @@ export function TimelineView({ data, view }: { data: TimelineSynthesisData; view
             }}
           >
             {/* Theme header */}
-            <div className="px-5 pt-5 pb-2">
+            <div className="px-5 pt-4 pb-2">
               <div className="flex items-start gap-3">
                 <div
                   className="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0"
                   style={{
                     background: accent.dot,
-                    boxShadow: `0 0 0 2px ${tokens.bg.surface}`,
+                    boxShadow: "0 0 0 2px var(--bg-surface)",
                   }}
                 />
                 <div>
-                  <h3
-                    className="text-[14px] font-[590] tracking-[-0.13px]"
-                    style={{
-                      color: tokens.text.primary,
-                      fontFamily: fontFamily.inter,
-                      fontFeatureSettings: '"cv01", "ss03"',
-                    }}
-                  >
+                  <h3 className="caption-large text-text-primary" style={{ fontWeight: 590 }}>
                     {theme.label}
                   </h3>
-                  <p
-                    className="text-[13px] mt-1 leading-[1.5]"
-                    style={{
-                      color: tokens.text.tertiary,
-                      fontFamily: fontFamily.inter,
-                      fontFeatureSettings: '"cv01", "ss03"',
-                    }}
-                  >
+                  <p className="caption text-text-tertiary mt-1" style={{ lineHeight: 1.5 }}>
                     {theme.summary}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Timeline items inside theme */}
-            <div className="px-5 pb-5 pt-2">
+            {/* Timeline items inside theme — 1.5px line, 9px dots for visual weight */}
+            <div className="px-5 pb-4 pt-2">
               <div className="relative pl-5 ml-1.5">
-                {/* Vertical timeline line */}
                 <div
-                  className="absolute left-[3px] top-1 bottom-1 w-px"
-                  style={{ background: tokens.border.standard }}
+                  className="absolute left-[4px] top-1 bottom-1"
+                  style={{ width: "1.5px", background: "var(--border-standard)" }}
                 />
                 <div className="space-y-4">
-                  {theme.items.map((item, j) => (
-                    <motion.div
-                      key={j}
-                      variants={fadeSlideUp}
-                      transition={{ delay: i * 0.08 + j * 0.04 }}
-                      className="relative flex items-start gap-3"
-                    >
-                      {/* Dot on line */}
-                      <div className="absolute -left-5 top-1.5">
-                        <div
-                          className="w-[7px] h-[7px] rounded-full"
-                          style={{
-                            background: accent.dot,
-                            boxShadow: `0 0 0 2px ${tokens.bg.surface}`,
-                          }}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span
-                          className="text-[11px] font-[510]"
-                          style={{
-                            color: tokens.text.quaternary,
-                            fontFamily: fontFamily.mono,
-                          }}
+                  {theme.items.map((item, j) => {
+                    const clickable = !!(item.path && onNavigate);
+                    const Wrapper: "button" | "div" = clickable ? "button" : "div";
+                    return (
+                      <motion.div
+                        key={j}
+                        variants={fadeSlideUp}
+                        className="relative"
+                      >
+                        <Wrapper
+                          type={clickable ? "button" : undefined}
+                          onClick={clickable ? () => onNavigate!(item.path!) : undefined}
+                          className={`flex items-start gap-3 w-full text-left py-1 -my-1 -mx-2 px-2 rounded-[4px] transition-colors duration-150 ${clickable ? "cursor-pointer hover:bg-[var(--bg-surface-alpha-2)]" : ""}`}
+                          style={{ background: "transparent", border: "none" }}
                         >
-                          {item.date}
-                        </span>
-                        <p
-                          className="text-[14px] leading-[1.5] mt-0.5"
-                          style={{
-                            color: tokens.text.secondary,
-                            fontFamily: fontFamily.inter,
-                            fontFeatureSettings: '"cv01", "ss03"',
-                          }}
-                        >
-                          {item.label}
-                        </p>
-                      </div>
-                    </motion.div>
-                  ))}
+                          <div className="absolute -left-[19px] top-[9px]">
+                            <div
+                              className="w-[9px] h-[9px] rounded-full"
+                              style={{
+                                background: accent.dot,
+                                boxShadow: "0 0 0 2px var(--bg-surface)",
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="micro mono-label text-text-quaternary">
+                              {item.date}
+                            </span>
+                            <p className="caption-large text-text-secondary mt-0.5" style={{ lineHeight: 1.5 }}>
+                              {item.label}
+                            </p>
+                          </div>
+                        </Wrapper>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -163,6 +124,7 @@ export function TimelineView({ data, view }: { data: TimelineSynthesisData; view
             tone="warning"
             title="Evidence gaps"
             body={timeline.proofGaps.join("; ") + "."}
+            onNavigate={onNavigate}
           />
         </motion.div>
       )}

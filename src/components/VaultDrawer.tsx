@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { springs } from "@/lib/motion";
+import { transition } from "@/lib/motion";
 
 interface VaultSection {
   key: string;
@@ -24,18 +24,6 @@ interface VaultDrawerProps {
   onNavigate: (query: string) => void;
   onOpenFile: (path: string) => void;
 }
-
-const colors = {
-  bg: "#08090a",
-  level2: "#111215",
-  level3: "#181a1f",
-  borderStandard: "rgba(255,255,255,0.08)",
-  borderSubtle: "rgba(255,255,255,0.05)",
-  primaryText: "#f0f0f3",
-  secondaryText: "#8b8d97",
-  tertiaryText: "#5e6068",
-  brandIndigo: "#5e6ad2",
-};
 
 const sectionIcons: Record<string, React.ReactNode> = {
   work: (
@@ -83,31 +71,42 @@ const sectionIcons: Record<string, React.ReactNode> = {
 export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDrawerProps) {
   const [sections, setSections] = useState<VaultSection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
       setLoading(true);
-      fetch("/api/vault/structure")
-        .then((r) => r.json())
-        .then((data) => {
-          setSections(data.sections || []);
-          setLoading(false);
-        })
-        .catch(() => {
-          fetch("/api/query")
-            .then((r) => r.json())
-            .then((data) => {
-              const s: VaultSection[] = [];
-              if (data.entities?.length) s.push({ key: "entities", label: "Entities", icon: sectionIcons.entities, items: data.entities });
-              if (data.projects?.length) s.push({ key: "projects", label: "Projects", icon: sectionIcons.projects, items: data.projects });
-              if (data.research?.length) s.push({ key: "research", label: "Research", icon: sectionIcons.research, items: data.research.map((r: any) => ({ name: r.name, path: r.dir })) });
-              setSections(s);
-              setLoading(false);
-            })
-            .catch(() => setLoading(false));
-        });
-    }
+      setError(null);
+      try {
+        // Primary: probed structure endpoint.
+        const res = await fetch("/api/vault/structure");
+        if (!res.ok) throw new Error(`structure ${res.status}`);
+        const data = await res.json();
+        if (!cancelled) setSections(data.sections || []);
+      } catch {
+        // Fallback: flat query result, grouped into a single "Files" section so
+        // the drawer still shows something useful instead of an empty spinner.
+        try {
+          const res = await fetch("/api/query");
+          if (!res.ok) throw new Error(`query ${res.status}`);
+          const data = await res.json();
+          const s: VaultSection[] = [];
+          if (data.entities?.length) s.push({ key: "entities", label: "Entities", icon: sectionIcons.entities, items: data.entities });
+          if (data.projects?.length) s.push({ key: "projects", label: "Projects", icon: sectionIcons.projects, items: data.projects });
+          if (data.research?.length) s.push({ key: "research", label: "Research", icon: sectionIcons.research, items: data.research.map((r: any) => ({ name: r.name, path: r.dir })) });
+          if (!cancelled) setSections(s);
+        } catch (e) {
+          if (!cancelled) setError(e instanceof Error ? e.message : "Could not load vault");
+        }
+      } finally {
+        // Always clear loading — double failure included.
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [open]);
 
   const queryFor = (section: string, item: VaultItem) => {
@@ -115,13 +114,24 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDraw
       case "entities": return `show me ${item.name}`;
       case "projects": return `show project ${item.name}`;
       case "research": return `show research on ${item.name}`;
-      case "work": return `show ${item.name}`;
-      case "system": return `show system ${item.name}`;
-      case "knowledge": return `tell me about ${item.name}`;
-      case "journal": return `show journal ${item.name}`;
-      case "memory": return `show ${item.name}`;
-      default: return `show me ${item.name}`;
+      case "work":     return `show ${item.name}`;
+      case "system":   return `show system ${item.name}`;
+      case "knowledge":return `tell me about ${item.name}`;
+      case "journal":  return `show journal ${item.name}`;
+      case "memory":   return `show ${item.name}`;
+      default:         return `show me ${item.name}`;
     }
+  };
+
+  // Single dispatch rule: if the item carries a file path, open it.
+  // Otherwise run a natural-language query derived from its name.
+  const dispatchItem = (section: string, item: VaultItem) => {
+    if (item.path && /\.md$/i.test(item.path)) {
+      onOpenFile(item.path);
+    } else {
+      onNavigate(queryFor(section, item));
+    }
+    onClose();
   };
 
   const toggleSection = (key: string) => {
@@ -136,85 +146,68 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDraw
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
             onClick={onClose}
+            className="fixed inset-0 z-40"
             style={{
-              position: "fixed",
-              inset: 0,
-              backgroundColor: "rgba(0,0,0,0.6)",
-              zIndex: 40,
+              backgroundColor: "rgba(8,9,10,0.4)",
+              backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
             }}
           />
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
-            transition={springs.gentle}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed top-0 right-0 bottom-0 z-[41] flex flex-col overflow-hidden"
             style={{
-              position: "fixed",
-              top: 0,
-              right: 0,
-              bottom: 0,
               width: 340,
-              backgroundColor: colors.level2,
-              borderLeft: `1px solid ${colors.borderStandard}`,
-              zIndex: 41,
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
+              backgroundColor: "var(--bg-panel)",
+              borderLeft: "1px solid var(--border-standard)",
             }}
           >
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "16px 20px",
-                borderBottom: `1px solid ${colors.borderStandard}`,
-              }}
+              className="flex items-center justify-between px-5 py-4"
+              style={{ borderBottom: "1px solid var(--border-standard)" }}
             >
-              <span
-                style={{
-                  fontSize: 15,
-                  fontWeight: 510,
-                  letterSpacing: -0.165,
-                  color: colors.primaryText,
-                  fontFeatureSettings: '"cv01", "ss03"',
-                }}
-              >
-                Vault
-              </span>
+              <span className="small-medium text-text-primary">Vault</span>
               <button
                 onClick={onClose}
+                aria-label="Close"
+                className="text-text-quaternary hover:text-text-primary cursor-pointer flex items-center justify-center transition-colors duration-150"
                 style={{
                   background: "transparent",
                   border: "none",
-                  color: colors.tertiaryText,
-                  cursor: "pointer",
-                  padding: 4,
-                  fontSize: 18,
-                  lineHeight: 1,
+                  width: 24,
+                  height: 24,
+                  borderRadius: 4,
                 }}
               >
-                ×
+                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
               </button>
             </div>
 
             <div
-              style={{
-                flex: 1,
-                overflowY: "auto",
-                scrollbarWidth: "thin",
-              }}
+              className="flex-1 overflow-y-auto"
+              style={{ scrollbarWidth: "thin" }}
             >
               {loading && (
-                <div style={{ padding: 32, textAlign: "center", color: colors.tertiaryText, fontSize: 13 }}>
+                <div className="p-8 text-center caption text-text-quaternary">
                   Loading vault…
                 </div>
               )}
 
-              {!loading && sections.length === 0 && (
-                <div style={{ padding: 32, textAlign: "center", color: colors.tertiaryText, fontSize: 13 }}>
+              {!loading && error && (
+                <div className="p-8 text-center caption" style={{ color: "var(--status-blocked)" }}>
+                  Could not load vault — {error}
+                </div>
+              )}
+
+              {!loading && !error && sections.length === 0 && (
+                <div className="p-8 text-center caption text-text-quaternary">
                   No vault content found
                 </div>
               )}
@@ -225,41 +218,28 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDraw
                   <div key={section.key}>
                     <button
                       onClick={() => toggleSection(section.key)}
+                      className="flex items-center gap-2 w-full pt-4 px-4 pb-2 micro uppercase text-text-quaternary cursor-pointer transition-colors duration-150"
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        width: "100%",
-                        padding: "12px 16px 6px",
                         background: "transparent",
                         border: "none",
-                        color: colors.tertiaryText,
-                        fontSize: 11,
-                        fontWeight: 510,
-                        textTransform: "uppercase" as const,
                         letterSpacing: 0.5,
-                        fontFeatureSettings: '"cv01", "ss03"',
-                        cursor: "pointer",
-                        fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                        transition: "color 0.15s",
                       }}
                     >
                       {sectionIcons[section.key] || sectionIcons.entities}
                       {section.label}
-                      <span style={{ opacity: 0.5, fontSize: 10 }}>{section.items.length}</span>
+                      <span className="tiny" style={{ opacity: 0.5 }}>{section.items.length}</span>
                       <svg
                         width={10}
                         height={10}
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth={2.5}
+                        strokeWidth={2}
                         strokeLinecap="round"
                         strokeLinejoin="round"
+                        className="ml-auto transition-transform duration-150"
                         style={{
-                          marginLeft: "auto",
                           transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
-                          transition: "transform 0.15s ease",
                         }}
                       >
                         <path d="M6 9l6 6 6-6" />
@@ -275,62 +255,24 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDraw
                           transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
                           style={{ overflow: "hidden" }}
                         >
-                          {section.items.map((item, i) => (
-                            <motion.button
+                          {section.items.map((item) => (
+                            <button
                               key={item.path + item.name}
-                              initial={{ opacity: 0, y: 4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: i * 0.02, duration: 0.2 }}
-                              onClick={() => {
-                                if (section.key === "entities" || section.key === "projects" || section.key === "research") {
-                                  onNavigate(queryFor(section.key, item));
-                                } else {
-                                  onOpenFile(item.path);
-                                }
-                                onClose();
-                              }}
+                              onClick={() => dispatchItem(section.key, item)}
+                              className="app-row flex items-center justify-between w-full py-2 pr-4 pl-8 caption text-text-primary cursor-pointer text-left transition-colors duration-150 hover:bg-[var(--bg-surface-alpha-4)]"
                               style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                width: "100%",
-                                padding: "8px 16px 8px 32px",
                                 background: "transparent",
                                 border: "none",
                                 borderRadius: 4,
-                                cursor: "pointer",
-                                color: colors.primaryText,
-                                fontSize: 13,
-                                fontWeight: 400,
-                                letterSpacing: -0.1,
-                                fontFeatureSettings: '"cv01", "ss03"',
-                                fontFamily: '"Inter Variable", "Inter", -apple-system, system-ui, sans-serif',
-                                textAlign: "left" as const,
-                                transition: "background-color 0.15s",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.04)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "transparent";
                               }}
                             >
-                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
-                                {item.name}
-                              </span>
+                              <span className="truncate">{item.name}</span>
                               {item.type && (
-                                <span
-                                  style={{
-                                    fontSize: 10,
-                                    color: colors.tertiaryText,
-                                    marginLeft: 8,
-                                    flexShrink: 0,
-                                  }}
-                                >
+                                <span className="tiny text-text-quaternary ml-2 shrink-0">
                                   {item.type}
                                 </span>
                               )}
-                            </motion.button>
+                            </button>
                           ))}
                         </motion.div>
                       )}
@@ -338,11 +280,8 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDraw
 
                     {si < sections.length - 1 && (
                       <div
-                        style={{
-                          height: 1,
-                          backgroundColor: colors.borderSubtle,
-                          margin: "8px 16px",
-                        }}
+                        className="mx-4 my-2"
+                        style={{ height: 1, backgroundColor: "var(--border-subtle)" }}
                       />
                     )}
                   </div>

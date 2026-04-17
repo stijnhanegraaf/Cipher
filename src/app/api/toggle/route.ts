@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile, writeFile } from "fs/promises";
 import { join } from "path";
-
-// Vault path resolution
-function getVaultPath(): string {
-  return process.env.VAULT_PATH || "/root/.openclaw/workspace/Obsidian";
-}
+import { getVaultPath } from "@/lib/vault-reader";
 
 // POST /api/toggle — toggle a checkbox in a vault file
 export async function POST(request: NextRequest) {
@@ -16,7 +12,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "path and lineIndex required" }, { status: 400 });
     }
 
-    const absPath = join(getVaultPath(), relPath);
+    const vaultRoot = getVaultPath();
+    if (!vaultRoot) {
+      return NextResponse.json({ error: "No vault connected" }, { status: 409 });
+    }
+    const absPath = join(vaultRoot, relPath);
     let content: string;
 
     try {

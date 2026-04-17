@@ -1,75 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, readFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { existsSync, statSync } from "fs";
+import { basename } from "path";
+import { getVaultPath, setVaultPath } from "@/lib/vault-reader";
 
-// POST /api/vault — set vault path
+/**
+ * POST /api/vault — hot-swap the active vault.
+ * No file writes, no server restart — updates the in-memory current vault.
+ */
 export async function POST(request: NextRequest) {
   try {
-    const { path: vaultPath } = await request.json();
+    const { path: rawPath } = await request.json();
 
-    if (!vaultPath || typeof vaultPath !== "string") {
+    if (!rawPath || typeof rawPath !== "string") {
       return NextResponse.json({ error: "Path required" }, { status: 400 });
     }
 
-    // Validate the path exists
-    const { existsSync } = require("fs");
+    const vaultPath = rawPath.trim().replace(/^~/, process.env.HOME || "~");
+
     if (!existsSync(vaultPath)) {
       return NextResponse.json({ error: "Path does not exist", path: vaultPath }, { status: 400 });
     }
-
-    // Write VAULT_PATH to .env.local
-    const envPath = join(process.cwd(), ".env.local");
-    let envContent = "";
-
-    try {
-      envContent = await readFile(envPath, "utf-8");
-    } catch {
-      // File doesn't exist yet
+    if (!statSync(vaultPath).isDirectory()) {
+      return NextResponse.json({ error: "Path is not a directory", path: vaultPath }, { status: 400 });
     }
 
-    const lines = envContent.split("\n").filter((l) => !l.startsWith("VAULT_PATH="));
-    lines.push(`VAULT_PATH=${vaultPath}`);
-
-    await writeFile(envPath, lines.join("\n") + "\n");
+    setVaultPath(vaultPath);
 
     return NextResponse.json({
       success: true,
       path: vaultPath,
-      note: "Restart the dev server for changes to take effect",
+      name: basename(vaultPath),
     });
   } catch (error) {
     return NextResponse.json(
-      { error: "Failed to save vault path", detail: error instanceof Error ? error.message : String(error) },
+      { error: "Failed to switch vault", detail: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
 }
 
-// GET /api/vault — check current vault config
+/** GET /api/vault — current active vault and connection state. */
 export async function GET() {
-  const envPath = join(process.cwd(), ".env.local");
-  let configuredPath = "";
-  let envExists = false;
-
-  try {
-    const envContent = await readFile(envPath, "utf-8");
-    envExists = true;
-    const match = envContent.match(/^VAULT_PATH=(.+)$/m);
-    if (match) configuredPath = match[1].trim();
-  } catch {
-    // no .env.local
-  }
-
-  const { existsSync } = require("fs");
-  const autoDetect = process.env.VAULT_PATH || "";
-  const activePath = configuredPath || autoDetect;
+  const activePath = getVaultPath();
   const connected = activePath ? existsSync(activePath) : false;
 
   return NextResponse.json({
-    configuredPath,
-    autoDetectPath: autoDetect,
-    activePath,
+    activePath: activePath || "",
+    name: activePath ? basename(activePath) : "",
     connected,
-    envExists,
   });
+}
+
+/** DELETE /api/vault — disconnect without swapping to another. */
+export async function DELETE() {
+  setVaultPath(null);
+  return NextResponse.json({ success: true });
 }
