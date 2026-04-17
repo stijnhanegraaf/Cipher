@@ -161,15 +161,14 @@ export function TodayPage() {
   const upNextVisible = showMore ? upNextList : upNextList.slice(0, UP_NEXT_CAP);
   const upNextHiddenCount = upNextList.length - upNextVisible.length;
 
+  // Group tasks by their source file ("onderwerp"). Preserves rank order
+  // within each group, and group order by the rank of the first task.
+  const todayGroups = useMemo(() => groupByTopic(todayList), [todayList]);
+  const upNextGroups = useMemo(() => groupByTopic(upNextVisible), [upNextVisible]);
+
   // ── Render. ────────────────────────────────────────────────────────
   return (
     <PageShell
-      icon={
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-        </svg>
-      }
       title="Today"
       subtitle={subtitle}
     >
@@ -206,14 +205,19 @@ export function TodayPage() {
             {todayList.length === 0 ? (
               <EmptyState body="No tasks for today. Quiet start." />
             ) : (
-              todayList.map((task) => (
-                <TodayRow
-                  key={task.id}
-                  task={task}
-                  onToggle={handleToggle}
-                  pendingCheck={pendingCheck.has(task.id)}
-                  onAsk={handleAsk}
-                />
+              todayGroups.map(({ topic, tasks }) => (
+                <div key={topic}>
+                  <TopicLabel topic={topic} />
+                  {tasks.map((task) => (
+                    <TodayRow
+                      key={task.id}
+                      task={task}
+                      onToggle={handleToggle}
+                      pendingCheck={pendingCheck.has(task.id)}
+                      onAsk={handleAsk}
+                    />
+                  ))}
+                </div>
               ))
             )}
           </section>
@@ -221,14 +225,19 @@ export function TodayPage() {
           {upNextList.length > 0 && (
             <section style={{ marginTop: 32 }}>
               <SectionHeader label="Up next" count={upNextList.length} />
-              {upNextVisible.map((task) => (
-                <TodayRow
-                  key={task.id}
-                  task={task}
-                  onToggle={handleToggle}
-                  pendingCheck={pendingCheck.has(task.id)}
-                  onAsk={handleAsk}
-                />
+              {upNextGroups.map(({ topic, tasks }) => (
+                <div key={topic}>
+                  <TopicLabel topic={topic} />
+                  {tasks.map((task) => (
+                    <TodayRow
+                      key={task.id}
+                      task={task}
+                      onToggle={handleToggle}
+                      pendingCheck={pendingCheck.has(task.id)}
+                      onAsk={handleAsk}
+                    />
+                  ))}
+                </div>
               ))}
               {upNextHiddenCount > 0 && (
                 <button
@@ -331,4 +340,41 @@ function EmptyState({ body }: { body: string }) {
       {body}
     </p>
   );
+}
+
+function TopicLabel({ topic }: { topic: string }) {
+  return (
+    <div
+      className="mono-label"
+      style={{
+        padding: "14px 16px 6px",
+        color: "var(--text-quaternary)",
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+      }}
+    >
+      {topic}
+    </div>
+  );
+}
+
+/** Derive a human-readable topic from a vault path (file basename, no .md). */
+function topicOf(path: string): string {
+  const last = path.split("/").pop() || path;
+  return last.replace(/\.md$/i, "").replace(/[-_]+/g, " ");
+}
+
+/** Group tasks by topic while preserving input (rank) order within and between groups. */
+function groupByTopic(tasks: TodayTask[]): { topic: string; tasks: TodayTask[] }[] {
+  const order: string[] = [];
+  const map = new Map<string, TodayTask[]>();
+  for (const t of tasks) {
+    const topic = topicOf(t.path);
+    if (!map.has(topic)) {
+      map.set(topic, []);
+      order.push(topic);
+    }
+    map.get(topic)!.push(t);
+  }
+  return order.map((topic) => ({ topic, tasks: map.get(topic)! }));
 }
