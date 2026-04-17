@@ -42,15 +42,14 @@ export function ThemeToggle() {
       onClick={toggle}
       className="relative flex items-center justify-center w-9 h-9 rounded-full border"
       style={{
-        backgroundColor: dark ? "#28282c" : "rgba(0,0,0,0.04)",
-        borderColor: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+        backgroundColor: "var(--bg-elevated)",
+        borderColor: "var(--border-standard)",
       }}
       aria-label="Toggle theme"
       whileHover={{
         backgroundColor: dark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)",
       }}
-      whileTap={{ scale: 0.95 }}
-      transition={{ duration: 0.15 }}
+      transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
     >
       <AnimatePresence mode="wait" initial={false}>
         {dark ? (
@@ -61,7 +60,7 @@ export function ThemeToggle() {
             exit={{ rotate: 90, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="w-4 h-4"
-            style={{ color: "#f7f8f8" }}
+            style={{ color: "var(--text-primary)" }}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -81,7 +80,7 @@ export function ThemeToggle() {
             exit={{ rotate: -90, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="w-4 h-4"
-            style={{ color: "#62666d" }}
+            style={{ color: "var(--text-tertiary)" }}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

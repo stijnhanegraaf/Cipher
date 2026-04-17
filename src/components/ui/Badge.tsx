@@ -2,39 +2,8 @@
 
 import { motion } from "framer-motion";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { HoverCard } from "./HoverCard";
 import { fadeSlideUp } from "@/lib/motion";
-
-// ─── Design tokens (from DESIGN.md) ────────────────────────────────
-const tokens = {
-  bg: {
-    marketing: "#08090a",
-    panel: "#0f1011",
-    surface: "#191a1b",
-    secondary: "#28282c",
-  },
-  text: {
-    primary: "#f7f8f8",
-    secondary: "#d0d6e0",
-    tertiary: "#8a8f98",
-    quaternary: "#62666d",
-  },
-  brand: {
-    indigo: "#5e6ad2",
-    violet: "#7170ff",
-    hover: "#828fff",
-  },
-  status: {
-    success: "#27a644",
-    emerald: "#10b981",
-    warning: "#f59e0b",
-    error: "#ef4444",
-  },
-  border: {
-    subtle: "rgba(255,255,255,0.05)",
-    standard: "rgba(255,255,255,0.08)",
-    solid: "#23252a",
-  },
-};
 
 // ─── Badge ──────────────────────────────────────────────────────────
 // Linear-style pill badge: transparent bg, subtle border, 9999px radius
@@ -45,61 +14,58 @@ interface BadgeProps {
   dot?: boolean;
 }
 
-const badgeVariantStyles: Record<string, React.CSSProperties> = {
-  default: {
-    background: "transparent",
-    color: tokens.text.secondary,
-    border: `1px solid ${tokens.border.solid}`,
-  },
+// Variant styles: brand/status color tints are theme-constant (same rgba in light/dark).
+// Theme-aware colors (border-solid, text hierarchy) flow through CSS variables.
+const badgeVariantClasses: Record<NonNullable<BadgeProps["variant"]>, string> = {
+  default: "bg-transparent text-text-secondary",
+  success: "",
+  warning: "",
+  error:   "",
+  indigo:  "text-accent-violet",
+  outline: "bg-transparent text-text-tertiary",
+};
+
+const badgeVariantStyles: Record<NonNullable<BadgeProps["variant"]>, React.CSSProperties> = {
+  default: { border: "1px solid var(--border-solid-primary)" },
   success: {
-    background: "rgba(16,185,129,0.12)",
-    color: tokens.status.emerald,
-    border: "1px solid rgba(16,185,129,0.2)",
+    color: "var(--status-done)",
+    background: "color-mix(in srgb, var(--status-done) 12%, transparent)",
+    border: "1px solid color-mix(in srgb, var(--status-done) 20%, transparent)",
   },
   warning: {
-    background: "rgba(245,158,11,0.12)",
-    color: tokens.status.warning,
-    border: "1px solid rgba(245,158,11,0.2)",
+    color: "var(--status-warning)",
+    background: "color-mix(in srgb, var(--status-warning) 12%, transparent)",
+    border: "1px solid color-mix(in srgb, var(--status-warning) 20%, transparent)",
   },
   error: {
-    background: "rgba(239,68,68,0.12)",
-    color: tokens.status.error,
-    border: "1px solid rgba(239,68,68,0.2)",
+    color: "var(--status-blocked)",
+    background: "color-mix(in srgb, var(--status-blocked) 12%, transparent)",
+    border: "1px solid color-mix(in srgb, var(--status-blocked) 20%, transparent)",
   },
   indigo: {
-    background: "rgba(94,106,210,0.12)",
-    color: tokens.brand.violet,
-    border: "1px solid rgba(94,106,210,0.2)",
+    background: "color-mix(in srgb, var(--accent-brand) 12%, transparent)",
+    border: "1px solid color-mix(in srgb, var(--accent-brand) 20%, transparent)",
   },
-  outline: {
-    background: "transparent",
-    color: tokens.text.tertiary,
-    border: `1px solid ${tokens.border.subtle}`,
-  },
+  outline: { border: "1px solid var(--border-subtle)" },
+};
+
+const badgeDotColors: Partial<Record<NonNullable<BadgeProps["variant"]>, string>> = {
+  success: "var(--status-done)",
+  warning: "var(--status-warning)",
+  error:   "var(--status-blocked)",
 };
 
 export function Badge({ variant = "default", children, className = "", dot }: BadgeProps) {
-  const style = badgeVariantStyles[variant] || badgeVariantStyles.default;
-
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[9999px] text-[12px] font-[510] ${className}`}
-      style={{
-        ...style,
-        fontFamily: "'Inter Variable', 'SF Pro Display', -apple-system, system-ui, sans-serif",
-        fontFeatureSettings: '"cv01", "ss03"',
-        letterSpacing: "normal",
-        lineHeight: "1.4",
-      }}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[9999px] label-medium ${badgeVariantClasses[variant]} ${className}`}
+      style={badgeVariantStyles[variant]}
     >
-      {dot && variant === "success" && (
-        <span className="w-1.5 h-1.5 rounded-full" style={{ background: tokens.status.emerald }} />
-      )}
-      {dot && variant === "warning" && (
-        <span className="w-1.5 h-1.5 rounded-full" style={{ background: tokens.status.warning }} />
-      )}
-      {dot && variant === "error" && (
-        <span className="w-1.5 h-1.5 rounded-full" style={{ background: tokens.status.error }} />
+      {dot && badgeDotColors[variant] && (
+        <span
+          className="w-1.5 h-1.5 rounded-full"
+          style={{ background: badgeDotColors[variant] }}
+        />
       )}
       {children}
     </span>
@@ -116,62 +82,39 @@ interface MetricRowProps {
 }
 
 const statusDotColors: Record<string, string> = {
-  ok: tokens.status.success,
-  warn: tokens.status.warning,
-  error: tokens.status.error,
-  stale: tokens.text.quaternary,
-  fresh: tokens.status.emerald,
+  ok: "var(--status-done)",
+  warn: "var(--status-warning)",
+  error: "var(--status-blocked)",
+  stale: "var(--text-quaternary)",
+  fresh: "var(--status-done)",
 };
 
 export function MetricRow({ label, value, status, change, changeType }: MetricRowProps) {
+  const changeColor =
+    changeType === "positive"
+      ? "#10b981"
+      : changeType === "negative"
+        ? "#ef4444"
+        : "var(--text-quaternary)";
+
   return (
     <div
       className="flex items-center justify-between py-3"
-      style={{ borderBottom: `1px solid ${tokens.border.subtle}` }}
+      style={{ borderBottom: "1px solid var(--border-subtle)" }}
     >
       <div className="flex items-center gap-2.5">
         {status && (
           <span
             className="w-2 h-2 rounded-full shrink-0"
-            style={{ background: statusDotColors[status] || tokens.text.quaternary }}
+            style={{ background: statusDotColors[status] || "var(--text-quaternary)" }}
           />
         )}
-        <span
-          className="text-[15px]"
-          style={{
-            color: tokens.text.tertiary,
-            fontFamily: "'Inter Variable', sans-serif",
-            fontFeatureSettings: '"cv01", "ss03"',
-          }}
-        >
-          {label}
-        </span>
+        <span className="small text-text-tertiary">{label}</span>
       </div>
       <div className="flex items-center gap-2">
-        <span
-          className="text-[15px] font-[590]"
-          style={{
-            color: tokens.text.primary,
-            fontFamily: "'Inter Variable', sans-serif",
-            fontFeatureSettings: '"cv01", "ss03"',
-          }}
-        >
-          {value}
-        </span>
+        <span className="small-semibold text-text-primary">{value}</span>
         {change && (
-          <span
-            className="text-[12px] font-[510]"
-            style={{
-              color:
-                changeType === "positive"
-                  ? tokens.status.emerald
-                  : changeType === "negative"
-                    ? tokens.status.error
-                    : tokens.text.quaternary,
-              fontFamily: "'Inter Variable', sans-serif",
-              fontFeatureSettings: '"cv01", "ss03"',
-            }}
-          >
+          <span className="label-medium" style={{ color: changeColor }}>
             {change}
           </span>
         )}
@@ -187,9 +130,10 @@ interface EntityHeaderProps {
   summary: string;
   whyNow?: string;
   emoji?: string;
+  onNavigate?: (path: string) => void;
 }
 
-export function EntityHeader({ title, kind, summary, whyNow, emoji }: EntityHeaderProps) {
+export function EntityHeader({ title, kind, summary, whyNow, emoji, onNavigate }: EntityHeaderProps) {
   return (
     <motion.div
       variants={fadeSlideUp}
@@ -199,51 +143,24 @@ export function EntityHeader({ title, kind, summary, whyNow, emoji }: EntityHead
     >
       <div className="flex items-center gap-3">
         {emoji && <span className="text-2xl">{emoji}</span>}
-        <h1
-          className="text-[24px] font-[400] tracking-[-0.288px]"
-          style={{
-            color: tokens.text.primary,
-            fontFamily: "'Inter Variable', sans-serif",
-            fontFeatureSettings: '"cv01", "ss03"',
-            lineHeight: "1.33",
-          }}
-        >
-          {title}
-        </h1>
+        <h1 className="heading-2 text-text-primary">{title}</h1>
         <Badge variant="outline">{kind}</Badge>
       </div>
-      <div
-        className="text-[15px] leading-[1.6] tracking-[-0.165px]"
-        style={{
-          color: tokens.text.secondary,
-          fontFamily: "'Inter Variable', sans-serif",
-          fontFeatureSettings: '"cv01", "ss03"',
-        }}
-      >
-        <MarkdownRenderer content={summary} />
+      <div className="small text-text-secondary">
+        <MarkdownRenderer content={summary} onNavigate={onNavigate} />
       </div>
       {whyNow && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.15 }}
+        <div
           className="flex items-start gap-3 px-6 py-4 rounded-[8px]"
           style={{
-            background: "rgba(94,106,210,0.06)",
-            borderLeft: `2px solid ${tokens.brand.indigo}`,
+            background: "color-mix(in srgb, var(--accent-brand) 6%, transparent)",
+            borderLeft: "2px solid var(--accent-brand)",
           }}
         >
-          <div
-            className="text-[14px] leading-[1.6]"
-            style={{
-              color: tokens.text.secondary,
-              fontFamily: "'Inter Variable', sans-serif",
-              fontFeatureSettings: '"cv01", "ss03"',
-            }}
-          >
-            <MarkdownRenderer content={whyNow} />
+          <div className="caption-large text-text-secondary" style={{ lineHeight: 1.6 }}>
+            <MarkdownRenderer content={whyNow} onNavigate={onNavigate} />
           </div>
-        </motion.div>
+        </div>
       )}
     </motion.div>
   );
@@ -261,28 +178,8 @@ export function SectionBlock({ title, subtitle, children }: SectionBlockProps) {
   return (
     <div className="space-y-4">
       <div>
-        <h3
-          className="text-[11px] font-[510] uppercase tracking-[0.08em]"
-          style={{
-            color: tokens.text.quaternary,
-            fontFamily: "'Inter Variable', sans-serif",
-            fontFeatureSettings: '"cv01", "ss03"',
-          }}
-        >
-          {title}
-        </h3>
-        {subtitle && (
-          <p
-            className="text-[12px] mt-1"
-            style={{
-              color: tokens.text.quaternary,
-              fontFamily: "'Inter Variable', sans-serif",
-              fontFeatureSettings: '"cv01", "ss03"',
-            }}
-          >
-            {subtitle}
-          </p>
-        )}
+        <h3 className="micro uppercase tracking-[0.08em] text-text-quaternary">{title}</h3>
+        {subtitle && <p className="label text-text-quaternary mt-1">{subtitle}</p>}
       </div>
       <div>{children}</div>
     </div>
@@ -296,41 +193,47 @@ interface LinkItem {
   kind?: string;
 }
 
-export function LinkList({ items }: { items: LinkItem[] }) {
+export function LinkList({ items, onNavigate }: { items: LinkItem[]; onNavigate?: (path: string) => void }) {
   return (
     <div className="space-y-0.5">
-      {items.map((item, i) => (
-        <motion.a
-          key={i}
-          href="#"
-          variants={fadeSlideUp}
-          initial="hidden"
-          animate="show"
-          transition={{ delay: i * 0.04 }}
-          className="flex items-center gap-2.5 py-2 px-3 -mx-3 rounded-[6px] transition-colors duration-150 group"
-          style={{ color: tokens.text.secondary }}
-        >
-          <svg
-            className="w-3.5 h-3.5 shrink-0 transition-colors"
-            style={{ color: tokens.text.quaternary }}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-          <span
-            className="text-[14px] font-[510] truncate transition-colors"
-            style={{
-              fontFamily: "'Inter Variable', sans-serif",
-              fontFeatureSettings: '"cv01", "ss03"',
+      {items.map((item, i) => {
+        const clickable = !!(onNavigate && item.path);
+        const commonClass = "app-row flex items-center gap-2.5 py-2 px-3 -mx-3 rounded-[6px] transition-colors duration-150 text-text-secondary";
+        const content = (
+          <>
+            <svg
+              className="w-3.5 h-3.5 shrink-0 text-text-quaternary"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="caption-large truncate">{item.label}</span>
+            {item.kind && <Badge variant="outline" className="ml-auto shrink-0 text-[10px]">{item.kind}</Badge>}
+          </>
+        );
+        if (!clickable) {
+          return (
+            <div key={i} className={commonClass} style={{ cursor: "default" }}>
+              {content}
+            </div>
+          );
+        }
+        return (
+          <a
+            key={i}
+            href={`vault://${item.path}`}
+            onClick={(e) => {
+              e.preventDefault();
+              onNavigate!(item.path);
             }}
+            className={`${commonClass} cursor-pointer hover:bg-[var(--bg-surface-alpha-2)]`}
           >
-            {item.label}
-          </span>
-          {item.kind && <Badge variant="outline" className="ml-auto shrink-0 text-[10px]">{item.kind}</Badge>}
-        </motion.a>
-      ))}
+            {content}
+          </a>
+        );
+      })}
     </div>
   );
 }
@@ -342,52 +245,53 @@ interface TimelineMiniItem {
   path?: string;
 }
 
-export function TimelineMini({ items }: { items: TimelineMiniItem[] }) {
+export function TimelineMini({ items, onNavigate }: { items: TimelineMiniItem[]; onNavigate?: (path: string) => void }) {
   return (
     <div className="relative pl-5">
-      {/* Vertical line */}
+      {/* Vertical line — 1.5px for visual weight with 9px dots */}
       <div
-        className="absolute left-[7px] top-2 bottom-2 w-px"
-        style={{ background: tokens.border.standard }}
+        className="absolute left-[8px] top-2 bottom-2"
+        style={{ width: "1.5px", background: "var(--border-standard)" }}
       />
       <div className="space-y-3">
-        {items.map((item, i) => (
-          <motion.div
-            key={i}
-            variants={fadeSlideUp}
-            initial="hidden"
-            animate="show"
-            transition={{ delay: i * 0.04 }}
-            className="relative flex items-start gap-3"
-          >
-            {/* Dot on the line */}
-            <div
-              className="absolute -left-5 top-1.5 w-[7px] h-[7px] rounded-full"
-              style={{ background: tokens.brand.indigo, boxShadow: `0 0 0 2px ${tokens.bg.surface}` }}
-            />
-            <div className="flex-1 min-w-0">
-              <span
-                className="text-[11px] font-[510]"
+        {items.map((item, i) => {
+          const clickable = !!(item.path && onNavigate);
+          const body = (
+            <>
+              <div
+                className="absolute -left-[21px] top-[5px] w-[9px] h-[9px] rounded-full"
                 style={{
-                  color: tokens.text.quaternary,
-                  fontFamily: "'Berkeley Mono', ui-monospace, 'SF Mono', Menlo, monospace",
+                  background: "var(--accent-brand)",
+                  boxShadow: "0 0 0 2px var(--bg-surface)",
                 }}
-              >
-                {item.date}
-              </span>
-              <p
-                className="text-[14px] leading-[1.5]"
-                style={{
-                  color: tokens.text.secondary,
-                  fontFamily: "'Inter Variable', sans-serif",
-                  fontFeatureSettings: '"cv01", "ss03"',
-                }}
-              >
-                {item.label}
-              </p>
-            </div>
-          </motion.div>
-        ))}
+              />
+              <div className="flex-1 min-w-0">
+                <span className="micro mono-label text-text-quaternary">{item.date}</span>
+                <p className="caption-large text-text-secondary" style={{ lineHeight: 1.5 }}>
+                  {item.label}
+                </p>
+              </div>
+            </>
+          );
+          if (!clickable) {
+            return (
+              <div key={i} className="relative flex items-start gap-3">
+                {body}
+              </div>
+            );
+          }
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onNavigate!(item.path!)}
+              className="app-row relative flex items-start gap-3 w-full text-left py-1 -my-1 rounded-[6px] cursor-pointer hover:bg-[var(--bg-surface-alpha-2)]"
+              style={{ background: "transparent", border: "none" }}
+            >
+              {body}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -401,41 +305,17 @@ interface CalloutBoxProps {
   body: string;
 }
 
-const calloutToneStyles: Record<string, { bg: string; border: string; text: string; accent: string }> = {
-  info: {
-    bg: "rgba(94,106,210,0.06)",
-    border: tokens.brand.indigo,
-    text: tokens.text.secondary,
-    accent: tokens.brand.violet,
-  },
-  warning: {
-    bg: "rgba(245,158,11,0.06)",
-    border: tokens.status.warning,
-    text: tokens.text.secondary,
-    accent: tokens.status.warning,
-  },
-  success: {
-    bg: "rgba(16,185,129,0.06)",
-    border: tokens.status.emerald,
-    text: tokens.text.secondary,
-    accent: tokens.status.emerald,
-  },
-  error: {
-    bg: "rgba(239,68,68,0.06)",
-    border: tokens.status.error,
-    text: tokens.text.secondary,
-    accent: tokens.status.error,
-  },
-  neutral: {
-    bg: "rgba(255,255,255,0.02)",
-    border: tokens.border.solid,
-    text: tokens.text.tertiary,
-    accent: tokens.text.quaternary,
-  },
+const calloutToneStyles: Record<string, { bg: string; border: string }> = {
+  info:    { bg: "color-mix(in srgb, var(--accent-brand) 6%, transparent)",        border: "var(--accent-brand)" },
+  warning: { bg: "color-mix(in srgb, var(--status-warning) 6%, transparent)",      border: "var(--status-warning)" },
+  success: { bg: "color-mix(in srgb, var(--status-done) 6%, transparent)",         border: "var(--status-done)" },
+  error:   { bg: "color-mix(in srgb, var(--status-blocked) 6%, transparent)",      border: "var(--status-blocked)" },
+  neutral: { bg: "var(--bg-surface-alpha-2)",                                      border: "var(--border-solid-primary)" },
 };
 
-export function CalloutBox({ tone, title, body }: CalloutBoxProps) {
+export function CalloutBox({ tone, title, body, onNavigate }: CalloutBoxProps & { onNavigate?: (path: string) => void }) {
   const style = calloutToneStyles[tone] || calloutToneStyles.neutral;
+  const textClass = tone === "neutral" ? "text-text-tertiary" : "text-text-secondary";
 
   return (
     <motion.div
@@ -443,33 +323,12 @@ export function CalloutBox({ tone, title, body }: CalloutBoxProps) {
       initial="hidden"
       animate="show"
       className="flex items-start gap-3 p-4 rounded-[8px]"
-      style={{
-        background: style.bg,
-        borderLeft: `2px solid ${style.border}`,
-      }}
+      style={{ background: style.bg, borderLeft: `2px solid ${style.border}` }}
     >
       <div className="min-w-0">
-        {title && (
-          <p
-            className="text-[13px] font-[590] mb-0.5"
-            style={{
-              color: tokens.text.primary,
-              fontFamily: "'Inter Variable', sans-serif",
-              fontFeatureSettings: '"cv01", "ss03"',
-            }}
-          >
-            {title}
-          </p>
-        )}
-        <div
-          className="text-[14px] leading-[1.6]"
-          style={{
-            color: style.text,
-            fontFamily: "'Inter Variable', sans-serif",
-            fontFeatureSettings: '"cv01", "ss03"',
-          }}
-        >
-          <MarkdownRenderer content={body} />
+        {title && <p className="caption-medium text-text-primary mb-0.5" style={{ fontWeight: 590 }}>{title}</p>}
+        <div className={`caption-large ${textClass}`} style={{ lineHeight: 1.6 }}>
+          <MarkdownRenderer content={body} onNavigate={onNavigate} />
         </div>
       </div>
     </motion.div>
@@ -488,44 +347,77 @@ interface SourceItem {
 export function SourceList({ sources, onNavigate }: { sources: SourceItem[]; onNavigate?: (path: string) => void }) {
   return (
     <div>
-      <p
-        className="text-[11px] font-[510] uppercase tracking-[0.08em] mb-2"
-        style={{
-          color: tokens.text.quaternary,
-          fontFamily: "'Inter Variable', sans-serif",
-          fontFeatureSettings: '"cv01", "ss03"',
-        }}
-      >
-        Sources
-      </p>
+      <p className="micro uppercase tracking-[0.08em] text-text-quaternary mb-2">Sources</p>
       <div className="flex flex-wrap gap-1.5">
-        {sources.map((source, i) => (
-          <motion.button
-            key={i}
-            onClick={() => onNavigate?.(source.path)}
-            variants={fadeSlideUp}
-            initial="hidden"
-            animate="show"
-            transition={{ delay: i * 0.03 }}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[12px] font-[510] transition-colors duration-150 hover:brightness-125"
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              border: `1px solid ${tokens.border.subtle}`,
-              color: tokens.text.tertiary,
-              fontFamily: "'Inter Variable', sans-serif",
-              fontFeatureSettings: '"cv01", "ss03"',
-              cursor: onNavigate ? "pointer" : "default",
-            }}
-          >
-            <svg className="w-3 h-3 shrink-0" style={{ color: tokens.text.quaternary }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            {source.label}
-            {source.relevance === "high" && (
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: tokens.brand.indigo }} />
-            )}
-          </motion.button>
-        ))}
+        {sources.map((source, i) => {
+          const inner = (
+            <>
+              <svg className="w-3 h-3 shrink-0 text-text-quaternary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              {source.label}
+              {source.relevance === "high" && (
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent-brand)" }} />
+              )}
+            </>
+          );
+          const card = (
+            <HoverCard
+              key={i}
+              content={
+                <div className="flex flex-col gap-1">
+                  <div className="caption-medium text-text-primary truncate">{source.label}</div>
+                  <div className="mono-label text-text-quaternary truncate">
+                    {source.path}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    {source.kind && (
+                      <span className="micro uppercase tracking-[0.08em] text-text-tertiary">
+                        {source.kind}
+                      </span>
+                    )}
+                    {source.relevance && (
+                      <span
+                        className="micro"
+                        style={{
+                          color: source.relevance === "high" ? "var(--accent-brand)" : "var(--text-quaternary)",
+                        }}
+                      >
+                        {source.relevance} relevance
+                      </span>
+                    )}
+                  </div>
+                </div>
+              }
+            >
+              {onNavigate ? (
+                <button
+                  type="button"
+                  onClick={() => onNavigate(source.path)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] label-medium transition-colors duration-150 text-text-tertiary hover:text-text-secondary hover:bg-[var(--bg-surface-alpha-4)] cursor-pointer"
+                  style={{
+                    background: "var(--bg-surface-alpha-2)",
+                    border: "1px solid var(--border-subtle)",
+                  }}
+                >
+                  {inner}
+                </button>
+              ) : (
+                <span
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] label-medium text-text-tertiary"
+                  style={{
+                    background: "var(--bg-surface-alpha-2)",
+                    border: "1px solid var(--border-subtle)",
+                    cursor: "default",
+                  }}
+                >
+                  {inner}
+                </span>
+              )}
+            </HoverCard>
+          );
+          return card;
+        })}
       </div>
     </div>
   );
@@ -538,30 +430,53 @@ interface ActionItem {
   type: string;
   label: string;
   safety?: string;
+  target?: { path?: string };
 }
 
-export function ActionBar({ actions }: { actions: ActionItem[] }) {
+interface ActionBarProps {
+  actions: ActionItem[];
+  /** Consumer handler. Receives the clicked action so callers can route by id/type. */
+  onAction?: (action: ActionItem) => void;
+  /** Fallback: navigate to the target path when onAction isn't provided. */
+  onNavigate?: (path: string) => void;
+  /** Last-resort fallback: fire a natural-language query built from the label. */
+  onAsk?: (query: string) => void;
+}
+
+export function ActionBar({ actions, onAction, onNavigate, onAsk }: ActionBarProps) {
+  if (!actions || actions.length === 0) return null;
+
+  const handleClick = (action: ActionItem) => {
+    if (onAction) {
+      onAction(action);
+      return;
+    }
+    if (action.type === "open_note" && action.target?.path && onNavigate) {
+      onNavigate(action.target.path);
+      return;
+    }
+    // Last resort: ask the chat with the button label. Means no click is ever dead.
+    if (onAsk) onAsk(action.label);
+  };
+
   return (
     <div className="flex flex-wrap gap-2">
       {actions.map((action) => (
-        <motion.button
+        <button
           key={action.id}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[12px] font-[510] cursor-pointer transition-colors duration-150 hover:brightness-125"
+          type="button"
+          onClick={() => handleClick(action)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] label-medium cursor-pointer transition-colors duration-150 text-text-secondary hover:bg-[var(--bg-surface-alpha-4)] hover:text-text-primary"
           style={{
-            background: "rgba(255,255,255,0.02)",
-            border: `1px solid ${tokens.border.standard}`,
-            color: tokens.text.secondary,
-            fontFamily: "'Inter Variable', sans-serif",
-            fontFeatureSettings: '"cv01", "ss03"',
+            background: "var(--bg-surface-alpha-2)",
+            border: "1px solid var(--border-standard)",
           }}
         >
           {action.label}
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
-        </motion.button>
+        </button>
       ))}
     </div>
   );

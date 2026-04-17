@@ -75,7 +75,7 @@ const currentWorkResponse: ResponseEnvelope = {
   response: {
     title: "What matters right now",
     summary: "6 active tasks across 3 domains. 2 high-priority items need attention.",
-    text: "Here's your current work landscape. The AI visual brain frontend and Nova system updates are the main focus areas.",
+    text: "Here's your current work landscape. The AI visual brain frontend and Atlas system updates are the main focus areas.",
     views: [
       {
         type: "current_work",
@@ -86,7 +86,7 @@ const currentWorkResponse: ResponseEnvelope = {
         data: {
           groups: [
             {
-              label: "AI Visual Cipher",
+              label: "Knowledge Graph",
               items: [
                 {
                   id: "task_1",
@@ -94,10 +94,10 @@ const currentWorkResponse: ResponseEnvelope = {
                   status: "in_progress",
                   priority: "high",
                   links: [
-                    { label: "Project Spec", path: "wiki/projects/ai-visual-brain-frontend-product-spec.md" },
+                    { label: "Project Spec", path: "wiki/projects/knowledge-graph-product-spec.md" },
                   ],
                   related: [
-                    { label: "AI Visual Cipher", path: "wiki/projects/ai-visual-brain-frontend.md", kind: "topic" },
+                    { label: "Knowledge Graph", path: "wiki/projects/knowledge-graph.md", kind: "topic" },
                   ],
                 },
                 {
@@ -106,7 +106,7 @@ const currentWorkResponse: ResponseEnvelope = {
                   status: "done",
                   priority: "medium",
                   links: [
-                    { label: "Component Catalog", path: "wiki/projects/ai-visual-brain-frontend-component-catalog.md" },
+                    { label: "Component Catalog", path: "wiki/projects/knowledge-graph-component-catalog.md" },
                   ],
                 },
                 {
@@ -115,13 +115,13 @@ const currentWorkResponse: ResponseEnvelope = {
                   status: "done",
                   priority: "medium",
                   links: [
-                    { label: "UI Schema", path: "wiki/projects/ai-visual-brain-frontend-ui-schema.md" },
+                    { label: "UI Schema", path: "wiki/projects/knowledge-graph-ui-schema.md" },
                   ],
                 },
               ],
             },
             {
-              label: "Nova / System",
+              label: "Atlas / System",
               items: [
                 {
                   id: "task_4",
@@ -141,7 +141,7 @@ const currentWorkResponse: ResponseEnvelope = {
               ],
             },
             {
-              label: "Tebi",
+              label: "Acme",
               items: [
                 {
                   id: "task_6",
@@ -149,7 +149,7 @@ const currentWorkResponse: ResponseEnvelope = {
                   status: "open",
                   priority: "medium",
                   related: [
-                    { label: "Tebi", path: "wiki/knowledge/entities/tebi.md", kind: "entity" },
+                    { label: "Acme", path: "wiki/knowledge/entities/acme.md", kind: "entity" },
                   ],
                 },
               ],
@@ -159,7 +159,7 @@ const currentWorkResponse: ResponseEnvelope = {
             week: { label: "This Week", path: "wiki/work/weeks/2026/W15.md" },
             month: { label: "This Month", path: "wiki/work/log/2026/april.md" },
           },
-          highlights: ["6 active tasks", "2 high-priority items", "AI Visual Cipher is the main focus"],
+          highlights: ["6 active tasks", "2 high-priority items", "Knowledge Graph is the main focus"],
         },
         sources: [
           { label: "Open Work", path: "wiki/work/open.md", kind: "canonical_note", role: "current_state", relevance: "high" },
@@ -186,28 +186,28 @@ const entityOverviewResponse: ResponseEnvelope = {
     id: "req_002",
     intent: "entity_overview",
     mode: "structured",
-    query: "Tell me about Tebi",
+    query: "Tell me about Acme",
   },
   response: {
-    title: "Tebi",
+    title: "Acme",
     summary: "Payments and hospitality software company — a key focus area for current review and growth work.",
     views: [
       {
         type: "entity_overview",
-        viewId: "view_entity_tebi",
-        title: "Tebi",
+        viewId: "view_entity_acme",
+        title: "Acme",
         layout: "stack",
         data: {
           entityType: "company",
           summary: "Payments and hospitality software company. Connected to current review, growth work, and architecture improvements.",
-          whyNow: "Multiple active work surfaces reference Tebi — including review architecture and growth metrics.",
+          whyNow: "Multiple active work surfaces reference Acme — including review architecture and growth metrics.",
           relatedNotes: [
-            { label: "Tebi", path: "wiki/knowledge/entities/tebi.md", kind: "entity" },
+            { label: "Acme", path: "wiki/knowledge/entities/acme.md", kind: "entity" },
             { label: "Open Work", path: "wiki/work/open.md" },
             { label: "Performance Review 2026", path: "wiki/work/review/performance-2026.md" },
           ],
           relatedEntities: [
-            { label: "Stijn Hanegraaf", path: "wiki/knowledge/entities/stijn-hanegraaf.md", kind: "person" },
+            { label: "Project Lead", path: "wiki/knowledge/entities/project-lead.md", kind: "person" },
           ],
           timeline: [
             { date: "2026-04-11", label: "Review architecture improved", path: "wiki/work/review/synthesis.md" },
@@ -216,7 +216,7 @@ const entityOverviewResponse: ResponseEnvelope = {
           ],
         },
         sources: [
-          { label: "Tebi", path: "wiki/knowledge/entities/tebi.md", kind: "canonical_note", role: "entity", relevance: "high" },
+          { label: "Acme", path: "wiki/knowledge/entities/acme.md", kind: "canonical_note", role: "entity", relevance: "high" },
         ],
         meta: { confidence: 0.91, freshness: "recent", primarySourceCount: 3 },
       },
@@ -263,7 +263,7 @@ const timelineResponse: ResponseEnvelope = {
               ],
             },
             {
-              label: "AI Visual Cipher",
+              label: "Knowledge Graph",
               summary: "Research, specs, and architecture decisions for the new frontend.",
               items: [
                 { date: "2026-04-12", label: "Defined UI schema and component catalog" },
@@ -349,11 +349,11 @@ const searchResultsResponse: ResponseEnvelope = {
           results: [
             { label: "Performance Review 2026", path: "wiki/work/review/performance-2026.md", kind: "canonical_note", excerpt: "Annual performance review preparation and evidence collection." },
             { label: "Review Synthesis", path: "wiki/work/review/synthesis.md", kind: "canonical_note", excerpt: "Architecture for weekly review synthesis pipeline." },
-            { label: "Tebi", path: "wiki/knowledge/entities/tebi.md", kind: "entity", excerpt: "Key company connected to review and growth work." },
+            { label: "Acme", path: "wiki/knowledge/entities/acme.md", kind: "entity", excerpt: "Key company connected to review and growth work." },
             { label: "Open Work", path: "wiki/work/open.md", kind: "canonical_note", excerpt: "Current active work items including review architecture improvements." },
           ],
           suggestedViews: [
-            { intent: "entity_overview", label: "View Tebi entity page" },
+            { intent: "entity_overview", label: "View Acme entity page" },
             { intent: "current_work", label: "View current work" },
           ],
         },
@@ -369,16 +369,16 @@ const topicOverviewResponse: ResponseEnvelope = {
     id: "req_006",
     intent: "topic_overview",
     mode: "structured",
-    query: "What is the AI Visual Cipher project about?",
+    query: "What is the Knowledge Graph project about?",
   },
   response: {
-    title: "AI Visual Cipher",
+    title: "Knowledge Graph",
     summary: "A chat-native interface that turns a canonical markdown brain into a usable operating system for work, memory, and context.",
     views: [
       {
         type: "topic_overview",
-        viewId: "view_topic_avbf",
-        title: "AI Visual Cipher",
+        viewId: "view_topic_kg",
+        title: "Knowledge Graph",
         layout: "stack",
         data: {
           topicType: "project",
@@ -395,15 +395,15 @@ const topicOverviewResponse: ResponseEnvelope = {
             "Define the retrieval API contract",
           ],
           relatedNotes: [
-            { label: "Product Spec", path: "wiki/projects/ai-visual-brain-frontend-product-spec.md", kind: "topic" },
-            { label: "Research Notes", path: "wiki/projects/ai-visual-brain-frontend-research.md", kind: "topic" },
-            { label: "UI Schema", path: "wiki/projects/ai-visual-brain-frontend-ui-schema.md", kind: "topic" },
-            { label: "Component Catalog", path: "wiki/projects/ai-visual-brain-frontend-component-catalog.md", kind: "topic" },
-            { label: "Retrieval Contract", path: "wiki/projects/ai-visual-brain-frontend-retrieval-contract.md", kind: "topic" },
+            { label: "Product Spec", path: "wiki/projects/knowledge-graph-product-spec.md", kind: "topic" },
+            { label: "Research Notes", path: "wiki/projects/knowledge-graph-research.md", kind: "topic" },
+            { label: "UI Schema", path: "wiki/projects/knowledge-graph-ui-schema.md", kind: "topic" },
+            { label: "Component Catalog", path: "wiki/projects/knowledge-graph-component-catalog.md", kind: "topic" },
+            { label: "Retrieval Contract", path: "wiki/projects/knowledge-graph-retrieval-contract.md", kind: "topic" },
           ],
           relatedEntities: [
-            { label: "Stijn Hanegraaf", path: "wiki/knowledge/entities/stijn-hanegraaf.md", kind: "person" },
-            { label: "Nova", path: "wiki/knowledge/entities/nova.md", kind: "tool" },
+            { label: "Project Lead", path: "wiki/knowledge/entities/project-lead.md", kind: "person" },
+            { label: "Atlas", path: "wiki/knowledge/entities/nova.md", kind: "tool" },
           ],
           timeline: [
             { date: "2026-04-12", label: "Defined UI schema and component catalog" },
@@ -412,8 +412,8 @@ const topicOverviewResponse: ResponseEnvelope = {
           ],
         },
         sources: [
-          { label: "AI Visual Cipher", path: "wiki/projects/ai-visual-brain-frontend.md", kind: "canonical_note", role: "topic", relevance: "high" },
-          { label: "Product Spec", path: "wiki/projects/ai-visual-brain-frontend-product-spec.md", kind: "canonical_note", role: "topic" },
+          { label: "Knowledge Graph", path: "wiki/projects/knowledge-graph.md", kind: "canonical_note", role: "topic", relevance: "high" },
+          { label: "Product Spec", path: "wiki/projects/knowledge-graph-product-spec.md", kind: "canonical_note", role: "topic" },
         ],
         meta: { confidence: 0.93, freshness: "fresh" },
       },
@@ -445,10 +445,10 @@ export function detectIntentFallback(query: string): string {
   if (q.includes("what matters") || q.includes("current") || q.includes("active") || q.includes("working on") || q.includes("todo") || q.includes("work")) {
     return "current_work";
   }
-  if (q.includes("tebi")) {
+  if (q.includes("acme")) {
     return "entity_overview";
   }
-  if (q.includes("ai visual brain") || q.includes("frontend project") || q.includes("project about")) {
+  if (q.includes("knowledge graph") || q.includes("frontend project") || q.includes("project about")) {
     return "topic_overview";
   }
   return "current_work"; // default

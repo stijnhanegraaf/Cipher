@@ -5,17 +5,6 @@ import { stagger, fadeSlideUp } from "@/lib/motion";
 import { SearchResultsData } from "@/lib/view-models";
 import { Badge } from "@/components/ui";
 
-// Design tokens
-const tokens = {
-  text: { primary: "#f7f8f8", secondary: "#d0d6e0", tertiary: "#8a8f98", quaternary: "#62666d" },
-  brand: { indigo: "#5e6ad2", violet: "#7170ff" },
-  border: { subtle: "rgba(255,255,255,0.05)", standard: "rgba(255,255,255,0.08)" },
-};
-
-const fontFamily = {
-  inter: "'Inter Variable', 'SF Pro Display', -apple-system, system-ui, sans-serif",
-};
-
 // Kind → display label & badge variant
 const kindConfig: Record<string, { label: string; variant: "default" | "success" | "warning" | "error" | "indigo" | "outline" }> = {
   canonical_note:    { label: "Note",    variant: "indigo" },
@@ -37,7 +26,7 @@ function groupByKind(results: SearchResultsData["results"]) {
   return groups;
 }
 
-export function SearchResultsView({ data, view }: { data: SearchResultsData; view: any }) {
+export function SearchResultsView({ data, view, onAsk, onNavigate }: { data: SearchResultsData; view: any; onAsk?: (query: string) => void; onNavigate?: (path: string) => void }) {
   const search = data as SearchResultsData;
   const groups = groupByKind(search.results);
   const kindOrder = ["canonical_note", "entity", "topic", "derived_index", "runtime_status", "generated_summary", "other"];
@@ -52,27 +41,16 @@ export function SearchResultsView({ data, view }: { data: SearchResultsData; vie
       {/* Search context */}
       <motion.div variants={fadeSlideUp} className="flex items-center gap-2.5">
         <svg
-          className="w-4 h-4 shrink-0"
-          style={{ color: tokens.text.quaternary }}
+          className="w-4 h-4 shrink-0 text-text-quaternary"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
-        <span
-          className="text-[14px]"
-          style={{
-            color: tokens.text.tertiary,
-            fontFamily: fontFamily.inter,
-            fontFeatureSettings: '"cv01", "ss03"',
-          }}
-        >
+        <span className="caption-large text-text-tertiary">
           Results for{" "}
-          <span
-            className="font-[590]"
-            style={{ color: tokens.text.primary }}
-          >
+          <span className="text-text-primary" style={{ fontWeight: 590 }}>
             &ldquo;{search.query}&rdquo;
           </span>
         </span>
@@ -83,32 +61,39 @@ export function SearchResultsView({ data, view }: { data: SearchResultsData; vie
       {search.results.length === 0 && (
         <motion.div variants={fadeSlideUp} className="flex flex-col items-center justify-center py-16">
           <motion.svg
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 0.3, scale: 1 }}
-            transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.3 }}
+            transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
             width={48}
             height={48}
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#62666d"
+            stroke="currentColor"
             strokeWidth={1.5}
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ marginBottom: 16 }}
+            className="mb-4 text-text-quaternary"
           >
             <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </motion.svg>
-          <p
-            className="text-[14px]"
-            style={{
-              color: "#62666d",
-              fontFamily: fontFamily.inter,
-              fontFeatureSettings: '"cv01", "ss03"',
-              lineHeight: 1.6,
-            }}
-          >
-            No results found for this query.
+          <p className="caption-large text-text-quaternary mb-3" style={{ lineHeight: 1.6 }}>
+            No matches for &ldquo;{search.query}&rdquo;.
           </p>
+          {onAsk && (
+            <button
+              onClick={() => onAsk(`search broadly for ${search.query}`)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] caption-medium text-text-primary cursor-pointer transition-colors duration-150 hover:bg-[var(--bg-surface-alpha-4)]"
+              style={{
+                background: "var(--bg-surface-alpha-2)",
+                border: "1px solid var(--border-standard)",
+              }}
+            >
+              Try a broader search
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
         </motion.div>
       )}
 
@@ -121,77 +106,75 @@ export function SearchResultsView({ data, view }: { data: SearchResultsData; vie
         return (
           <motion.div key={kind} variants={fadeSlideUp} className="space-y-2">
             <div className="flex items-center gap-2 mb-2">
-              <h3
-                className="text-[11px] font-[510] uppercase tracking-[0.08em]"
-                style={{
-                  color: tokens.text.quaternary,
-                  fontFamily: fontFamily.inter,
-                  fontFeatureSettings: '"cv01", "ss03"',
-                }}
-              >
+              <h3 className="micro uppercase tracking-[0.08em] text-text-quaternary">
                 {config.label}
               </h3>
             </div>
             <div className="space-y-1">
-              {items.map((result, i) => (
-                <motion.a
-                  key={i}
-                  href="#"
-                  whileHover={{ x: 4 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex items-start gap-3 p-3 rounded-[8px] transition-colors duration-150 group"
-                  style={{ cursor: "pointer" }}
-                >
-                  <div className="mt-0.5 shrink-0">
-                    <svg
-                      className="w-4 h-4 transition-colors duration-150"
-                      style={{ color: tokens.text.quaternary }}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="text-[14px] font-[510] truncate"
-                      style={{
-                        color: tokens.text.primary,
-                        fontFamily: fontFamily.inter,
-                        fontFeatureSettings: '"cv01", "ss03"',
-                      }}
-                    >
-                      {result.label}
-                    </p>
-                    {result.excerpt && (
-                      <p
-                        className="text-[13px] mt-0.5 leading-[1.5]"
-                        style={{
-                          color: tokens.text.quaternary,
-                          fontFamily: fontFamily.inter,
-                          fontFeatureSettings: '"cv01", "ss03"',
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                          overflow: "hidden",
-                        }}
+              {items.map((result, i) => {
+                const clickable = !!(result.path && onNavigate);
+                const body = (
+                  <>
+                    <div className="mt-0.5 shrink-0">
+                      <svg
+                        className="w-4 h-4 text-text-quaternary"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        {result.excerpt}
-                      </p>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="caption-large text-text-primary truncate">{result.label}</p>
+                      {result.excerpt && (
+                        <p
+                          className="caption text-text-quaternary mt-0.5"
+                          style={{
+                            lineHeight: 1.5,
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {result.excerpt}
+                        </p>
+                      )}
+                    </div>
+                    {clickable && (
+                      <svg
+                        className="w-3.5 h-3.5 shrink-0 mt-0.5 text-text-quaternary"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     )}
-                  </div>
-                  <svg
-                    className="w-3.5 h-3.5 shrink-0 mt-0.5 transition-colors duration-150"
-                    style={{ color: tokens.text.quaternary }}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                  </>
+                );
+                if (!clickable) {
+                  return (
+                    <div key={i} className="app-row flex items-start gap-3 p-3 rounded-[8px]" style={{ cursor: "default" }}>
+                      {body}
+                    </div>
+                  );
+                }
+                return (
+                  <a
+                    key={i}
+                    href={`vault://${result.path}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onNavigate!(result.path!);
+                    }}
+                    className="app-row flex items-start gap-3 p-3 rounded-[8px] transition-colors duration-150 cursor-pointer hover:bg-[var(--bg-surface-alpha-2)]"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </motion.a>
-              ))}
+                    {body}
+                  </a>
+                );
+              })}
             </div>
           </motion.div>
         );
@@ -200,37 +183,42 @@ export function SearchResultsView({ data, view }: { data: SearchResultsData; vie
       {/* Suggested views */}
       {search.suggestedViews && search.suggestedViews.length > 0 && (
         <motion.div variants={fadeSlideUp} className="pt-2">
-          <h3
-            className="text-[11px] font-[510] uppercase tracking-[0.08em] mb-3"
-            style={{
-              color: tokens.text.quaternary,
-              fontFamily: fontFamily.inter,
-              fontFeatureSettings: '"cv01", "ss03"',
-            }}
-          >
+          <h3 className="micro uppercase tracking-[0.08em] text-text-quaternary mb-3">
             Related views
           </h3>
           <div className="flex flex-wrap gap-2">
-            {search.suggestedViews.map((sv, i) => (
-              <motion.button
-                key={i}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[12px] font-[510] cursor-pointer transition-colors duration-150"
-                style={{
-                  background: "rgba(94,106,210,0.08)",
-                  border: "1px solid rgba(94,106,210,0.15)",
-                  color: tokens.brand.violet,
-                  fontFamily: fontFamily.inter,
-                  fontFeatureSettings: '"cv01", "ss03"',
-                }}
-              >
-                {sv.label}
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </motion.button>
-            ))}
+            {search.suggestedViews.map((sv, i) => {
+              // Map a suggested view intent back into a natural-language query so
+              // the existing chat/intent pipeline can re-resolve it end-to-end.
+              const queryForIntent = (intent: string): string => {
+                switch (intent) {
+                  case "current_work": return "what matters now";
+                  case "system_status": return "system health";
+                  case "timeline_synthesis": return "what changed this month";
+                  case "entity_overview": return sv.label;
+                  case "topic_overview": return sv.label;
+                  case "search_results": return sv.label;
+                  default: return sv.label;
+                }
+              };
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onAsk?.(queryForIntent(sv.intent))}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] label-medium text-accent-violet cursor-pointer transition-colors duration-150 hover:brightness-110"
+                  style={{
+                    background: "color-mix(in srgb, var(--accent-brand) 8%, transparent)",
+                    border: "1px solid color-mix(in srgb, var(--accent-brand) 15%, transparent)",
+                  }}
+                >
+                  {sv.label}
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              );
+            })}
           </div>
         </motion.div>
       )}

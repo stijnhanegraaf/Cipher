@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readVaultFile, resolveLink } from "@/lib/vault-reader";
+import { readVaultFile, resolveLink, getVaultPath } from "@/lib/vault-reader";
 import { readFile, writeFile } from "fs/promises";
 import { join } from "path";
-
-// Vault path resolution
-function getVaultPath(): string {
-  return process.env.VAULT_PATH || "/root/.openclaw/workspace/Obsidian";
-}
 
 // ─── GET /api/file?path=wiki/work/open.md ─────────────────────────────
 // Returns raw markdown content + parsed metadata for a vault file
@@ -84,7 +79,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Missing or invalid 'path'" }, { status: 400 });
     }
 
-    const absPath = join(getVaultPath(), relPath);
+    const vaultRoot = getVaultPath();
+    if (!vaultRoot) {
+      return NextResponse.json({ error: "No vault connected" }, { status: 409 });
+    }
+    const absPath = join(vaultRoot, relPath);
 
     if (content !== undefined && typeof content === "string") {
       // Full content write

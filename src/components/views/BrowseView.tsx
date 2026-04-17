@@ -17,19 +17,6 @@ interface BrowseData {
   items: BrowseItem[];
 }
 
-const tokens = {
-  text: {
-    primary: "#f7f8f8",
-    secondary: "#d0d6e0",
-    tertiary: "#8a8f98",
-    quaternary: "#62666d",
-  },
-  brand: {
-    indigo: "#5e6ad2",
-    violet: "#7170ff",
-  },
-};
-
 const kindIcons: Record<string, React.ReactNode> = {
   entities: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,73 +41,30 @@ export function BrowseView({ data }: { data: BrowseData }) {
   return (
     <div>
       {/* Section label */}
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 510,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: tokens.text.quaternary,
-          marginBottom: 16,
-          fontFamily: "'Inter Variable', 'Inter', sans-serif",
-          fontFeatureSettings: '"cv01", "ss03"',
-        }}
-      >
+      <div className="micro uppercase tracking-[0.08em] text-text-quaternary mb-4">
         {data.kind === "entities" ? "Entities" : data.kind === "projects" ? "Projects" : "Research"}
       </div>
 
       {data.items.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "32px 0" }}>
-          <div style={{ opacity: 0.3, marginBottom: 12 }}>{icon}</div>
-          <p style={{ color: tokens.text.quaternary, fontSize: 14 }}>No {data.kind} found</p>
+        <div className="text-center py-8">
+          <div className="mb-3 text-text-quaternary" style={{ opacity: 0.3 }}>{icon}</div>
+          <p className="caption-large text-text-quaternary">No {data.kind} found</p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div className="flex flex-col gap-1">
           {data.items.map((item, i) => (
             <motion.div
               key={item.name}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ ...springs.gentle, delay: i * 0.04 }}
-              whileHover={{ backgroundColor: "rgba(255,255,255,0.03)" }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "10px 12px",
-                borderRadius: 6,
-                cursor: "pointer",
-              }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              className="app-row flex items-center gap-3 px-3 py-2.5 rounded-[6px] cursor-pointer transition-colors duration-150 hover:bg-[var(--bg-surface-alpha-2)]"
             >
-              <div style={{ color: tokens.text.tertiary, flexShrink: 0 }}>
-                {icon}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 400,
-                    lineHeight: 1.5,
-                    color: tokens.text.primary,
-                    margin: 0,
-                    fontFamily: "'Inter Variable', 'Inter', sans-serif",
-                    fontFeatureSettings: '"cv01", "ss03"',
-                  }}
-                >
-                  {item.name}
-                </p>
+              <div className="text-text-tertiary shrink-0">{icon}</div>
+              <div className="flex-1 min-w-0">
+                <p className="small text-text-primary m-0">{item.name}</p>
                 {item.description && (
-                  <p
-                    style={{
-                      fontSize: 13,
-                      color: tokens.text.quaternary,
-                      margin: 0,
-                      fontFamily: "'Inter Variable', 'Inter', sans-serif",
-                      fontFeatureSettings: '"cv01", "ss03"',
-                    }}
-                  >
-                    {item.description}
-                  </p>
+                  <p className="caption text-text-quaternary m-0">{item.description}</p>
                 )}
               </div>
               {item.type && (

@@ -2,38 +2,34 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useInView } from "framer-motion";
-import { MarkdownRenderer } from "@/components/ui";
+import { MarkdownRenderer, Breadcrumbs } from "@/components/ui";
 import { scrollReveal, springs } from "@/lib/motion";
 
-// Design tokens (from DESIGN.md)
-const tokens = {
+// Theme-aware token indirection — values point to CSS custom properties
+// defined in globals.css, so light/dark mode switching is automatic.
+const theme = {
   bg: {
-    marketing: "#08090a",
-    panel: "#0f1011",
-    surface: "#191a1b",
-    secondary: "#28282c",
+    marketing: "var(--bg-marketing)",
+    panel: "var(--bg-panel)",
+    surface: "var(--bg-surface)",
+    secondary: "var(--bg-elevated)",
   },
   text: {
-    primary: "#f7f8f8",
-    secondary: "#d0d6e0",
-    tertiary: "#8a8f98",
-    quaternary: "#62666d",
+    primary: "var(--text-primary)",
+    secondary: "var(--text-secondary)",
+    tertiary: "var(--text-tertiary)",
+    quaternary: "var(--text-quaternary)",
   },
   brand: {
-    indigo: "#5e6ad2",
-    violet: "#7170ff",
-    hover: "#828fff",
+    indigo: "var(--accent-brand)",
+    violet: "var(--accent-violet)",
+    hover: "var(--accent-hover)",
   },
   border: {
-    subtle: "rgba(255,255,255,0.05)",
-    standard: "rgba(255,255,255,0.08)",
-    solid: "#23252a",
+    subtle: "var(--border-subtle)",
+    standard: "var(--border-standard)",
+    solid: "var(--border-solid-primary)",
   },
-};
-
-const fontFamily = {
-  inter: '"Inter Variable", "SF Pro Display", -apple-system, system-ui, sans-serif',
-  mono: '"Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace',
 };
 
 // ─── Types ────────────────────────────────────────────────────────────
@@ -50,6 +46,10 @@ interface DetailPageProps {
   path: string;
   onBack: () => void;
   onNavigate: (path: string) => void;
+  /** Runs a chat query — used by breadcrumb section links to scope the view. */
+  onAsk?: (query: string) => void;
+  /** Called when the user clicks the breadcrumb's Home link. Typically clears chat. */
+  onHome?: () => void;
   layoutId?: string;
 }
 
@@ -87,13 +87,11 @@ function TableOfContents({
     >
       <p
         style={{
-          fontFamily: fontFamily.inter,
-          fontFeatureSettings: '"cv01", "ss03"',
           fontSize: 11,
           fontWeight: 510,
           letterSpacing: "0.08em",
           textTransform: "uppercase" as const,
-          color: tokens.text.quaternary,
+          color: theme.text.quaternary,
           marginBottom: 12,
         }}
       >
@@ -117,24 +115,22 @@ function TableOfContents({
                 fontSize: 12,
                 fontWeight: isActive ? 510 : 400,
                 lineHeight: 1.5,
-                color: isActive ? tokens.text.secondary : tokens.text.quaternary,
+                color: isActive ? theme.text.secondary : theme.text.quaternary,
                 background: "transparent",
                 border: "none",
                 cursor: "pointer",
                 borderRadius: 4,
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
                 transition: "color 0.15s, background 0.15s",
                 textOverflow: "ellipsis",
                 overflow: "hidden",
                 whiteSpace: "nowrap" as const,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.color = tokens.text.secondary;
-                e.currentTarget.style.background = "rgba(255,255,255,0.02)";
+                e.currentTarget.style.color = theme.text.secondary;
+                e.currentTarget.style.background = "var(--bg-surface-alpha-2)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.color = isActive ? tokens.text.secondary : tokens.text.quaternary;
+                e.currentTarget.style.color = isActive ? theme.text.secondary : theme.text.quaternary;
                 e.currentTarget.style.background = "transparent";
               }}
             >
@@ -166,40 +162,52 @@ function ScrollRevealSection({ children, delay = 0 }: { children: React.ReactNod
 }
 
 // ─── Toast component (F6) ──────────────────────────────────────────────
-function Toast({ message, type }: { message: string; type: "success" | "error" }) {
+function Toast({ message, type, onDismiss }: { message: string; type: "success" | "error"; onDismiss?: () => void }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      transition={{ type: "spring", stiffness: 260, damping: 25 }}
+      exit={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+      role={type === "error" ? "alert" : "status"}
+      onClick={type === "error" ? onDismiss : undefined}
       style={{
         position: "fixed",
         bottom: 96,
         left: "50%",
         transform: "translateX(-50%)",
-        padding: "8px 16px",
+        padding: "8px 14px",
         borderRadius: 8,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 10,
         fontSize: 13,
         fontWeight: 510,
-        fontFamily: fontFamily.inter,
-        fontFeatureSettings: '"cv01", "ss03"',
-        color: type === "success" ? "#ffffff" : "#ffffff",
-        background: type === "success" ? "rgba(94,106,210,0.9)" : "rgba(239,68,68,0.9)",
-        border: `1px solid ${type === "success" ? "rgba(113,112,255,0.3)" : "rgba(239,68,68,0.3)"}`,
+        color: "#ffffff",
+        background: type === "success"
+          ? "color-mix(in srgb, var(--accent-brand) 90%, transparent)"
+          : "color-mix(in srgb, var(--status-blocked) 90%, transparent)",
+        border: `1px solid color-mix(in srgb, ${type === "success" ? "var(--accent-brand)" : "var(--status-blocked)"} 30%, transparent)`,
         backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
         zIndex: 100,
+        cursor: type === "error" ? "pointer" : "default",
         pointerEvents: type === "error" ? "auto" : "none",
       }}
     >
-      {message}
+      <span>{message}</span>
+      {type === "error" && (
+        <span className="mono-label" style={{ opacity: 0.7, letterSpacing: "0.02em" }}>
+          Click to dismiss
+        </span>
+      )}
     </motion.div>
   );
 }
 
 // ─── DetailPage component ─────────────────────────────────────────────
 
-export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPageProps) {
+export function DetailPage({ path, onBack, onNavigate, onAsk, onHome, layoutId }: DetailPageProps) {
   const [data, setData] = useState<FileData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -305,6 +313,8 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
   const obsidianUrl = `obsidian://open?vault=Obsidian&file=${encodeURIComponent(path)}`;
 
   // ─── Save function ────────────────────────────────────────────────
+  // Throws on non-ok so callers (e.g. exitEditMode with save=true) can stay
+  // in edit mode and let the user retry. Error toast surfaces the reason.
   const saveFile = useCallback(async (content: string) => {
     if (!data) return;
     setSaveStatus("saving");
@@ -314,20 +324,28 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path: data.path, content }),
       });
-      if (res.ok) {
-        setSaveStatus("saved");
-        setData((prev) => prev ? { ...prev, content } : prev);
-        setToastMessage({ text: "✓ Saved", type: "success" });
-        setTimeout(() => { setSaveStatus("idle"); setToastMessage(null); }, 2000);
-      } else {
+      if (!res.ok) {
+        let message = `Save failed (${res.status})`;
+        try {
+          const body = await res.json();
+          if (body && typeof body.error === "string") message = body.error;
+        } catch {}
         setSaveStatus("failed");
-        setToastMessage({ text: "✗ Save failed", type: "error" });
-        setTimeout(() => setSaveStatus("idle"), 3000);
+        setToastMessage({ text: `✗ ${message}`, type: "error" });
+        throw new Error(message);
       }
-    } catch {
+      setSaveStatus("saved");
+      setData((prev) => prev ? { ...prev, content } : prev);
+      setToastMessage({ text: "✓ Saved", type: "success" });
+      setTimeout(() => { setSaveStatus("idle"); setToastMessage(null); }, 2000);
+    } catch (err) {
       setSaveStatus("failed");
-      setToastMessage({ text: "✗ Save failed", type: "error" });
-      setTimeout(() => setSaveStatus("idle"), 3000);
+      if (!(err instanceof Error && err.message.startsWith("Save failed"))) {
+        // Network-level error — surface with a clean message.
+        const message = err instanceof Error ? err.message : "Network error";
+        setToastMessage({ text: `✗ ${message}`, type: "error" });
+      }
+      throw err;
     }
   }, [data]);
 
@@ -349,59 +367,56 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
   }, [data]);
 
   // ─── Exit edit mode ───────────────────────────────────────────────
+  // If save fails, stay in edit mode so the user can retry. No silent loss.
   const exitEditMode = useCallback((save = false) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (save && data) {
-      saveFile(editContent).then(() => setEditMode(false));
+      saveFile(editContent)
+        .then(() => setEditMode(false))
+        .catch(() => { /* keep edit mode open; toast already shown */ });
     } else {
       setEditMode(false);
       setSaveStatus("idle");
     }
   }, [editContent, saveFile, data]);
 
-  // ─── Toast auto-dismiss for error toasts ───────────────────────────
-  useEffect(() => {
-    if (toastMessage?.type === "error") {
-      // Error toasts stay until dismissed (5s timeout)
-      const t = setTimeout(() => setToastMessage(null), 5000);
-      return () => clearTimeout(t);
-    }
-  }, [toastMessage]);
+  // Error toasts persist until the user dismisses them (click or backdrop).
+  // No auto-dismiss — users should see why the save failed.
 
   return (
     <>
-      {/* D2: Backdrop overlay with fade */}
+      {/* Backdrop — lighter than black, blurred. Linear's sheet pattern. */}
       <motion.div
         key={`backdrop-${path}`}
         initial={{ opacity: 0 }}
-        animate={{ opacity: 0.6 }}
+        animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+        transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
         style={{
           position: "fixed",
           inset: 0,
           zIndex: 49,
-          backgroundColor: "#000000",
+          backgroundColor: "rgba(8, 9, 10, 0.4)",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
         }}
         onClick={onBack}
       />
-      {/* D2: Slide panel */}
+      {/* Sheet — ease-out, no spring. 220ms: crisp, never overshoots. */}
       <motion.div
         key={`panel-${path}`}
         initial={{ x: "100%" }}
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
-        transition={{ type: "spring", stiffness: 260, damping: 25 }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
         style={{
           position: "fixed",
           inset: 0,
           zIndex: 50,
           display: "flex",
           flexDirection: "column",
-          backgroundColor: "#08090a",
-          fontFamily: fontFamily.inter,
-          fontFeatureSettings: '"cv01", "ss03"',
-          color: tokens.text.primary,
+          backgroundColor: "var(--bg-marketing)",
+          color: theme.text.primary,
           overflow: "hidden",
         }}
       >
@@ -409,8 +424,8 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
       <header
         style={{
           flexShrink: 0,
-          borderBottom: `1px solid ${tokens.border.subtle}`,
-          backgroundColor: "#08090a",
+          borderBottom: `1px solid ${theme.border.subtle}`,
+          backgroundColor: "var(--bg-marketing)",
         }}
       >
         <div
@@ -418,43 +433,44 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
             maxWidth: 720,
             margin: "0 auto",
             padding: "0 24px",
-            height: 52,
+            height: 48,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* Back button — 32px circle for alignment */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+            {/* Back button — compact 28px, ghost. Primary nav affordance is the breadcrumb. */}
             <button
               onClick={onBack}
+              title="Back"
+              aria-label="Back"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                background: "rgba(255,255,255,0.05)",
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                background: "transparent",
                 border: "none",
                 cursor: "pointer",
-                color: tokens.text.tertiary,
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
+                color: theme.text.tertiary,
                 transition: "background 0.15s, color 0.15s",
+                flexShrink: 0,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.color = tokens.text.secondary;
-                e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+                e.currentTarget.style.color = theme.text.primary;
+                e.currentTarget.style.background = "var(--bg-surface-alpha-2)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.color = tokens.text.tertiary;
-                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                e.currentTarget.style.color = theme.text.tertiary;
+                e.currentTarget.style.background = "transparent";
               }}
             >
               <svg
-                width={16}
-                height={16}
+                width={14}
+                height={14}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -466,6 +482,10 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
               </svg>
             </button>
 
+            {/* Breadcrumbs: Home / section / filename. Section is clickable
+                and scopes the chat to that area of the vault. */}
+            <Breadcrumbs path={path} onHome={onHome} onSection={onAsk} />
+
             {/* Edit / Save / Cancel buttons */}
             {data && !editMode && (
               <button
@@ -475,16 +495,14 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
                   fontWeight: 510,
                   textTransform: "uppercase" as const,
                   letterSpacing: "0.08em",
-                  color: tokens.text.quaternary,
-                  fontFamily: fontFamily.inter,
-                  fontFeatureSettings: '"cv01", "ss03"',
+                  color: theme.text.quaternary,
                   background: "none",
                   border: "none",
                   cursor: "pointer",
                   transition: "color 0.15s",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = tokens.brand.violet; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = tokens.text.quaternary; }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = theme.brand.violet; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = theme.text.quaternary; }}
               >
                 Edit
               </button>
@@ -496,11 +514,9 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
                   style={{
                     fontSize: 11,
                     fontWeight: 510,
-                    color: tokens.text.primary,
-                    fontFamily: fontFamily.inter,
-                    fontFeatureSettings: '"cv01", "ss03"',
-                    background: "rgba(255,255,255,0.06)",
-                    border: `1px solid rgba(255,255,255,0.08)`,
+                    color: theme.text.primary,
+                    background: "var(--bg-surface-alpha-4)",
+                    border: "1px solid var(--border-standard)",
                     borderRadius: 4,
                     padding: "4px 12px",
                     cursor: "pointer",
@@ -513,9 +529,7 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
                   style={{
                     fontSize: 11,
                     fontWeight: 510,
-                    color: tokens.text.quaternary,
-                    fontFamily: fontFamily.inter,
-                    fontFeatureSettings: '"cv01", "ss03"',
+                    color: theme.text.quaternary,
                     background: "none",
                     border: "none",
                     cursor: "pointer",
@@ -530,7 +544,7 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {/* Auto-save indicator */}
             {editMode && saveStatus === "saving" && (
-              <span style={{ fontSize: 11, color: tokens.text.quaternary, fontFamily: fontFamily.inter, fontFeatureSettings: '"cv01", "ss03"' }}>
+              <span style={{ fontSize: 11, color: theme.text.quaternary }}>
                 Saving…
               </span>
             )}
@@ -544,14 +558,12 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 4,
-                color: tokens.text.quaternary,
+                color: theme.text.quaternary,
                 fontSize: 11,
                 fontWeight: 510,
                 letterSpacing: "0.02em",
                 textDecoration: "none",
                 opacity: 0.5,
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
                 transition: "opacity 0.15s",
               }}
               onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; }}
@@ -571,7 +583,7 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
           overflowY: "auto",
           overflowX: "hidden",
           scrollbarWidth: "thin",
-          scrollbarColor: `${tokens.text.quaternary} transparent`,
+          scrollbarColor: `${theme.text.quaternary} transparent`,
         }}
       >
         <div
@@ -608,10 +620,10 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
               {error && (
                 <motion.div
                   key="error"
-                  initial={{ opacity: 0, y: 16 }}
+                  initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 25 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                   style={{ paddingTop: 160, textAlign: "center" as const }}
                 >
                   <svg
@@ -619,7 +631,7 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
                     height={40}
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke={tokens.text.quaternary}
+                    stroke={theme.text.quaternary}
                     strokeWidth={1.5}
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -629,66 +641,121 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
                     <path d="M12 8v4" />
                     <path d="M12 16h.01" />
                   </svg>
-                  <p
-                    style={{
-                      fontSize: 15,
-                      fontWeight: 510,
-                      color: tokens.text.primary,
-                      fontFamily: fontFamily.inter,
-                      fontFeatureSettings: '"cv01", "ss03"',
-                      margin: 0,
-                    }}
-                  >
-                    Something went wrong
-                  </p>
-                  <p
-                    style={{
-                      fontSize: 13,
-                      color: tokens.text.quaternary,
-                      marginTop: 8,
-                      fontFamily: fontFamily.inter,
-                      fontFeatureSettings: '"cv01", "ss03"',
-                    }}
-                  >
-                    {error}
-                  </p>
-                  <button
-                    onClick={fetchData}
-                    style={{
-                      marginTop: 24,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      padding: "8px 16px",
-                      borderRadius: 6,
-                      fontSize: 13,
-                      fontWeight: 510,
-                      color: "#ffffff",
-                      background: tokens.brand.indigo,
-                      border: "none",
-                      cursor: "pointer",
-                      fontFamily: fontFamily.inter,
-                      fontFeatureSettings: '"cv01", "ss03"',
-                      transition: "background 0.15s",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = tokens.brand.violet; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = tokens.brand.indigo; }}
-                  >
-                    <svg width={14} height={14} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 4v6h6" />
-                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                    </svg>
-                    Try again
-                  </button>
+                  {(() => {
+                    const isNotFound = /not found|404/i.test(error || "");
+                    const fileName = (path.split("/").pop() || path).replace(/\.md$/i, "");
+                    return (
+                      <>
+                        <p
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 510,
+                            color: theme.text.primary,
+                            margin: 0,
+                          }}
+                        >
+                          {isNotFound ? `Couldn't find "${fileName}"` : "Something went wrong"}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 13,
+                            color: theme.text.quaternary,
+                            marginTop: 8,
+                            maxWidth: 420,
+                            marginLeft: "auto",
+                            marginRight: "auto",
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {isNotFound
+                            ? "This link referenced a file that isn't in your vault. It may have been renamed, moved, or never existed."
+                            : error}
+                        </p>
+                        <div
+                          style={{
+                            marginTop: 24,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 8,
+                            flexWrap: "wrap",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {isNotFound && onAsk && (
+                            <button
+                              onClick={() => onAsk(`search for ${fileName}`)}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                padding: "8px 16px",
+                                borderRadius: 6,
+                                fontSize: 13,
+                                fontWeight: 510,
+                                color: "var(--text-on-brand, #ffffff)",
+                                background: theme.brand.indigo,
+                                border: "none",
+                                cursor: "pointer",
+                                transition: "background 120ms cubic-bezier(0.25, 0.1, 0.25, 1)",
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = theme.brand.violet; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = theme.brand.indigo; }}
+                            >
+                              Search for "{fileName}"
+                              <svg width={13} height={13} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                              </svg>
+                            </button>
+                          )}
+                          <button
+                            onClick={fetchData}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                              padding: "8px 16px",
+                              borderRadius: 6,
+                              fontSize: 13,
+                              fontWeight: 510,
+                              color: "var(--text-secondary)",
+                              background: "var(--bg-surface-alpha-2)",
+                              border: "1px solid var(--border-standard)",
+                              cursor: "pointer",
+                              transition: "background 120ms cubic-bezier(0.25, 0.1, 0.25, 1)",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-4)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; }}
+                          >
+                            <svg width={13} height={13} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 4v6h6" />
+                              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                            </svg>
+                            Try again
+                          </button>
+                        </div>
+                        <p
+                          style={{
+                            marginTop: 24,
+                            fontSize: 11,
+                            color: "var(--text-quaternary)",
+                            fontFamily: "var(--font-mono)",
+                            letterSpacing: "0.02em",
+                          }}
+                        >
+                          {path}
+                        </p>
+                      </>
+                    );
+                  })()}
                 </motion.div>
               )}
 
               {data && (
                 <motion.div
                   key={data.path}
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                 >
                   <ScrollRevealSection delay={0}>
                     {/* ── File path breadcrumb ──────────────────────────────── */}
@@ -696,8 +763,8 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
                       style={{
                         fontSize: 12,
                         fontWeight: 510,
-                        color: tokens.text.quaternary,
-                        fontFamily: fontFamily.mono,
+                        color: theme.text.quaternary,
+                        fontFamily: "var(--font-mono)",
                         letterSpacing: "0.02em",
                         margin: "32px 0 0",
                       }}
@@ -711,13 +778,11 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
                     <motion.h1
                       layoutId={layoutId}
                       style={{
-                        fontFamily: fontFamily.inter,
-                        fontFeatureSettings: '"cv01", "ss03"',
                         fontSize: 32,
                         fontWeight: 400,
                         lineHeight: 1.13,
                         letterSpacing: "-0.704px",
-                        color: tokens.text.primary,
+                        color: theme.text.primary,
                         margin: "16px 0 0",
                       }}
                     >
@@ -748,34 +813,32 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
                               fontSize: 12,
                               fontWeight: 510,
                               lineHeight: 1.4,
-                              fontFamily: fontFamily.inter,
-                              fontFeatureSettings: '"cv01", "ss03"',
                               background:
                                 badge.variant === "success"
-                                  ? "rgba(16,185,129,0.12)"
+                                  ? "color-mix(in srgb, var(--status-done) 12%, transparent)"
                                   : badge.variant === "warning"
-                                    ? "rgba(245,158,11,0.12)"
+                                    ? "color-mix(in srgb, var(--status-warning) 12%, transparent)"
                                     : badge.variant === "indigo"
-                                      ? "rgba(94,106,210,0.12)"
+                                      ? "color-mix(in srgb, var(--accent-brand) 12%, transparent)"
                                       : "transparent",
                               color:
                                 badge.variant === "success"
-                                  ? "#10b981"
+                                  ? "var(--status-done)"
                                   : badge.variant === "warning"
-                                    ? "#f59e0b"
+                                    ? "var(--status-warning)"
                                     : badge.variant === "indigo"
-                                      ? tokens.brand.violet
-                                      : tokens.text.tertiary,
+                                      ? theme.brand.violet
+                                      : theme.text.tertiary,
                               border:
                                 badge.variant === "outline"
-                                  ? `1px solid ${tokens.border.subtle}`
+                                  ? `1px solid ${theme.border.subtle}`
                                   : badge.variant === "default"
-                                    ? `1px solid ${tokens.border.solid}`
+                                    ? `1px solid ${theme.border.solid}`
                                     : badge.variant === "success"
-                                      ? "1px solid rgba(16,185,129,0.2)"
+                                      ? "1px solid color-mix(in srgb, var(--status-done) 20%, transparent)"
                                       : badge.variant === "warning"
-                                        ? "1px solid rgba(245,158,11,0.2)"
-                                        : "1px solid rgba(94,106,210,0.2)",
+                                        ? "1px solid color-mix(in srgb, var(--status-warning) 20%, transparent)"
+                                        : "1px solid color-mix(in srgb, var(--accent-brand) 20%, transparent)",
                             }}
                           >
                             {badge.value}
@@ -790,7 +853,7 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
                     <div
                       style={{
                         height: 1,
-                        background: tokens.border.subtle,
+                        background: theme.border.subtle,
                         margin: "32px 0",
                       }}
                     />
@@ -805,7 +868,7 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          transition={{ duration: 0.2 }}
+                          transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
                         >
                           <textarea
                             ref={textareaRef}
@@ -817,13 +880,12 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
                               padding: "16px 24px",
                               fontSize: 14,
                               lineHeight: 1.6,
-                              fontFamily: fontFamily.mono,
-                              color: tokens.text.secondary,
-                              backgroundColor: "#0f1011",
-                              border: `1px solid rgba(255,255,255,0.08)`,
+                              fontFamily: "var(--font-mono)",
+                              color: theme.text.secondary,
+                              backgroundColor: "var(--bg-panel)",
+                              border: "1px solid var(--border-standard)",
                               borderRadius: 8,
                               resize: "vertical",
-                              outline: "none",
                               tabSize: 2,
                             }}
                             onKeyDown={(e) => {
@@ -843,7 +905,7 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          transition={{ duration: 0.2 }}
+                          transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
                         >
                           <MarkdownRenderer
                             content={data.content}
@@ -883,7 +945,11 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
       {/* ── Toast (F6) ──────────────────────────────────────────────── */}
       <AnimatePresence>
         {toastMessage && (
-          <Toast message={toastMessage.text} type={toastMessage.type} />
+          <Toast
+            message={toastMessage.text}
+            type={toastMessage.type}
+            onDismiss={() => setToastMessage(null)}
+          />
         )}
       </AnimatePresence>
 
@@ -894,7 +960,7 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
           40% { transform: scale(1); opacity: 1; }
         }
         .skeleton-line {
-          background: rgba(255,255,255,0.03);
+          background: var(--bg-surface-alpha-2);
           position: relative;
           overflow: hidden;
         }
@@ -905,7 +971,7 @@ export function DetailPage({ path, onBack, onNavigate, layoutId }: DetailPagePro
           left: -100%;
           width: 100%;
           height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+          background: linear-gradient(90deg, transparent, var(--bg-surface-alpha-4), transparent);
           animation: skeleton-shimmer 1.5s ease-in-out infinite;
         }
         @keyframes skeleton-shimmer {

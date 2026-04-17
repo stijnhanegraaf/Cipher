@@ -29,8 +29,22 @@
   --accent-security:    #7a7fad;
 
   /* Status */
-  --success:            #27a644;
+  --success:            #10b981;
   --success-pill:       #10b981;
+
+  /* Status — single source of truth. All views should derive from these. */
+  --status-open:         #3b82f6;
+  --status-in-progress:  #f59e0b;
+  --status-done:         #10b981;
+  --status-blocked:      #ef4444;
+  --status-warning:      #f59e0b;
+
+  /* Text-on-brand — for text rendered over brand-colored backgrounds.
+     Brand indigo is dark enough in both themes that white is always correct. */
+  --text-on-brand:       #ffffff;
+
+  /* Tooltip surface — tighter contrast than panels. */
+  --bg-tooltip:          #0d0e0f;
 
   /* Borders */
   --border-subtle:      rgba(255,255,255,0.05);
@@ -54,6 +68,21 @@
   --shadow-micro:       rgba(0,0,0,0.03) 0px 1.2px 0px 0px;
   --shadow-focus:       rgba(0,0,0,0.1) 0px 4px 12px;
   --shadow-dialog:      rgba(0,0,0,0) 0px 8px 2px, rgba(0,0,0,0.01) 0px 5px 2px, rgba(0,0,0,0.04) 0px 3px 2px, rgba(0,0,0,0.07) 0px 1px 1px, rgba(0,0,0,0.08) 0px 0px 1px;
+
+  /* Row heights — exactly three tiers, no others. */
+  --row-h-dense:   32px;  /* single-line rows: recent, open, source, toc */
+  --row-h-default: 48px;  /* rows with subline / metadata / checkbox */
+  --row-h-inline:  24px;  /* inline pills, micro chips */
+
+  /* Avatar / spine — the one vertical line running through the chat. */
+  --avatar-size:        28px;
+  --avatar-gap:         12px;
+  --spine-indent:       40px;  /* avatar (28) + gap (12) — content left edge */
+
+  /* Motion — four durations, no others. */
+  --motion-hover:  120ms; /* bg / color hover */
+  --motion-enter:  180ms; /* entrance / exit fade */
+  --motion-sheet:  220ms; /* panel slide */
 
   /* Radius */
   --radius-micro:       2px;
@@ -110,7 +139,7 @@
 .light {
   --bg-marketing:       #f7f8f8;
   --bg-panel:           #f3f4f5;
-  --bg-surface:         #ffffff;
+  --bg-surface:         #fbfbfc;
   --bg-elevated:        #ffffff;
   --bg-surface-alpha-2: rgba(0,0,0,0.02);
   --bg-surface-alpha-4: rgba(0,0,0,0.04);
@@ -126,8 +155,18 @@
   --accent-hover:       #4c58b8;
   --accent-security:    #7a7fad;
 
-  --success:            #27a644;
+  --success:            #10b981;
   --success-pill:       #10b981;
+
+  /* Status — same hues as dark; light-mode surfaces already contrast well. */
+  --status-open:         #2563eb;
+  --status-in-progress:  #d97706;
+  --status-done:         #059669;
+  --status-blocked:      #dc2626;
+  --status-warning:      #d97706;
+
+  --text-on-brand:       #ffffff;  /* brand bg is dark indigo in both themes */
+  --bg-tooltip:          #1a1b1c;  /* inverted tooltip in light mode */
 
   --border-subtle:      rgba(0,0,0,0.05);
   --border-standard:    rgba(0,0,0,0.08);
@@ -172,7 +211,7 @@
   --color-border-standard: var(--border-standard);
   --color-border-solid: var(--border-solid-secondary);
 
-  --font-sans: "Inter Variable", "SF Pro Display", -apple-system, system-ui, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  --font-sans: var(--font-inter), "Inter Variable", "SF Pro Display", -apple-system, system-ui, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
   --font-mono: "Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
   --shadow-ring: var(--shadow-ring);
@@ -483,6 +522,87 @@
   .card-elevated:hover {
     box-shadow: var(--shadow-dialog);
     transform: translateY(-1px);
+  }
+
+  /* ── .app-row ─────────────────────────────
+     Unified list-row affordance. Used across:
+     welcome Recent/Open, SearchResults, SourceList, LinkList,
+     TaskItemRow, TimelineMini, VaultDrawer, DetailPage ToC.
+     Subtle hover bg + 2px brand rail on the leading edge.
+     This is THE list-row style across the app. */
+  .app-row {
+    position: relative;
+  }
+  .app-row::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    border-radius: 2px;
+    background: transparent;
+    transition: background var(--duration-fast) var(--ease-default);
+    pointer-events: none;
+  }
+  .app-row:hover::before,
+  .app-row:focus-visible::before,
+  .app-row[data-active="true"]::before {
+    background: var(--accent-brand);
+  }
+
+  /* ── .filter-chip ─────────────────────────
+     Shared pill style for starter chips, filter chips on current_work,
+     search_results, timeline. Ghost by default, fills on active/hover. */
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-standard);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: -0.05px;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-default),
+                border-color var(--duration-fast) var(--ease-default),
+                color var(--duration-fast) var(--ease-default);
+  }
+  .filter-chip:hover {
+    background: var(--bg-surface-alpha-2);
+    border-color: var(--border-solid-primary);
+    color: var(--text-primary);
+  }
+  .filter-chip[data-active="true"],
+  .filter-chip[aria-pressed="true"] {
+    background: color-mix(in srgb, var(--accent-brand) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent-brand) 40%, transparent);
+    color: var(--text-primary);
+  }
+
+  /* ── Sidebar responsive ──────────────────
+     Full 240px at ≥1024px. Hidden below (palette is the escape hatch). */
+  .sidebar-container {
+    display: block;
+  }
+  @media (max-width: 1023px) {
+    .sidebar-container { display: none; }
+    .sidebar-mobile-trigger { display: inline-flex !important; }
+  }
+
+  /* ── .focus-ring ──────────────────────────
+     One ring to rule them all. 2px brand, 2px offset, rounded to match
+     the element. Apply to every <button>, <a>, app-row, filter-chip. */
+  .focus-ring:focus-visible,
+  .app-row:focus-visible,
+  .filter-chip:focus-visible,
+  .welcome-chip:focus-visible {
+    outline: 2px solid var(--accent-brand);
+    outline-offset: 2px;
+    border-radius: inherit;
   }
 
   /* ── Buttons ────────────────────────────── */
@@ -930,14 +1050,14 @@ pre code {
 
 /* Wiki-link styled links (from [[link]] preprocessing) */
 .markdown-content a[href^="obsidian://"] {
-  color: #7170ff;
+  color: var(--accent-violet);
   text-decoration: none;
-  border-bottom: 1px dashed rgba(113, 112, 255, 0.4);
-  transition: border-color 0.15s, color 0.15s;
+  border-bottom: 1px dashed color-mix(in srgb, var(--accent-violet) 40%, transparent);
+  transition: border-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default);
 }
 .markdown-content a[href^="obsidian://"]:hover {
-  color: #828fff;
-  border-bottom-color: #7170ff;
+  color: var(--accent-hover);
+  border-bottom-color: var(--accent-violet);
 }
 
 /* ── Responsive typography ───────────────── */

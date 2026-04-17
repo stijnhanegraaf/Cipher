@@ -1,37 +1,12 @@
 "use client";
 
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { motion, AnimatePresence } from "framer-motion";
-import { springs } from "@/lib/motion";
+import { CheckboxIndicator, StatusDot } from "./StatusDot";
 
-// Design tokens
-const tokens = {
-  text: {
-    primary: "#f7f8f8",
-    secondary: "#d0d6e0",
-    tertiary: "#8a8f98",
-    quaternary: "#62666d",
-  },
-  brand: {
-    indigo: "#5e6ad2",
-    violet: "#7170ff",
-    hover: "#828fff",
-  },
-  border: {
-    subtle: "rgba(255,255,255,0.05)",
-    standard: "rgba(255,255,255,0.08)",
-  },
-  bg: {
-    surface: "#191a1b",
-  },
-};
-
-const fontFamily = {
-  inter: '"Inter Variable", "SF Pro Display", -apple-system, system-ui, sans-serif',
-  mono: '"Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace',
-};
+// Re-export for backward compatibility with existing imports.
+export { CheckboxIndicator, StatusDot };
 
 interface MarkdownRendererProps {
   content: string;
@@ -70,6 +45,18 @@ function textToId(children: React.ReactNode): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
+const wikiLinkIcon = (
+  <svg
+    className="inline-block w-3 h-3 mr-[3px] align-[-1px]"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+    strokeWidth={2}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+  </svg>
+);
+
 export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRendererProps) {
   // Preprocess wiki links before passing to react-markdown
   // When onNavigate is provided, use vault:// URLs instead of obsidian://
@@ -92,16 +79,8 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
             return (
               <h1
                 id={id}
-                style={{
-                  fontFamily: fontFamily.inter,
-                  fontFeatureSettings: '"cv01", "ss03"',
-                  fontSize: "1.5rem", // 24px — heading-2
-                  fontWeight: 400,
-                  lineHeight: 1.33,
-                  letterSpacing: "-0.288px",
-                  color: tokens.text.primary,
-                  margin: "32px 0 16px",
-                }}
+                className="heading-2 text-text-primary"
+                style={{ margin: "32px 0 16px" }}
               >
                 {children}
               </h1>
@@ -112,16 +91,8 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
             return (
               <h2
                 id={id}
-                style={{
-                  fontFamily: fontFamily.inter,
-                  fontFeatureSettings: '"cv01", "ss03"',
-                  fontSize: "1.5rem", // 24px
-                  fontWeight: 400,
-                  lineHeight: 1.33,
-                  letterSpacing: "-0.288px",
-                  color: tokens.text.primary,
-                  margin: "32px 0 16px",
-                }}
+                className="heading-2 text-text-primary"
+                style={{ margin: "32px 0 16px" }}
               >
                 {children}
               </h2>
@@ -132,16 +103,8 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
             return (
               <h3
                 id={id}
-                style={{
-                  fontFamily: fontFamily.inter,
-                  fontFeatureSettings: '"cv01", "ss03"',
-                  fontSize: "1.25rem", // 20px
-                  fontWeight: 590,
-                  lineHeight: 1.33,
-                  letterSpacing: "-0.24px",
-                  color: tokens.text.primary,
-                  margin: "24px 0 8px",
-                }}
+                className="heading-3 text-text-primary"
+                style={{ margin: "24px 0 8px" }}
               >
                 {children}
               </h3>
@@ -152,15 +115,8 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
             return (
               <h4
                 id={id}
-                style={{
-                  fontFamily: fontFamily.inter,
-                  fontFeatureSettings: '"cv01", "ss03"',
-                  fontSize: "1.0625rem", // 17px
-                  fontWeight: 590,
-                  lineHeight: 1.6,
-                  color: tokens.text.primary,
-                  margin: "20px 0 6px",
-                }}
+                className="body-emphasis text-text-primary"
+                style={{ margin: "20px 0 6px" }}
               >
                 {children}
               </h4>
@@ -171,16 +127,8 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
             return (
               <h5
                 id={id}
-                style={{
-                  fontFamily: fontFamily.inter,
-                  fontFeatureSettings: '"cv01", "ss03"',
-                  fontSize: "0.9375rem", // 15px
-                  fontWeight: 590,
-                  lineHeight: 1.6,
-                  letterSpacing: "-0.165px",
-                  color: tokens.text.primary,
-                  margin: "16px 0 4px",
-                }}
+                className="small-semibold text-text-primary"
+                style={{ margin: "16px 0 4px" }}
               >
                 {children}
               </h5>
@@ -191,16 +139,8 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
             return (
               <h6
                 id={id}
-                style={{
-                  fontFamily: fontFamily.inter,
-                  fontFeatureSettings: '"cv01", "ss03"',
-                  fontSize: "0.8125rem", // 13px
-                  fontWeight: 590,
-                  lineHeight: 1.5,
-                  letterSpacing: "-0.13px",
-                  color: tokens.text.tertiary,
-                  margin: "16px 0 4px",
-                }}
+                className="caption-medium text-text-tertiary"
+                style={{ margin: "16px 0 4px" }}
               >
                 {children}
               </h6>
@@ -209,32 +149,14 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
 
           // ── Paragraph ──
           p: ({ children }) => (
-            <p
-              style={{
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
-                fontSize: "0.9375rem", // 15px
-                fontWeight: 400,
-                lineHeight: 1.6,
-                letterSpacing: "-0.165px",
-                color: tokens.text.secondary,
-                margin: "0 0 16px",
-              }}
-            >
+            <p className="small text-text-secondary" style={{ margin: "0 0 16px" }}>
               {children}
             </p>
           ),
 
           // ── Bold ──
           strong: ({ children }) => (
-            <strong
-              style={{
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
-                fontWeight: 590,
-                color: tokens.text.primary,
-              }}
-            >
+            <strong className="text-text-primary" style={{ fontWeight: 590 }}>
               {children}
             </strong>
           ),
@@ -260,39 +182,16 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                     e.preventDefault();
                     onNavigate(vaultPath);
                   }}
+                  className="text-accent-violet hover:text-accent-hover cursor-pointer transition-colors duration-150"
                   style={{
-                    color: tokens.brand.violet,
                     textDecoration: "none",
                     borderBottom: "1px solid transparent",
                     transition: "border-color 0.15s, color 0.15s",
-                    fontFamily: fontFamily.inter,
-                    fontFeatureSettings: '"cv01", "ss03"',
-                    cursor: "pointer",
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderBottomColor = tokens.brand.violet;
-                    e.currentTarget.style.color = tokens.brand.hover;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderBottomColor = "transparent";
-                    e.currentTarget.style.color = tokens.brand.violet;
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = "currentColor"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = "transparent"; }}
                 >
-                  <svg
-                    style={{
-                      display: "inline-block",
-                      width: 12,
-                      height: 12,
-                      marginRight: 3,
-                      verticalAlign: "-1px",
-                    }}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
+                  {wikiLinkIcon}
                   {children}
                 </a>
               );
@@ -303,40 +202,16 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="text-accent-violet hover:text-accent-hover transition-colors duration-150"
                 style={{
-                  color: tokens.brand.violet,
                   textDecoration: "none",
                   borderBottom: "1px solid transparent",
                   transition: "border-color 0.15s, color 0.15s",
-                  fontFamily: fontFamily.inter,
-                  fontFeatureSettings: '"cv01", "ss03"',
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderBottomColor = tokens.brand.violet;
-                  e.currentTarget.style.color = tokens.brand.hover;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderBottomColor = "transparent";
-                  e.currentTarget.style.color = tokens.brand.violet;
-                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = "currentColor"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = "transparent"; }}
               >
-                {isWikiLink && (
-                  <svg
-                    style={{
-                      display: "inline-block",
-                      width: 12,
-                      height: 12,
-                      marginRight: 3,
-                      verticalAlign: "-1px",
-                    }}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                )}
+                {isWikiLink && wikiLinkIcon}
                 {children}
               </a>
             );
@@ -344,16 +219,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
 
           // ── Bullet lists ──
           ul: ({ children }) => (
-            <ul
-              style={{
-                listStyle: "none",
-                padding: 0,
-                margin: "0 0 16px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "6px",
-              }}
-            >
+            <ul className="flex flex-col gap-1.5 p-0 m-0 mb-4 list-none">
               {children}
             </ul>
           ),
@@ -365,24 +231,10 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
             if (isTask) {
               return (
                 <li
-                  style={{
-                    fontFamily: fontFamily.inter,
-                    fontFeatureSettings: '"cv01", "ss03"',
-                    fontSize: "0.9375rem", // 15px
-                    fontWeight: 400,
-                    lineHeight: 1.6,
-                    letterSpacing: "-0.165px",
-                    color: checked ? tokens.text.quaternary : tokens.text.secondary,
-                    paddingLeft: 0,
-                    position: "relative",
-                    display: "flex",
-                    alignItems: "flex-start",
-                    margin: 0,
-                    listStyle: "none",
-                  }}
+                  className={`small flex items-start m-0 list-none ${checked ? "text-text-quaternary" : "text-text-secondary"}`}
                 >
                   <CheckboxIndicator checked={!!checked} />
-                  <span style={{ flex: 1, ...(checked ? { textDecoration: "line-through" } : {}) }}>
+                  <span className="flex-1" style={checked ? { textDecoration: "line-through" } : undefined}>
                     {children}
                   </span>
                 </li>
@@ -391,35 +243,18 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
 
             // Regular list item
             return (
-              <li
-                style={{
-                  fontFamily: fontFamily.inter,
-                  fontFeatureSettings: '"cv01", "ss03"',
-                  fontSize: "0.9375rem", // 15px
-                  fontWeight: 400,
-                  lineHeight: 1.6,
-                  letterSpacing: "-0.165px",
-                  color: tokens.text.secondary,
-                  paddingLeft: "16px",
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  listStyle: "none",
-                }}
-              >
+              <li className="small text-text-secondary flex items-start list-none relative pl-4">
                 <span
+                  className="absolute left-0 shrink-0"
                   style={{
-                    position: "absolute",
-                    left: 0,
                     top: "9px",
                     width: "4px",
                     height: "4px",
                     borderRadius: "50%",
-                    backgroundColor: tokens.text.quaternary,
-                    flexShrink: 0,
+                    backgroundColor: "var(--text-quaternary)",
                   }}
                 />
-                <span style={{ flex: 1 }}>{children}</span>
+                <span className="flex-1">{children}</span>
               </li>
             );
           },
@@ -427,50 +262,24 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
           // ── Ordered lists ──
           ol: ({ children }) => (
             <ol
-              style={{
-                listStyle: "none",
-                padding: 0,
-                margin: "0 0 16px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "6px",
-                counterReset: "markdown-ol",
-              }}
+              className="flex flex-col gap-1.5 p-0 m-0 mb-4 list-none"
+              style={{ counterReset: "markdown-ol" }}
             >
               {children}
             </ol>
           ),
 
-          // ── Code inline ──
+          // ── Code inline + code block child ──
           code: ({ className, children, ...props }: any) => {
-            // If there's a language class, it's a code block (handled by pre)
-            const isCodeBlock = className && className.startsWith("language-");
-            if (isCodeBlock || !className) {
-              return (
-                <code
-                  style={{
-                    fontFamily: fontFamily.mono,
-                    fontSize: "0.875em",
-                    backgroundColor: "rgba(255,255,255,0.04)",
-                    padding: "0.15em 0.4em",
-                    borderRadius: 4,
-                    color: tokens.brand.violet,
-                  }}
-                  {...props}
-                >
-                  {children}
-                </code>
-              );
-            }
+            // Inline or block-child code — both use the same pill styling
             return (
               <code
+                className="text-accent-violet mono-caption"
                 style={{
-                  fontFamily: fontFamily.mono,
                   fontSize: "0.875em",
-                  backgroundColor: "rgba(255,255,255,0.04)",
+                  backgroundColor: "var(--bg-surface-alpha-4)",
                   padding: "0.15em 0.4em",
                   borderRadius: 4,
-                  color: tokens.brand.violet,
                 }}
                 {...props}
               >
@@ -482,17 +291,14 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
           // ── Code block (pre) ──
           pre: ({ children }) => (
             <pre
+              className="text-text-primary mono-caption overflow-x-auto"
               style={{
-                backgroundColor: tokens.bg.surface,
-                color: tokens.text.primary,
+                backgroundColor: "var(--bg-surface)",
                 padding: "16px 20px",
                 borderRadius: 8,
-                border: `1px solid ${tokens.border.standard}`,
-                overflowX: "auto",
-                fontSize: "0.8125rem", // 13px
+                border: "1px solid var(--border-standard)",
                 lineHeight: 1.6,
                 margin: "0 0 16px",
-                fontFamily: fontFamily.mono,
               }}
             >
               {children}
@@ -502,14 +308,12 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
           // ── Blockquote ──
           blockquote: ({ children }) => (
             <blockquote
+              className="text-text-secondary"
               style={{
-                borderLeft: `2px solid ${tokens.brand.indigo}`,
+                borderLeft: "2px solid var(--accent-brand)",
                 margin: "0 0 16px",
                 padding: "8px 16px",
-                backgroundColor: "rgba(94,106,210,0.06)",
-                color: tokens.text.secondary,
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
+                backgroundColor: "color-mix(in srgb, var(--accent-brand) 6%, transparent)",
               }}
             >
               {children}
@@ -522,7 +326,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
               style={{
                 border: "none",
                 height: "1px",
-                background: tokens.border.subtle,
+                background: "var(--border-subtle)",
                 margin: "24px 0",
               }}
             />
@@ -530,55 +334,31 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
 
           // ── Table ──
           table: ({ children }) => (
-            <div style={{ overflowX: "auto", margin: "0 0 16px" }}>
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: "0.875rem", // 14px
-                  fontFamily: fontFamily.inter,
-                  fontFeatureSettings: '"cv01", "ss03"',
-                }}
-              >
+            <div className="overflow-x-auto mb-4">
+              <table className="w-full caption-large" style={{ borderCollapse: "collapse" }}>
                 {children}
               </table>
             </div>
           ),
           thead: ({ children }) => (
-            <thead
-              style={{
-                borderBottom: `1px solid ${tokens.border.standard}`,
-              }}
-            >
+            <thead style={{ borderBottom: "1px solid var(--border-standard)" }}>
               {children}
             </thead>
           ),
           th: ({ children }) => (
             <th
-              style={{
-                textAlign: "left",
-                padding: "8px 12px",
-                fontSize: "0.6875rem", // 11px
-                fontWeight: 510,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase" as const,
-                color: tokens.text.quaternary,
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
-              }}
+              className="micro uppercase tracking-[0.08em] text-text-quaternary"
+              style={{ textAlign: "left", padding: "8px 12px" }}
             >
               {children}
             </th>
           ),
           td: ({ children }) => (
             <td
+              className="caption-large text-text-secondary"
               style={{
                 padding: "8px 12px",
-                borderBottom: `1px solid ${tokens.border.subtle}`,
-                color: tokens.text.secondary,
-                fontFamily: fontFamily.inter,
-                fontFeatureSettings: '"cv01", "ss03"',
-                fontSize: "0.875rem", // 14px
+                borderBottom: "1px solid var(--border-subtle)",
               }}
             >
               {children}
@@ -587,183 +367,11 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
 
           // ── Checkbox input (GFM task lists) ──
           // We suppress the raw input element; rendering is handled by the li component
-          input: ({ checked, ...props }) => {
-            return null;
-          },
+          input: () => null,
         }}
       >
         {processedContent}
       </ReactMarkdown>
     </div>
-  );
-}
-
-// ─── Checkbox rendering helper ────────────────────────────────────────
-// Renders Obsidian-style checkboxes: checked = filled circle, unchecked = empty circle
-export function CheckboxIndicator({ checked, onChange }: { checked: boolean; onChange?: () => void }) {
-  return (
-    <span
-      onClick={onChange ? (e) => { e.preventDefault(); e.stopPropagation(); onChange(); } : undefined}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 18,
-        height: 18,
-        borderRadius: 4,
-        border: checked ? "none" : "1.5px solid rgba(255,255,255,0.2)",
-        backgroundColor: checked ? tokens.brand.indigo : "transparent",
-        flexShrink: 0,
-        marginRight: 8,
-        transition: "background-color 0.15s, border-color 0.15s, transform 0.1s",
-        cursor: onChange ? "pointer" : "default",
-        ...(onChange ? { transform: "scale(1)" } : {}),
-      }}
-      onMouseEnter={onChange ? (e) => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.4)"; } : undefined}
-      onMouseLeave={onChange ? (e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.borderColor = "1.5px solid rgba(255,255,255,0.2)"; } : undefined}
-    >
-      {checked && (
-        <svg
-          width={10}
-          height={10}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="white"
-          strokeWidth={3}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M20 6L9 17l-5-5" />
-        </svg>
-      )}
-    </span>
-  );
-}
-
-// ─── Status dot component ─────────────────────────────────────────────
-// Renders an animated colored circle for status indicators
-// Supports hover/click interactions for toggleable tasks
-export function StatusDot({
-  status,
-  size = 6,
-  checked,
-  interactive = false,
-  onClick,
-}: {
-  status: "ok" | "warn" | "error" | "stale" | "fresh" | "in_progress" | "open" | "done" | "blocked" | string;
-  size?: number;
-  checked?: boolean;
-  interactive?: boolean;
-  onClick?: () => void;
-}) {
-  const colorMap: Record<string, string> = {
-    ok: "#10b981",
-    fresh: "#10b981",
-    done: "#10b981",
-    in_progress: "#f59e0b",
-    warn: "#f59e0b",
-    blocked: "#ef4444",
-    error: "#ef4444",
-    stale: "#62666d",
-    open: "#3b82f6",
-  };
-
-  const color = colorMap[status] || "#62666d";
-  const isDone = checked !== undefined ? checked : status === "done";
-  const [hovered, setHovered] = useState(false);
-
-  // E2: Animated fill radius (center outward on check, outside inward on uncheck)
-  const [fillRadius, setFillRadius] = useState(isDone ? size / 2 : 0);
-  const prevCheckedRef = useRef(isDone);
-
-  useEffect(() => {
-    if (isDone !== prevCheckedRef.current) {
-      prevCheckedRef.current = isDone;
-      // Animate fill
-      setFillRadius(isDone ? size / 2 : 0);
-    }
-  }, [isDone, size]);
-
-  const dotColor = interactive ? (isDone ? "#5e6ad2" : "transparent") : color;
-  const borderColor = interactive
-    ? isDone
-      ? "#5e6ad2"
-      : "rgba(255,255,255,0.2)"
-    : color;
-
-  return (
-    <motion.span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: size,
-        height: size,
-        borderRadius: 2,
-        backgroundColor: dotColor,
-        border: interactive
-          ? `1.5px solid ${hovered && !isDone ? "rgba(255,255,255,0.35)" : borderColor}`
-          : "none",
-        flexShrink: 0,
-        cursor: interactive ? "pointer" : "default",
-        position: "relative",
-        overflow: "hidden",
-        transition: "border-color 0.15s",
-      }}
-      whileHover={interactive ? { scale: 1.04 } : undefined}
-      whileTap={interactive ? { scale: 0.95 } : undefined}
-      animate={{ scale: isDone && interactive ? 1.3 : 1 }}
-      transition={springs.bouncy}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={(e) => {
-        if (!interactive || !onClick) return;
-        e.stopPropagation();
-        onClick();
-      }}
-    >
-      {/* E2: Indigo fill expanding from center */}
-      {interactive && (
-        <motion.span
-          style={{
-            position: "absolute",
-            borderRadius: 2,
-            backgroundColor: "#5e6ad2",
-            top: "50%",
-            left: "50%",
-            x: "-50%",
-            y: "-50%",
-          }}
-          animate={{
-            width: isDone ? size : 0,
-            height: isDone ? size : 0,
-          }}
-          transition={{ duration: 0.25, ease: "easeInOut" }}
-        />
-      )}
-      {/* E2: Checkmark draws in */}
-      <AnimatePresence>
-        {interactive && isDone && (
-          <motion.svg
-            key="check"
-            width={Math.max(size * 0.6, 8)}
-            height={Math.max(size * 0.6, 8)}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth={3}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            initial={{ opacity: 0, pathLength: 0 }}
-            animate={{ opacity: 1, pathLength: 1 }}
-            exit={{ opacity: 0, pathLength: 0 }}
-            transition={{ pathLength: { duration: 0.3, ease: "easeInOut" }, opacity: { duration: 0.15 } }}
-            style={{ position: "relative", zIndex: 1 }}
-          >
-            <motion.path d="M20 6L9 17l-5-5" pathLength={1} />
-          </motion.svg>
-        )}
-      </AnimatePresence>
-    </motion.span>
   );
 }

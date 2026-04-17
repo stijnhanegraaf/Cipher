@@ -321,7 +321,7 @@ const CONVERSATIONAL_PATTERNS: { patterns: RegExp[]; match: PatternMatch }[] = [
   // Knowledge/topic navigation
   {
     patterns: [
-      /(?:tell me about|show|view|open) (?:my )?(?:llm|obsidian|tebi|relationship|search)/i,
+      /(?:tell me about|show|view|open) (?:my )?(?:llm|obsidian|relationship|search)/i,
     ],
     match: {
       intent: "knowledge_topic",
@@ -333,17 +333,10 @@ const CONVERSATIONAL_PATTERNS: { patterns: RegExp[]; match: PatternMatch }[] = [
 ];
 
 // ─── Entity type aliases ─────────────────────────────────────────────
-
-const ENTITY_TYPE_ALIASES: Record<string, string> = {
-  "tebi": "tebi",
-  "ns": "ns",
-  "stijn": "stijn-hanegraaf",
-  "nova": "nova",
-  "obsidian": "obsidian",
-  "anthropic": "anthropic",
-  "openai": "openai",
-  "openclaw": "openclaw",
-};
+// Empty by default — aliases are discovered from vault frontmatter (via view-builder
+// reading entity index files). Hardcoding personal aliases tied the app to one user.
+// If you want to hand-curate aliases, put them here — but prefer vault-sourced data.
+const ENTITY_TYPE_ALIASES: Record<string, string> = {};
 
 // ─── Keyword sets per intent (fallback) ──────────────────────────────
 
@@ -444,18 +437,7 @@ function detectIntentByKeywords(query: string): IntentResult {
         };
       }
     }
-    // Check keywords in subject
-    if (subject.includes("tebi")) {
-      return {
-        intent: "entity_overview",
-        viewType: "entity_overview",
-        query,
-        confidence: 0.9,
-        files: ["wiki/knowledge/tebi-brain.md", "wiki/knowledge/entities/tebi.md"],
-        entityName: "tebi",
-      };
-    }
-    // Fallback to search
+    // Fallback to search — no hardcoded entity shortcuts.
     return {
       intent: "search_results",
       viewType: "search_results",
@@ -499,28 +481,8 @@ function detectIntentByKeywords(query: string): IntentResult {
 
   scores.sort((a, b) => b.score - a.score);
 
-  // Special case: "tebi" with research/project context → topic_overview
-  if (q.includes("tebi") && (q.includes("research") || q.includes("project") || q.includes("pos"))) {
-    return {
-      intent: "topic_overview",
-      viewType: "topic_overview",
-      query,
-      confidence: 0.92,
-      files: ["wiki/knowledge/research/projects/tebi-pos/executive-summary.md"],
-    };
-  }
-
-  // Special case: "tebi" alone → entity_overview
-  if (q.includes("tebi")) {
-    return {
-      intent: "entity_overview",
-      viewType: "entity_overview",
-      query,
-      confidence: 0.95,
-      files: ["wiki/knowledge/tebi-brain.md", "wiki/knowledge/entities/tebi.md"],
-      entityName: "tebi",
-    };
-  }
+  // No hardcoded entity shortcuts — entity lookups flow through the general path
+  // (keyword scoring + entityName detection in the outer routing).
 
   if (scores.length > 0 && scores[0].score > 0) {
     const best = scores[0];
@@ -730,18 +692,6 @@ export async function detectIntent(query: string): Promise<IntentResult> {
           topicQuery: entityMatch.match,
         };
       }
-    }
-
-    // Special: tebi entity
-    if (entityMatch.match === "tebi") {
-      return {
-        intent: "entity_overview",
-        viewType: "entity_overview",
-        query,
-        confidence: 0.95,
-        files: ["wiki/knowledge/tebi-brain.md", "wiki/knowledge/entities/tebi.md"],
-        entityName: "tebi",
-      };
     }
 
     return {
