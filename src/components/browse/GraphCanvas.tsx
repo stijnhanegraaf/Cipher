@@ -92,6 +92,11 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     simEdgesRef.current = graph.edges;
     tickCountRef.current = 0;
     viewRef.current = { tx: 0, ty: 0, scale: 1 };
+
+    // Pre-settle the layout silently so nodes don't fly around on mount.
+    // 120 ticks is enough for <800 nodes to reach a near-stable configuration.
+    for (let i = 0; i < 120; i++) step();
+
     mountTimeRef.current = performance.now();
     inhaleRef.current = 0;
 
@@ -100,7 +105,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       step();
       const now = performance.now();
       const inhaleElapsed = now - mountTimeRef.current;
-      inhaleRef.current = Math.min(1, inhaleElapsed / 300);
+      inhaleRef.current = Math.min(1, inhaleElapsed / 400);
 
       // Idle pulse — start a new one every ~4s if none active.
       if (!pulseRef.current && inhaleRef.current >= 1) {
@@ -190,7 +195,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     for (const n of nodes) byId.set(n.id, n);
 
     // 1. Repulsion — O(n²), fine for <800 nodes.
-    const REPULSION = 900;
+    const REPULSION = 450;
     for (let i = 0; i < nodes.length; i++) {
       const a = nodes[i];
       for (let j = i + 1; j < nodes.length; j++) {
@@ -210,8 +215,9 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     }
 
     // 2. Spring force on edges (Hooke's law toward target distance).
-    const TARGET = 70;
-    const STIFFNESS = 0.05;
+    // Short target + stiff spring → Obsidian-style tight clusters.
+    const TARGET = 38;
+    const STIFFNESS = 0.085;
     for (const e of edges) {
       const a = byId.get(e.source);
       const b = byId.get(e.target);
@@ -229,14 +235,14 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     }
 
     // 3. Weak centering force to prevent drift.
-    const CENTER = 0.01;
+    const CENTER = 0.016;
     for (const n of nodes) {
       n.vx += (centerX - n.x) * CENTER;
       n.vy += (centerY - n.y) * CENTER;
     }
 
     // 4. Integrate with damping.
-    const DAMPING = 0.88;
+    const DAMPING = 0.85;
     for (const n of nodes) {
       n.vx *= DAMPING;
       n.vy *= DAMPING;
@@ -302,8 +308,9 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     const byId = new Map<string, SimNode>();
     for (const n of nodes) byId.set(n.id, n);
 
-    // Inhale: nodes scale from 0.5 → 1 and edges fade in 0 → 1 over 300ms.
-    const inhaleScale = 0.5 + 0.5 * inhaleRef.current;
+    // Inhale: opacity-only fade 0 → 1 over 400ms. Layout is pre-settled so
+    // nodes don't fly; they just appear. No scale component — that felt chaotic.
+    const inhaleScale = 1;
     const inhaleAlpha = inhaleRef.current;
 
     // Focus neighbors — computed once per frame when focus is active.
