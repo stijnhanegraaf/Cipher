@@ -10,6 +10,7 @@ import { detectIntent, detectToggleIntent } from "@/lib/intent-detector";
 import { ViewRenderer } from "@/components/views/ViewRenderer";
 import { Avatar } from "@/components/ui";
 import { ChatEmptyState } from "@/components/ChatEmptyState";
+import { SlashCommandMenu } from "@/components/SlashCommandMenu";
 import { fadeSlideUp } from "@/lib/motion";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
 import { useUser } from "@/lib/hooks/useUser";
@@ -372,6 +373,8 @@ export function ChatInterface() {
   }, [input, isProcessing, messages]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Slash menu owns Enter/Arrows/Esc while a command is being composed.
+    if (input.startsWith("/")) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -737,6 +740,20 @@ export function ChatInterface() {
                               );
                             })}
                           </div>
+                          {/* Hover actions — appear on row hover, 120ms fade. */}
+                          <MessageActions
+                            msg={msg}
+                            onRegenerate={() => {
+                              // Re-submit the nearest preceding user message.
+                              const idx = messages.findIndex((m) => m.id === msg.id);
+                              for (let i = idx - 1; i >= 0; i--) {
+                                if (messages[i].role === "user") {
+                                  handleSubmit(messages[i].content);
+                                  return;
+                                }
+                              }
+                            }}
+                          />
                         </div>
                       </div>
                     )}
@@ -836,12 +853,13 @@ export function ChatInterface() {
                   boxShadow: "rgba(0,0,0,0.4) 0px 2px 4px",
                 }}
               >
+                <SlashCommandMenu value={input} onSelect={() => setInput("")} onAsk={(q) => handleSubmit(q)} />
                 <textarea
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask anything — tasks, notes, people, systems…"
+                  placeholder="Ask anything — or /"
                   rows={1}
                   disabled={isProcessing}
                   style={{
@@ -929,7 +947,109 @@ export function ChatInterface() {
         textarea:focus::placeholder {
           color: var(--text-quaternary);
         }
+        /* Hover actions on AI messages — reveal on parent-row hover. */
+        [data-msg-role="assistant"] .msg-actions {
+          opacity: 0;
+          transition: opacity 120ms cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        [data-msg-role="assistant"]:hover .msg-actions,
+        [data-msg-role="assistant"] .msg-actions:focus-within {
+          opacity: 1;
+        }
       `}</style>
     </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// MessageActions — hover-revealed copy + regenerate row under AI messages.
+// ────────────────────────────────────────────────────────────────────
+
+function MessageActions({ msg, onRegenerate }: { msg: Message; onRegenerate: () => void }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const textToCopy = [
+      msg.content,
+      ...(msg.response?.response.views.flatMap((v) => {
+        // Include the primary view summary if present.
+        const data = v.data as unknown as { summary?: string };
+        return data?.summary ? [data.summary] : [];
+      }) ?? []),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {
+      /* clipboard blocked; silently fail */
+    }
+  };
+
+  return (
+    <div
+      className="msg-actions"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 2,
+        marginTop: 12,
+      }}
+    >
+      <ActionIconButton label={copied ? "Copied" : "Copy"} onClick={handleCopy}>
+        {copied ? (
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="var(--status-done)" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        ) : (
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" />
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+          </svg>
+        )}
+      </ActionIconButton>
+      <ActionIconButton label="Regenerate" onClick={onRegenerate}>
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M1 4v6h6M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+        </svg>
+      </ActionIconButton>
+    </div>
+  );
+}
+
+function ActionIconButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      className="focus-ring"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 28,
+        height: 28,
+        borderRadius: 6,
+        background: "transparent",
+        border: "none",
+        color: "var(--text-tertiary)",
+        cursor: "pointer",
+        transition: "background 120ms var(--ease-default), color 120ms var(--ease-default)",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = "var(--bg-surface-alpha-2)";
+        e.currentTarget.style.color = "var(--text-primary)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.color = "var(--text-tertiary)";
+      }}
+    >
+      {children}
+    </button>
   );
 }
