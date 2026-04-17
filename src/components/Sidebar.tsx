@@ -222,7 +222,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           >
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--status-done)", flexShrink: 0 }} />
             <span className="mono-label" style={{ color: "var(--text-tertiary)", letterSpacing: "0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {vault.name}
+              Vault connected
             </span>
           </button>
         </div>
