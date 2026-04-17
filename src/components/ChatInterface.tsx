@@ -459,6 +459,28 @@ export function ChatInterface() {
         color: palette.primaryText,
       }}
     >
+      {/* ── Top bar — empty on desktop, placeholder for mobile actions ─── */}
+      <div
+        style={{
+          flexShrink: 0,
+          height: 48,
+          borderBottom: "1px solid var(--border-subtle)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 16px",
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
+          background: "color-mix(in srgb, var(--bg-marketing) 85%, transparent)",
+          backdropFilter: "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+        }}
+      >
+        <div />
+        <div />
+      </div>
+
       {/* ── Messages area ────────────────────────────────────────── */}
       <div
         ref={scrollContainerRef}

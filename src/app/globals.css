@@ -1080,3 +1080,17 @@ pre code {
   .display { font-size: 1.5rem; letter-spacing: -0.288px; }
   h1, .heading-1 { font-size: 1.25rem; letter-spacing: -0.24px; }
 }
+/* v7 — Mobile fallback: when sidebar is hidden, surface ⌘K + Browse in the
+   page top bar. We emit the same buttons under a .mobile-topbar-actions
+   class that each page's top bar can opt into. For now the ChatInterface
+   top bar has this class built in; other pages get a similar empty top bar
+   (their PageShell header already takes that space). */
+
+@media (max-width: 1023px) {
+  .mobile-topbar-actions {
+    display: inline-flex !important;
+  }
+}
+.mobile-topbar-actions {
+  display: none;
+}
