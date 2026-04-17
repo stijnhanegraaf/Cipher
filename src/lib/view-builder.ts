@@ -609,10 +609,38 @@ export async function buildSystemStatus(): Promise<ViewModel> {
     }
   }
 
+  // Vault-wide health metrics (broken links, stale notes, 30-day activity).
+  // Best-effort — if the scan fails we still return the existing checks.
+  let health: import("./view-models").VaultHealthMetrics | undefined;
+  try {
+    const { buildVaultHealth } = await import("./vault-health");
+    health = (await buildVaultHealth()) ?? undefined;
+    if (health) {
+      if (health.brokenLinks.count > 0) {
+        checks.push({
+          label: "Broken links",
+          status: health.brokenLinks.count > 20 ? "error" : "warn",
+          detail: `${health.brokenLinks.count} unresolved wiki-links`,
+        });
+        if (overallStatus === "ok") overallStatus = "warn";
+      }
+      if (health.staleNotes.count > 0) {
+        checks.push({
+          label: "Stale notes",
+          status: health.staleNotes.count > 50 ? "warn" : "ok",
+          detail: `${health.staleNotes.count} untouched for 30+ days`,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("Vault health scan failed:", e);
+  }
+
   const data: SystemStatusData = {
     overall: { label: overallLabel, status: overallStatus },
     checks,
     attention: attention.length > 0 ? attention.slice(0, 8) : undefined,
+    health,
   };
 
   return {

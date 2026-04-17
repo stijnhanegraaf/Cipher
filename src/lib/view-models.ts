@@ -154,6 +154,39 @@ export interface TimelineSynthesisData {
   proofGaps?: string[];
 }
 
+export interface BrokenLinkSample {
+  from: string;
+  label: string;
+  target: string;
+}
+
+export interface StaleNoteSample {
+  path: string;
+  title: string;
+  daysStale: number;
+}
+
+export interface VaultHealthMetrics {
+  /** Broken wiki-links across the vault. */
+  brokenLinks: {
+    count: number;
+    samples: BrokenLinkSample[];
+  };
+  /** Notes untouched for >30 days in active folders. */
+  staleNotes: {
+    count: number;
+    samples: StaleNoteSample[];
+  };
+  /** Per-day edit counts, last 30 days. Oldest → newest. */
+  activity: {
+    days: number[];
+    total: number;
+    peak: number;
+  };
+  /** Total .md files scanned. */
+  totalFiles: number;
+}
+
 export interface SystemStatusData {
   overall: {
     label: string;
@@ -161,6 +194,8 @@ export interface SystemStatusData {
   };
   checks: StatusItem[];
   attention?: string[];
+  /** Vault-wide health metrics; populated server-side. */
+  health?: VaultHealthMetrics;
 }
 
 export interface SearchResultsData {
