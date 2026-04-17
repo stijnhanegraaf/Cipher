@@ -118,7 +118,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         },
       },
     ];
-  }, [router, handleToggleTheme, vault]);
+  }, [router, handleToggleTheme, vault.disconnect]);
 
   // Active-state hint for sidebar — route-driven only, no view kind.
   const activeKind = null;
@@ -162,10 +162,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
               sheet.close();
               handleAsk(query);
             }}
-            onHome={() => {
-              sheet.close();
-              router.push("/browse");
-            }}
+            onHome={() => router.push("/browse")}
           />
         )}
       </AnimatePresence>
