@@ -23,7 +23,7 @@ import React from "react";
 export interface PageShellProps {
   title: string;
   subtitle?: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   /** Right side of header — icon buttons or a small group. */
   actions?: React.ReactNode;
   /** Optional 40px row under header for filter chips etc. */
@@ -54,21 +54,23 @@ export function PageShell({ title, subtitle, icon, actions, toolbar, children }:
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 28,
-              height: 28,
-              borderRadius: 6,
-              background: "var(--bg-surface-alpha-2)",
-              color: "var(--text-tertiary)",
-              flexShrink: 0,
-            }}
-          >
-            {icon}
-          </span>
+          {icon && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                background: "var(--bg-surface-alpha-2)",
+                color: "var(--text-tertiary)",
+                flexShrink: 0,
+              }}
+            >
+              {icon}
+            </span>
+          )}
           <div style={{ minWidth: 0 }}>
             <h1
               style={{

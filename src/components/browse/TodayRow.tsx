@@ -146,13 +146,10 @@ export function TodayRow({ task, onToggle, pendingCheck = false, onAsk }: Props)
             color: "var(--text-quaternary)",
             letterSpacing: "0.02em",
             flexShrink: 0,
-            maxWidth: 240,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
             whiteSpace: "nowrap",
           }}
         >
-          {shortPath(task.path)} · {relTime(task.mtime)}
+          {relTime(task.mtime)}
         </span>
       )}
       {hovered && (
@@ -219,12 +216,6 @@ function RowIconButton({
       {children}
     </button>
   );
-}
-
-function shortPath(p: string): string {
-  const parts = p.split("/");
-  if (parts.length <= 2) return p.replace(/\.md$/i, "");
-  return `${parts[0]}/…/${parts[parts.length - 1].replace(/\.md$/i, "")}`;
 }
 
 function relTime(ms: number): string {

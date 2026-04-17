@@ -85,7 +85,8 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         y: h / 2 + Math.sin(angle) * r,
         vx: 0,
         vy: 0,
-        radius: Math.max(1.5, Math.min(6, 1.5 + Math.sqrt(n.backlinks) * 0.8)),
+        // Wider dynamic range so hubs read as clear gravity centers (Obsidian-style).
+        radius: Math.max(1.6, Math.min(11, 1.6 + Math.sqrt(n.backlinks) * 1.35)),
       };
     });
     simNodesRef.current = simNodes;
@@ -274,24 +275,12 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     const colLabel       = style.getPropertyValue("--text-primary").trim() || "#f7f8f8";
     const colTooltipBg   = style.getPropertyValue("--bg-tooltip").trim() || "#0d0e0f";
 
-    // Clear then paint cosmic backdrop.
+    // Clear then paint a calm, nearly-flat backdrop with one subtle vignette.
     ctx.clearRect(0, 0, w, h);
-    const grd = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.7);
+    const grd = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.75);
     grd.addColorStop(0, bgStart);
     grd.addColorStop(1, bgEnd);
     ctx.fillStyle = grd;
-    ctx.fillRect(0, 0, w, h);
-
-    // Nebula wash — two soft radials.
-    const nebulaA = ctx.createRadialGradient(w * 0.35, h * 0.6, 0, w * 0.35, h * 0.6, w * 0.4);
-    nebulaA.addColorStop(0, isLight ? "rgba(94,106,210,0.12)" : "rgba(120,100,200,0.15)");
-    nebulaA.addColorStop(1, "transparent");
-    ctx.fillStyle = nebulaA;
-    ctx.fillRect(0, 0, w, h);
-    const nebulaB = ctx.createRadialGradient(w * 0.65, h * 0.4, 0, w * 0.65, h * 0.4, w * 0.4);
-    nebulaB.addColorStop(0, isLight ? "rgba(120,160,220,0.10)" : "rgba(90,130,220,0.12)");
-    nebulaB.addColorStop(1, "transparent");
-    ctx.fillStyle = nebulaB;
     ctx.fillRect(0, 0, w, h);
 
     // Apply pan+zoom.
@@ -396,28 +385,43 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
 
     ctx.restore();
 
-    // Label overlay for hovered node (not scaled, stays crisp at any zoom).
+    // Label overlay for hovered node (screen-space, stays crisp at any zoom).
     if (hoveredId) {
       const n = byId.get(hoveredId);
       if (n) {
         const sx = n.x * scale + tx;
         const sy = n.y * scale + ty;
         const label = n.title;
-        ctx.font = '500 12px Inter, system-ui, sans-serif';
+        ctx.font = '500 13px Inter, system-ui, sans-serif';
         const metrics = ctx.measureText(label);
-        const pad = 6;
-        const boxW = metrics.width + pad * 2;
-        const boxH = 22;
-        const boxX = sx + n.radius * scale + 8;
+        const padX = 10;
+        const padY = 6;
+        const boxW = metrics.width + padX * 2;
+        const boxH = 26;
+        // Prefer right of node; flip to left if it would clip the canvas.
+        let boxX = sx + n.radius * scale + 10;
+        if (boxX + boxW > w - 8) boxX = sx - n.radius * scale - 10 - boxW;
         const boxY = sy - boxH / 2;
+        // Subtle drop shadow so label reads on any background.
+        ctx.save();
+        ctx.shadowColor = isLight ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.5)";
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 2;
         ctx.fillStyle = colTooltipBg;
-        ctx.globalAlpha = 0.95;
-        roundRect(ctx, boxX, boxY, boxW, boxH, 4);
+        ctx.globalAlpha = 0.96;
+        roundRect(ctx, boxX, boxY, boxW, boxH, 6);
         ctx.fill();
+        ctx.restore();
+        // Hairline border for definition.
+        ctx.strokeStyle = isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 1;
+        roundRect(ctx, boxX + 0.5, boxY + 0.5, boxW - 1, boxH - 1, 6);
+        ctx.stroke();
         ctx.globalAlpha = 1;
         ctx.fillStyle = colLabel;
         ctx.textBaseline = "middle";
-        ctx.fillText(label, boxX + pad, boxY + boxH / 2);
+        ctx.textAlign = "left";
+        ctx.fillText(label, boxX + padX, boxY + boxH / 2 + 0.5);
       }
     }
   }, [hoveredId, selectedId, activeIds, focusId]);
