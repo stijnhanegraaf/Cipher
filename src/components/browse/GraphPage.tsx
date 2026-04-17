@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import { GraphCanvas } from "@/components/browse/GraphCanvas";
-import { GraphFilters } from "@/components/browse/GraphFilters";
 import { useSheet } from "@/lib/hooks/useSheet";
 import type { Graph } from "@/lib/vault-graph";
 
@@ -12,9 +11,6 @@ export function GraphPage() {
   const [graph, setGraph] = useState<Graph | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [visibleFolders, setVisibleFolders] = useState<Set<string>>(new Set());
-  const [orphansOnly, setOrphansOnly] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -37,21 +33,6 @@ export function GraphPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const toggleFolder = useCallback((folder: string) => {
-    setVisibleFolders((prev) => {
-      const next = new Set(prev);
-      if (next.size === 0) {
-        const all = new Set(graph?.folders ?? []);
-        all.delete(folder);
-        return all;
-      }
-      if (next.has(folder)) next.delete(folder);
-      else next.add(folder);
-      return next;
-    });
-  }, [graph]);
-  const allFolders = useCallback(() => setVisibleFolders(new Set()), []);
-
   return (
     <PageShell
       icon={
@@ -67,25 +48,7 @@ export function GraphPage() {
     >
       <div style={{ display: "flex", flex: 1, height: "100%", minHeight: 0 }}>
         {!loading && !error && graph && (
-          <>
-            <GraphFilters
-              graph={graph}
-              visibleFolders={visibleFolders}
-              onToggleFolder={toggleFolder}
-              onAllFolders={allFolders}
-              orphansOnly={orphansOnly}
-              onToggleOrphans={() => setOrphansOnly((v) => !v)}
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-            />
-            <GraphCanvas
-              graph={graph}
-              onOpen={sheet.open}
-              visibleFolders={visibleFolders}
-              orphansOnly={orphansOnly}
-              searchTerm={searchTerm}
-            />
-          </>
+          <GraphCanvas graph={graph} onOpen={sheet.open} />
         )}
         {loading && <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-quaternary)" }}>Building graph…</div>}
         {error && <div style={{ flex: 1, padding: 32, color: "var(--status-blocked)" }}>{error}</div>}
