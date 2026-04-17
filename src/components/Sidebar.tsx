@@ -150,16 +150,6 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
       onClick: () => onAsk("what changed this month"),
       activeKinds: ["timeline_synthesis"],
     },
-    {
-      id: "browse",
-      label: "Browse vault",
-      icon: (
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-        </svg>
-      ),
-      onClick: onBrowse,
-    },
   ];
 
   return (
@@ -175,40 +165,79 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
         overflow: "hidden",
       }}
     >
-      {/* ── Top: Cipher mark + vault chip ──────────────── */}
+      {/* ── Sidebar header — 48px ─────────────────────────── */}
       <div
-        className="flex items-center justify-between px-4"
-        style={{ height: 48, flexShrink: 0 }}
+        style={{
+          height: 48,
+          flexShrink: 0,
+          padding: "0 12px 0 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: "1px solid var(--border-subtle)",
+        }}
       >
         <button
           type="button"
           onClick={onHome}
-          className="focus-ring flex items-center gap-2 rounded-[6px] cursor-pointer"
+          className="focus-ring"
           style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
             padding: "4px 6px",
             margin: "0 -6px",
+            borderRadius: 6,
             background: "transparent",
             border: "none",
+            cursor: "pointer",
             color: "var(--text-primary)",
-            transition: "background-color var(--motion-hover) var(--ease-default)",
+            transition: "background var(--motion-hover) var(--ease-default)",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-surface-alpha-2)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
         >
-          <div
+          <span
             style={{
               width: 18, height: 18, borderRadius: 5,
               background: "var(--accent-brand)",
-              display: "flex", alignItems: "center", justifyContent: "center",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
             }}
           >
             <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="var(--text-on-brand)" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0110 0v4" />
             </svg>
-          </div>
+          </span>
           <span style={{ fontSize: 13, fontWeight: 510, letterSpacing: -0.1 }}>Cipher</span>
         </button>
+
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+          <SidebarHeaderButton label="Command palette (⌘K)" onClick={onPalette}>
+            <kbd
+              className="mono-label"
+              style={{
+                fontSize: 10,
+                padding: "1px 5px",
+                borderRadius: 4,
+                border: "1px solid var(--border-standard)",
+                background: "var(--bg-surface-alpha-2)",
+                color: "var(--text-tertiary)",
+                letterSpacing: "0.04em",
+              }}
+            >
+              ⌘K
+            </kbd>
+          </SidebarHeaderButton>
+          <SidebarHeaderButton label="Browse vault" onClick={onBrowse}>
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+            </svg>
+          </SidebarHeaderButton>
+        </div>
       </div>
 
       {/* Vault chip */}
@@ -331,7 +360,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
         </div>
       )}
 
-      {/* ── Bottom: settings ─────────────────────── */}
+      {/* ── Bottom: settings ──────────────────────── */}
       <div
         className="px-3"
         style={{
@@ -414,5 +443,48 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
         </button>
       </div>
     </aside>
+  );
+}
+
+function SidebarHeaderButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="focus-ring"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 28,
+        height: 28,
+        borderRadius: 6,
+        background: "transparent",
+        border: "none",
+        color: "var(--text-tertiary)",
+        cursor: "pointer",
+        transition: "background var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = "var(--bg-surface-alpha-2)";
+        e.currentTarget.style.color = "var(--text-primary)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.color = "var(--text-tertiary)";
+      }}
+    >
+      {children}
+    </button>
   );
 }
