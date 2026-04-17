@@ -74,6 +74,8 @@ export interface TimelineItem {
   label: string;
   summary?: string;
   path?: string;
+  /** Optional section slug inside `path` to deep-link to (e.g. "#thursday-apr-2-2026"). */
+  anchor?: string;
 }
 
 export interface ThemeGroup {

@@ -56,9 +56,9 @@ export function TimelinePage() {
 
   // Flatten themes into date-sorted items, then group by week bucket.
   const grouped = useMemo(() => {
-    if (!data) return [] as { label: string; items: { date: string; label: string; path?: string; summary?: string }[] }[];
+    if (!data) return [] as { label: string; items: { date: string; label: string; path?: string; summary?: string; anchor?: string }[] }[];
     const all = data.themes.flatMap((t) =>
-      t.items.map((it) => ({ date: it.date, label: it.label, path: it.path, summary: it.summary, theme: t.label }))
+      t.items.map((it) => ({ date: it.date, label: it.label, path: it.path, summary: it.summary, anchor: it.anchor, theme: t.label }))
     );
     // Parse date strings loosely — accept "YYYY-MM-DD" or human "12 Mar" (current year).
     const now = Date.now();
@@ -143,7 +143,7 @@ export function TimelinePage() {
             <button
               key={i}
               type="button"
-              onClick={() => item.path && sheet.open(item.path)}
+              onClick={() => item.path && sheet.open(item.path, item.anchor)}
               className="app-row focus-ring"
               style={{
                 display: "flex",
