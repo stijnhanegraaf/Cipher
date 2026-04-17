@@ -164,7 +164,7 @@ export function TimelinePage() {
                 className="mono-label"
                 style={{ width: 104, color: "var(--text-quaternary)", flexShrink: 0, letterSpacing: "0.04em", whiteSpace: "nowrap" }}
               >
-                {item.date}
+                {formatTimelineDate(item.date)}
               </span>
               <span
                 style={{
@@ -185,6 +185,21 @@ export function TimelinePage() {
       ))}
     </PageShell>
   );
+}
+
+/**
+ * Format a date for the timeline column.
+ * Same-year: "Apr 17". Different year: "Apr 17, 2024".
+ * Falls back to the raw string if unparseable.
+ */
+function formatTimelineDate(raw: string): string {
+  const d = parseLooseDate(raw);
+  if (!d) return raw;
+  const thisYear = new Date().getFullYear();
+  const month = d.toLocaleString("en-US", { month: "short" });
+  const day = d.getDate();
+  const year = d.getFullYear();
+  return year === thisYear ? `${month} ${day}` : `${month} ${day}, ${year}`;
 }
 
 function parseLooseDate(s: string): Date | null {
