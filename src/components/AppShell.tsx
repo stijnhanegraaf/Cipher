@@ -156,6 +156,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           <DetailPage
             key={sheet.path}
             path={sheet.path}
+            anchor={sheet.anchor ?? undefined}
             onBack={sheet.close}
             onNavigate={sheet.open}
             onAsk={(query) => {

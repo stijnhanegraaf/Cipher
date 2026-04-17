@@ -644,11 +644,10 @@ export async function buildTimelineSynthesis(): Promise<ViewModel> {
   const paths = currentMonthPaths();
 
   const themes: ThemeGroup[] = [];
-  const dateEntries: { date: string; label: string; summary: string; body: string }[] = [];
+  const dateEntries: { date: string; label: string; summary: string; body: string; sourcePath: string; anchor?: string }[] = [];
   const sourceFiles: string[] = [];
 
-  // Walk backward up to 12 months (current + 11 previous) so the timeline
-  // surfaces real history, not just "this month + last month".
+  // 1. Walk backward up to 12 months of monthly work logs.
   const nowTs = new Date();
   for (let offset = 0; offset < 12; offset++) {
     const d = new Date(nowTs.getFullYear(), nowTs.getMonth() - offset, 1);
@@ -656,7 +655,94 @@ export async function buildTimelineSynthesis(): Promise<ViewModel> {
     const file = await readVaultFile(rel);
     if (!file) continue;
     sourceFiles.push(rel);
-    extractDayEntries(file, d.getFullYear(), dateEntries, monthNames);
+    extractDayEntries(file, d.getFullYear(), dateEntries, monthNames, rel);
+  }
+
+  // 2. Walk wiki/journal/ — one file per day with YYYY-MM-DD.md filename.
+  try {
+    const { readdir } = await import("fs/promises");
+    const { getVaultPath } = await import("./vault-reader");
+    const root = getVaultPath();
+    if (root) {
+      const { existsSync } = await import("fs");
+      const { join } = await import("path");
+      const journalDir = join(root, "wiki/journal");
+      if (existsSync(journalDir)) {
+        const journalFiles = await readdir(journalDir);
+        for (const name of journalFiles) {
+          const m = name.match(/^(\d{4})-(\d{2})-(\d{2})\.md$/i);
+          if (!m) continue;
+          const rel = `wiki/journal/${name}`;
+          const file = await readVaultFile(rel);
+          if (!file) continue;
+          sourceFiles.push(rel);
+          // Whole-file entry: date from filename, label from first heading or filename.
+          const label = file.sections[0]?.heading || `${m[1]}-${m[2]}-${m[3]}`;
+          const bodyLines = file.content.split("\n").filter((l) => l.trim().length > 0);
+          const focusLines = bodyLines.filter((l) => l.trim().startsWith("- "));
+          const summary = focusLines.length > 0
+            ? focusLines.slice(0, 5).map((l) => l.trim().replace(/^[-*]\s*/, "")).join("; ")
+            : file.content.slice(0, 300).trim();
+          dateEntries.push({
+            date: `${m[1]}-${m[2]}-${m[3]}`,
+            label,
+            summary,
+            body: file.content,
+            sourcePath: rel,
+            // Journal files are whole-day, so no anchor needed — open at top.
+          });
+        }
+      }
+
+      // 3. Walk wiki/work/weeks/<year>/ — week-level summary files.
+      const weeksRoot = join(root, "wiki/work/weeks");
+      if (existsSync(weeksRoot)) {
+        const years = await readdir(weeksRoot).catch(() => []);
+        for (const year of years) {
+          const yearDir = join(weeksRoot, year);
+          const weekFiles = await readdir(yearDir).catch(() => []);
+          for (const name of weekFiles) {
+            if (!name.toLowerCase().endsWith(".md")) continue;
+            const rel = `wiki/work/weeks/${year}/${name}`;
+            const file = await readVaultFile(rel);
+            if (!file) continue;
+            sourceFiles.push(rel);
+            // Try to derive a start date from the filename (e.g. "2026-w15.md",
+            // "week-15.md", "apr-13.md"). Fallback to file mtime.
+            const label = file.sections[0]?.heading || name.replace(/\.md$/i, "");
+            let date = "";
+            const isoM = name.match(/(\d{4})-(\d{2})-(\d{2})/);
+            const weekM = name.match(/(\d{4})-w(\d{1,2})/i);
+            if (isoM) date = `${isoM[1]}-${isoM[2]}-${isoM[3]}`;
+            else if (weekM) {
+              const y = parseInt(weekM[1], 10);
+              const w = parseInt(weekM[2], 10);
+              const jan4 = new Date(y, 0, 4);
+              const start = new Date(jan4);
+              start.setDate(jan4.getDate() - (jan4.getDay() || 7) + 1 + (w - 1) * 7);
+              date = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
+            } else if (file.mtime) {
+              const d = new Date(file.mtime);
+              date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            }
+            if (!date) continue;
+            const bodyLines = file.content.split("\n").filter((l) => l.trim().length > 0);
+            const focusLines = bodyLines.filter((l) => l.trim().startsWith("- "));
+            const summary = focusLines.slice(0, 5).map((l) => l.trim().replace(/^[-*]\s*/, "")).join("; ")
+              || file.content.slice(0, 300).trim();
+            dateEntries.push({
+              date,
+              label,
+              summary,
+              body: file.content,
+              sourcePath: rel,
+            });
+          }
+        }
+      }
+    }
+  } catch {
+    /* silent: journal/weeks are best-effort */
   }
 
   // Group entries into themes by keyword detection
@@ -672,6 +758,8 @@ export async function buildTimelineSynthesis(): Promise<ViewModel> {
       date: entry.date,
       label: entry.label,
       summary: entry.summary.slice(0, 200) || undefined,
+      path: entry.sourcePath,
+      anchor: entry.anchor,
     });
   }
 
@@ -723,11 +811,16 @@ export async function buildTimelineSynthesis(): Promise<ViewModel> {
   };
 }
 
+function slugifyHeading(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
 function extractDayEntries(
   file: ParsedFile,
   year: number,
-  dateEntries: { date: string; label: string; summary: string; body: string }[],
+  dateEntries: { date: string; label: string; summary: string; body: string; sourcePath: string; anchor?: string }[],
   monthNames: string[],
+  sourcePath: string,
 ): void {
   for (const section of file.sections) {
     // Match "Thursday, Apr 2, 2026" or "Apr 2, 2026" or date-like patterns
@@ -753,6 +846,8 @@ function extractDayEntries(
         label: section.heading,
         summary: summary || section.body.slice(0, 300).trim(),
         body: section.body,
+        sourcePath,
+        anchor: slugifyHeading(section.heading),
       });
     }
   }

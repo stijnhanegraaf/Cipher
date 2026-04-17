@@ -44,6 +44,8 @@ interface FileData {
 
 interface DetailPageProps {
   path: string;
+  /** Optional section slug to scroll into view on mount (e.g. "thursday-apr-2-2026"). */
+  anchor?: string;
   onBack: () => void;
   onNavigate: (path: string) => void;
   /** Runs a chat query — used by breadcrumb section links to scope the view. */
@@ -207,7 +209,7 @@ function Toast({ message, type, onDismiss }: { message: string; type: "success" 
 
 // ─── DetailPage component ─────────────────────────────────────────────
 
-export function DetailPage({ path, onBack, onNavigate, onAsk, onHome, layoutId }: DetailPageProps) {
+export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, layoutId }: DetailPageProps) {
   const [data, setData] = useState<FileData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -235,11 +237,23 @@ export function DetailPage({ path, onBack, onNavigate, onAsk, onHome, layoutId }
         setData(json);
         setLoading(false);
       })
+      // Scroll to anchor (if any) once content is rendered.
+      .then(() => {
+        if (!anchor) return;
+        const id = `heading-${anchor}`;
+        // Two rAF ticks so MarkdownRenderer has painted.
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            const el = scrollRef.current?.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null;
+            if (el) el.scrollIntoView({ block: "start", behavior: "smooth" });
+          })
+        );
+      })
       .catch((err) => {
         setError(err.message || "Failed to load file");
         setLoading(false);
       });
-  }, [path]);
+  }, [path, anchor]);
 
   useEffect(() => {
     fetchData();
