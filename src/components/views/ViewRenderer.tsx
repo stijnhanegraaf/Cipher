@@ -91,6 +91,38 @@ function getObsidianUrl(path: string, vaultName: string): string {
   return `obsidian://open?vault=${encodeURIComponent(vaultName || "Obsidian")}&file=${encodeURIComponent(path)}`;
 }
 
+function routeForIntent(intent: ViewType, title: string): string | null {
+  switch (intent) {
+    case "system_status":
+      return "/browse/system";
+    case "timeline_synthesis":
+      return "/browse/timeline";
+    case "search_results":
+      return `/browse/search?q=${encodeURIComponent(title)}`;
+    case "entity_overview":
+      return `/browse/entity/${encodeURIComponent(slugify(title))}`;
+    case "topic_overview":
+      return `/browse/topic/${encodeURIComponent(slugify(title))}`;
+    default:
+      return null;
+  }
+}
+
+function openPageLabel(intent: ViewType, title?: string): string {
+  switch (intent) {
+    case "system_status": return "system page";
+    case "timeline_synthesis": return "timeline";
+    case "search_results": return "results";
+    case "entity_overview": return title || "entity";
+    case "topic_overview": return title || "topic";
+    default: return "page";
+  }
+}
+
+function slugify(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
 interface ViewRendererProps {
   view: ViewModel;
   index?: number;
@@ -98,6 +130,7 @@ interface ViewRendererProps {
   onToggle?: (itemId: string, checked: boolean) => void;
   /** Re-enter the chat with a preset query — used by empty-state CTAs. */
   onAsk?: (query: string) => void;
+  variant?: "chat-summary" | "card";
 }
 
 /**
@@ -110,7 +143,7 @@ interface ViewRendererProps {
  * bar (kind · freshness · sources-disclosure · Obsidian link), actions as ghost
  * buttons inline above meta. Reads as a Linear comment, not a card.
  */
-export function ViewRenderer({ view, index = 0, onNavigate, onToggle, onAsk }: ViewRendererProps) {
+export function ViewRenderer({ view, index = 0, onNavigate, onToggle, onAsk, variant = "card" }: ViewRendererProps) {
   const { name: vaultName } = useVault();
   const Component = viewComponents[view.type];
 
@@ -126,6 +159,54 @@ export function ViewRenderer({ view, index = 0, onNavigate, onToggle, onAsk }: V
         <p className="caption-large" style={{ color: "var(--status-warning)", fontWeight: 510 }}>
           Unknown view type: {view.type}
         </p>
+      </div>
+    );
+  }
+
+  // ── Chat-summary variant — short prose summary + Open page CTA. ───────
+  // Used inside ChatSurface for intent types that have a dedicated page.
+  if (variant === "chat-summary") {
+    const pageHref = routeForIntent(view.type, view.title ?? "");
+    const summaryText = view.subtitle || view.title || "Here's what I found.";
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 600 }}>
+        <p className="small" style={{ color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>
+          {summaryText}
+        </p>
+        {pageHref && (
+          <a
+            href={pageHref}
+            className="focus-ring"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 12px",
+              borderRadius: 6,
+              background: "var(--bg-surface-alpha-2)",
+              border: "1px solid var(--border-standard)",
+              color: "var(--text-primary)",
+              fontSize: 13,
+              fontWeight: 510,
+              textDecoration: "none",
+              alignSelf: "flex-start",
+              transition: "background var(--motion-hover) var(--ease-default), border-color var(--motion-hover) var(--ease-default)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--bg-surface-alpha-4)";
+              e.currentTarget.style.borderColor = "var(--border-solid-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "var(--bg-surface-alpha-2)";
+              e.currentTarget.style.borderColor = "var(--border-standard)";
+            }}
+          >
+            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M7 17L17 7M7 7h10v10" />
+            </svg>
+            Open {openPageLabel(view.type, view.title)}
+          </a>
+        )}
       </div>
     );
   }
