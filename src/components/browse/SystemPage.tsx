@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { PageShell, PageAction } from "@/components/PageShell";
 import { StatusDot, Badge, MarkdownRenderer } from "@/components/ui";
+import { ActivitySparkline } from "@/components/ui/ActivitySparkline";
 import { useSheet } from "@/lib/hooks/useSheet";
 import type { SystemStatusData, Status } from "@/lib/view-models";
 
@@ -74,6 +75,20 @@ export function SystemPage() {
       {!loading && error && <ErrorBlock body={error} />}
       {!loading && !error && data && (
         <>
+          {/* Vault activity — appears first so you immediately see the
+              pulse of the vault. */}
+          {data.health && (
+            <Section label="Vault activity" count={data.health.totalFiles}>
+              <div style={{ padding: "16px 16px 20px" }}>
+                <ActivitySparkline
+                  days={data.health.activity.days}
+                  peak={data.health.activity.peak}
+                  total={data.health.activity.total}
+                />
+              </div>
+            </Section>
+          )}
+
           <Section label="Checks" count={data.checks.length}>
             {data.checks.length === 0 ? (
               <EmptyState body="No checks configured." />
@@ -83,6 +98,36 @@ export function SystemPage() {
               ))
             )}
           </Section>
+
+          {data.health && data.health.brokenLinks.count > 0 && (
+            <Section label="Broken links" count={data.health.brokenLinks.count}>
+              {data.health.brokenLinks.samples.map((s, i) => (
+                <BrokenLinkRow
+                  key={i}
+                  sample={s}
+                  onOpen={() => sheet.open(s.from)}
+                />
+              ))}
+              {data.health.brokenLinks.count > data.health.brokenLinks.samples.length && (
+                <p className="small" style={{ padding: "8px 16px 16px", color: "var(--text-quaternary)", margin: 0 }}>
+                  + {data.health.brokenLinks.count - data.health.brokenLinks.samples.length} more.
+                </p>
+              )}
+            </Section>
+          )}
+
+          {data.health && data.health.staleNotes.count > 0 && (
+            <Section label="Stale notes" count={data.health.staleNotes.count}>
+              {data.health.staleNotes.samples.map((s, i) => (
+                <StaleNoteRow key={i} sample={s} onOpen={() => sheet.open(s.path)} />
+              ))}
+              {data.health.staleNotes.count > data.health.staleNotes.samples.length && (
+                <p className="small" style={{ padding: "8px 16px 16px", color: "var(--text-quaternary)", margin: 0 }}>
+                  + {data.health.staleNotes.count - data.health.staleNotes.samples.length} more.
+                </p>
+              )}
+            </Section>
+          )}
 
           {data.attention && data.attention.length > 0 && (
             <Section label="Needs attention" count={data.attention.length}>
@@ -160,6 +205,75 @@ function CheckRow({ status, label, detail }: { status: Status; label: string; de
       <Badge variant={variant} dot>
         {pillLabel}
       </Badge>
+    </div>
+  );
+}
+
+function BrokenLinkRow({ sample, onOpen }: { sample: { from: string; label: string }; onOpen: () => void }) {
+  const fromShort = (sample.from.split("/").pop() || sample.from).replace(/\.md$/i, "");
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); }
+      }}
+      className="app-row focus-ring"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "0 16px",
+        height: 40,
+        borderBottom: "1px solid var(--border-subtle)",
+        cursor: "pointer",
+      }}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--status-warning)", flexShrink: 0 }} />
+      <span style={{
+        flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        color: "var(--text-primary)", fontSize: 13,
+      }}>
+        <span style={{ color: "var(--text-tertiary)" }}>[[</span>{sample.label}<span style={{ color: "var(--text-tertiary)" }}>]]</span>
+      </span>
+      <span className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.02em", flexShrink: 0 }}>
+        in {fromShort}
+      </span>
+    </div>
+  );
+}
+
+function StaleNoteRow({ sample, onOpen }: { sample: { path: string; title: string; daysStale: number }; onOpen: () => void }) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); }
+      }}
+      className="app-row focus-ring"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "0 16px",
+        height: 40,
+        borderBottom: "1px solid var(--border-subtle)",
+        cursor: "pointer",
+      }}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--text-quaternary)", flexShrink: 0 }} />
+      <span style={{
+        flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        color: "var(--text-primary)", fontSize: 13,
+      }}>
+        {sample.title}
+      </span>
+      <span className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.02em", flexShrink: 0 }}>
+        {sample.daysStale}d
+      </span>
     </div>
   );
 }
