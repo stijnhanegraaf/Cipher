@@ -43,9 +43,16 @@ export function TodayRow({ task, onToggle, pendingCheck = false, onAsk }: Props)
   const checked = pendingCheck;
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={openSheet}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openSheet();
+        }
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="app-row focus-ring"
@@ -56,8 +63,6 @@ export function TodayRow({ task, onToggle, pendingCheck = false, onAsk }: Props)
         width: "100%",
         height: 40,
         padding: "0 16px",
-        border: "none",
-        background: "transparent",
         cursor: "pointer",
         textAlign: "left",
         borderBottom: "1px solid var(--border-subtle)",
@@ -171,7 +176,7 @@ export function TodayRow({ task, onToggle, pendingCheck = false, onAsk }: Props)
           )}
         </span>
       )}
-    </button>
+    </div>
   );
 }
 
