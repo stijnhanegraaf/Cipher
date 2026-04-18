@@ -92,12 +92,11 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         y: h / 2 + Math.sin(angle) * r,
         vx: 0,
         vy: 0,
-        // Wider dynamic range so hubs read as clear gravity centers (Obsidian-style).
-        radius: Math.max(1.8, Math.min(13, 1.8 + Math.sqrt(n.backlinks) * 1.6)),
+        // Obsidian-tight: tiny leaf dots, modest hubs. Radius 1.5 → 6.5.
+        radius: Math.max(1.5, Math.min(6.5, 1.5 + Math.sqrt(n.backlinks) * 0.9)),
         degree,
-        // Degree-weighted charge. Hubs throw weight around; leaves barely push.
-        // Sqrt keeps a 20-backlink hub only ~3× the push of a 2-backlink node.
-        charge: 180 + Math.sqrt(degree) * 120,
+        // Degree-weighted charge. Sqrt keeps hub push modest.
+        charge: 150 + Math.sqrt(degree) * 90,
       };
     });
     simNodesRef.current = simNodes;
@@ -206,8 +205,8 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     //    Hubs push harder (degree-weighted charge). Nodes that would
     //    overlap get forcibly separated — no geometry overlap at rest,
     //    the exact thing that makes Obsidian's clusters read.
-    const COLLIDE_PAD = 2;
-    const REPULSION_NORM = 28000; // divisor to keep charge products in range
+    const COLLIDE_PAD = 1;
+    const REPULSION_NORM = 22000; // tuned for 150 + sqrt(degree) * 90 charge
     for (let i = 0; i < nodes.length; i++) {
       const a = nodes[i];
       for (let j = i + 1; j < nodes.length; j++) {
