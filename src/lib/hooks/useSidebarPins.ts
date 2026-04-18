@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { PinEntry, SidebarConfig } from "@/lib/settings";
+import { log } from "@/lib/log";
 
 function newId(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -48,7 +49,7 @@ export function useSidebarPins() {
     setPins((prev) => {
       const next = [...prev, { id: newId(), ...partial }];
       void persist({ version: 1, pins: next }).catch((e) =>
-        console.error("[sidebar-pins] add failed:", e)
+        log.error("sidebar-pins", "add failed", e)
       );
       return next;
     });
@@ -58,7 +59,7 @@ export function useSidebarPins() {
     setPins((prev) => {
       const next = prev.filter((p) => p.id !== id);
       void persist({ version: 1, pins: next }).catch((e) =>
-        console.error("[sidebar-pins] remove failed:", e)
+        log.error("sidebar-pins", "remove failed", e)
       );
       return next;
     });
@@ -68,7 +69,7 @@ export function useSidebarPins() {
     setPins((prev) => {
       const next = prev.map((p) => (p.id === id ? { ...p, ...patch } : p));
       void persist({ version: 1, pins: next }).catch((e) =>
-        console.error("[sidebar-pins] update failed:", e)
+        log.error("sidebar-pins", "update failed", e)
       );
       return next;
     });
@@ -77,7 +78,7 @@ export function useSidebarPins() {
   const reorderPins = useCallback((next: PinEntry[]) => {
     setPins(next);
     void persist({ version: 1, pins: next }).catch((e) =>
-      console.error("[sidebar-pins] reorder failed:", e)
+      log.error("sidebar-pins", "reorder failed", e)
     );
   }, []);
 

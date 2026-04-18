@@ -3,6 +3,7 @@ import { detectIntent } from "@/lib/intent-detector";
 import { buildView } from "@/lib/view-builder";
 import { getEntityIndex, getProjectIndex, getResearchProjects } from "@/lib/vault-reader";
 import type { ResponseEnvelope, Intent, ViewType } from "@/lib/view-models";
+import { log } from "@/lib/log";
 
 // ─── GET /api/query — vault metadata ──────────────────────────────────
 
@@ -30,7 +31,7 @@ export async function GET() {
       research,
     });
   } catch (error) {
-    console.error("Query API GET error:", error);
+    log.error("query", "GET error", error);
     return NextResponse.json(
       { error: "Failed to load vault metadata", detail: error instanceof Error ? error.message : String(error) },
       { status: 500 }
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error("Query API error:", error);
+    log.error("query", "POST error", error);
     const detail = error instanceof Error ? error.message : "Something went wrong processing your query.";
     return NextResponse.json(
       {

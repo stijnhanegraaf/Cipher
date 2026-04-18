@@ -2,6 +2,7 @@ import "server-only";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { join } from "path";
 import { getVaultPath } from "./vault-reader";
+import { log } from "./log";
 
 // ─── Types ───────────────────────────────────────────────────────────
 export type PinIconName =
@@ -31,7 +32,7 @@ export async function readSidebarSettings(): Promise<SidebarConfig> {
     const raw = await readFile(join(root, FILE_REL), "utf-8");
     const parsed = JSON.parse(raw);
     if (!isValidConfig(parsed)) {
-      console.warn("[settings] malformed sidebar.json — returning empty config");
+      log.warn("settings", "malformed sidebar.json — returning empty config");
       return EMPTY;
     }
     return parsed;

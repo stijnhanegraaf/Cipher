@@ -8,6 +8,7 @@ import {
 } from "@/lib/vault-reader";
 import { existsSync, readdirSync } from "fs";
 import { join } from "path";
+import { log } from "@/lib/log";
 
 /**
  * Returns the active vault's top-level structure for the drawer.
@@ -95,7 +96,7 @@ export async function GET() {
     // Keep only non-empty sections.
     return NextResponse.json({ sections: sections.filter((s) => s.items.length > 0) });
   } catch (error) {
-    console.error("Vault structure API error:", error);
+    log.error("vault-structure", "API error", error);
     return NextResponse.json(
       { error: "Failed to load vault structure", detail: error instanceof Error ? error.message : String(error) },
       { status: 500 }

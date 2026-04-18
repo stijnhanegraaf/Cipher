@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildGraph } from "@/lib/vault-graph";
 import { getVaultPath } from "@/lib/vault-reader";
+import { log } from "@/lib/log";
 
 // ─── GET /api/vault/graph ──────────────────────────────────────────────
 // Returns the full graph for the active vault: nodes, edges, folders.
@@ -18,7 +19,7 @@ export async function GET() {
     const graph = await buildGraph();
     return NextResponse.json(graph);
   } catch (error) {
-    console.error("Graph API error:", error);
+    log.error("vault-graph", "API error", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to build graph" },
       { status: 500 }
