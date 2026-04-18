@@ -285,39 +285,14 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           }}
         >
           <div
-            className="px-2"
+            className="mono-label px-2"
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
+              color: "var(--text-quaternary)",
+              letterSpacing: "0.04em",
               marginBottom: 8,
-              gap: 8,
             }}
           >
-            <span className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.04em" }}>
-              Recent
-            </span>
-            {onClearRecents && recentQueries.length > 0 && (
-              <button
-                type="button"
-                onClick={onClearRecents}
-                className="focus-ring"
-                title="Clear recent"
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "var(--text-quaternary)",
-                  cursor: "pointer",
-                  padding: "2px 6px",
-                  borderRadius: "var(--radius-small)",
-                  transition: "color var(--motion-hover) var(--ease-default)",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-secondary)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-quaternary)"; }}
-              >
-                <span className="mono-label" style={{ letterSpacing: "0.04em" }}>Clear</span>
-              </button>
-            )}
+            Recent
           </div>
           <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
             {recentQueries.slice(0, 8).map((query, i) => (
