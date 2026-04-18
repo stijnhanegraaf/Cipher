@@ -598,7 +598,9 @@ export async function resolveLink(linkPath: string): Promise<string | null> {
   const root = VAULT_PATH_();
   if (!root || !linkPath) return null;
 
-  const trimmed = linkPath.trim().replace(/^\/+/, "");
+  // Strip section anchors (e.g. "work/open#section")
+  const [pathPart, anchor] = linkPath.split("#");
+  const trimmed = pathPart.trim().replace(/^\/+/, "");
   if (!trimmed) return null;
 
   const layout = getVaultLayout();
@@ -629,7 +631,7 @@ export async function resolveLink(linkPath: string): Promise<string | null> {
   for (const candidate of [...direct, ...prefixed]) {
     try {
       const s = await stat(join(root, candidate));
-      if (s.isFile()) return candidate;
+      if (s.isFile()) return anchor ? candidate + "#" + anchor : candidate;
     } catch { /* next */ }
   }
 
@@ -641,7 +643,8 @@ export async function resolveLink(linkPath: string): Promise<string | null> {
       const hits = index.get(key);
       if (hits && hits.length > 0) {
         // Prefer the shortest path on ambiguity — most likely the canonical location.
-        return [...hits].sort((a, b) => a.length - b.length)[0];
+        const best = [...hits].sort((a, b) => a.length - b.length)[0];
+        return anchor ? best + "#" + anchor : best;
       }
     } catch { /* fall through */ }
   }
