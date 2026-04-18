@@ -864,9 +864,16 @@
   margin: 0 -6px;
 }
 
-/* Hover-revealed remove button on recent-query rows. Starts at opacity 0
-   (set inline), fades in when the parent app-row is hovered or its button
-   is keyboard-focused. */
+/* Hover-revealed remove button on recent-query rows.
+   Default opacity lives on the class itself (not inline) so the :hover
+   selector below can override it without losing the specificity war. */
+.recent-remove {
+  opacity: 0;
+  transition:
+    opacity var(--motion-hover) var(--ease-default),
+    color var(--motion-hover) var(--ease-default),
+    background var(--motion-hover) var(--ease-default);
+}
 .app-row:hover .recent-remove,
 .app-row:focus-within .recent-remove,
 .recent-remove:focus-visible {
