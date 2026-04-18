@@ -180,11 +180,10 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
         <div style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
           <SidebarHeaderButton label="Command palette (⌘K)" onClick={onPalette}>
             <kbd
-              className="mono-label"
+              className="micro"
               style={{
-                fontSize: 10,
-                padding: "1px 5px",
-                borderRadius: 4,
+                padding: "2px 6px",
+                borderRadius: "var(--radius-small)",
                 border: "1px solid var(--border-standard)",
                 background: "var(--bg-surface-alpha-2)",
                 color: "var(--text-tertiary)",
@@ -214,13 +213,13 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
             title="Change vault (⌘K)"
             className="focus-ring app-row flex items-center gap-2 w-full rounded-[6px] cursor-pointer"
             style={{
-              padding: "6px 10px",
+              padding: "6px 12px",
               background: "transparent",
               border: "none",
               transition: "background-color var(--motion-hover) var(--ease-default)",
             }}
           >
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--status-done)", flexShrink: 0 }} />
+            <span style={{ width: "var(--dot-size-sm)", height: "var(--dot-size-sm)", borderRadius: "50%", background: "var(--status-done)", flexShrink: 0 }} />
             <span className="mono-label" style={{ color: "var(--text-tertiary)", letterSpacing: "0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               Vault connected
             </span>
@@ -243,7 +242,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
               className="focus-ring app-row flex items-center gap-2.5 rounded-[6px] cursor-pointer"
               style={{
                 height: 32,
-                padding: "0 10px",
+                padding: "0 12px",
                 background: active ? "var(--bg-surface-alpha-4)" : "transparent",
                 border: "none",
                 color: active ? "var(--text-primary)" : "var(--text-secondary)",
@@ -299,8 +298,8 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
                 onClick={() => onAsk(query)}
                 className="focus-ring app-row flex items-center rounded-[6px] cursor-pointer"
                 style={{
-                  height: 28,
-                  padding: "0 10px",
+                  height: "var(--row-h-dense)",
+                  padding: "0 12px",
                   background: "transparent",
                   border: "none",
                   color: "var(--text-tertiary)",
@@ -345,7 +344,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           className="focus-ring app-row flex items-center gap-2.5 rounded-[6px] cursor-pointer"
           style={{
             height: 32,
-            padding: "0 10px",
+            padding: "0 12px",
             background: "transparent",
             border: "none",
             color: "var(--text-tertiary)",
@@ -366,13 +365,12 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           </span>
           <span>Commands</span>
           <span
-            className="mono-label ml-auto"
+            className="micro ml-auto"
             style={{
-              padding: "1px 5px",
-              borderRadius: 4,
+              padding: "2px 6px",
+              borderRadius: "var(--radius-small)",
               border: "1px solid var(--border-standard)",
               background: "var(--bg-surface-alpha-2)",
-              fontSize: 10,
               color: "var(--text-quaternary)",
               letterSpacing: "0.04em",
             }}
@@ -386,7 +384,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           className="focus-ring app-row flex items-center gap-2.5 rounded-[6px] cursor-pointer"
           style={{
             height: 32,
-            padding: "0 10px",
+            padding: "0 12px",
             background: "transparent",
             border: "none",
             color: "var(--text-tertiary)",
@@ -431,9 +429,9 @@ function SidebarHeaderButton({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        width: 28,
-        height: 28,
-        borderRadius: 6,
+        width: "var(--icon-button-size)",
+        height: "var(--icon-button-size)",
+        borderRadius: "var(--radius-comfortable)",
         background: "transparent",
         border: "none",
         color: "var(--text-tertiary)",

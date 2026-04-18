@@ -200,7 +200,7 @@ export function SlashCommandMenu({ value, onSelect, onAsk }: SlashCommandMenuPro
               width: "100%",
               padding: "8px 12px",
               border: "none",
-              background: isActive ? "var(--bg-surface-alpha-2)" : "transparent",
+              background: isActive ? "var(--hover-row)" : "transparent",
               textAlign: "left",
               cursor: "pointer",
               color: "var(--text-primary)",
@@ -209,7 +209,7 @@ export function SlashCommandMenu({ value, onSelect, onAsk }: SlashCommandMenuPro
             <span
               className="mono-label"
               style={{
-                minWidth: 84,
+                minWidth: 80,
                 color: isActive ? "var(--accent-brand)" : "var(--text-tertiary)",
                 letterSpacing: "0.02em",
                 flexShrink: 0,

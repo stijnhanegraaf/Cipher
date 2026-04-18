@@ -152,8 +152,9 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
-            className="fixed left-1/2 top-[15vh] -translate-x-1/2 z-[401] w-[560px] max-w-[calc(100vw-32px)] rounded-[12px] overflow-hidden flex flex-col"
+            className="fixed left-1/2 top-[15vh] -translate-x-1/2 z-[401] w-[560px] max-w-[calc(100vw-32px)] overflow-hidden flex flex-col"
             style={{
+              borderRadius: "var(--radius-panel)",
               background: "var(--bg-elevated)",
               border: "1px solid var(--border-standard)",
               boxShadow: "var(--shadow-dialog)",
@@ -162,9 +163,9 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
           >
             {/* Search input */}
             <div
-              className="flex items-center gap-2.5 px-4"
+              className="flex items-center gap-2 px-4"
               style={{
-                height: 48,
+                height: "var(--row-h-default)",
                 borderBottom: "1px solid var(--border-subtle)",
               }}
             >

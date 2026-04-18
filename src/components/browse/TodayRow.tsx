@@ -61,7 +61,7 @@ export function TodayRow({ task, onToggle, pendingCheck = false, onAsk }: Props)
         alignItems: "center",
         gap: 12,
         width: "100%",
-        height: 40,
+        height: "var(--row-h-cozy)",
         padding: "0 16px",
         cursor: "pointer",
         textAlign: "left",
@@ -85,9 +85,9 @@ export function TodayRow({ task, onToggle, pendingCheck = false, onAsk }: Props)
         }}
         tabIndex={0}
         style={{
-          width: 14,
-          height: 14,
-          borderRadius: 3,
+          width: "var(--checkbox-size)",
+          height: "var(--checkbox-size)",
+          borderRadius: "var(--radius-small)",
           border: `1.5px solid ${checked ? "var(--accent-brand)" : "var(--border-standard)"}`,
           background: checked ? "var(--accent-brand)" : "transparent",
           display: "inline-flex",
@@ -99,7 +99,7 @@ export function TodayRow({ task, onToggle, pendingCheck = false, onAsk }: Props)
         }}
       >
         {checked && (
-          <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="var(--text-on-brand)" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+          <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="var(--text-on-brand)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6L9 17l-5-5" />
           </svg>
         )}
@@ -130,10 +130,10 @@ export function TodayRow({ task, onToggle, pendingCheck = false, onAsk }: Props)
             className="mono-label"
             style={{
               marginRight: 8,
-              padding: "1px 4px",
+              padding: "2px 4px",
               background: "color-mix(in srgb, var(--status-blocked) 15%, transparent)",
               color: "var(--status-blocked)",
-              borderRadius: 3,
+              borderRadius: "var(--radius-small)",
               letterSpacing: "0.04em",
             }}
           >
@@ -200,9 +200,9 @@ function RowIconButton({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        width: 24,
-        height: 24,
-        borderRadius: 4,
+        width: "var(--icon-button-size-sm)",
+        height: "var(--icon-button-size-sm)",
+        borderRadius: "var(--radius-small)",
         background: "transparent",
         border: "none",
         color: "var(--text-tertiary)",
@@ -210,7 +210,7 @@ function RowIconButton({
         transition: "background var(--motion-hover) var(--ease-default)",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = "var(--bg-surface-alpha-4)";
+        e.currentTarget.style.background = "var(--hover-control)";
         e.currentTarget.style.color = "var(--text-primary)";
       }}
       onMouseLeave={(e) => {

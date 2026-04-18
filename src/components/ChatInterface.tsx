@@ -1041,7 +1041,7 @@ function ActionIconButton({ label, onClick, children }: { label: string; onClick
         transition: "background 120ms var(--ease-default), color 120ms var(--ease-default)",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = "var(--bg-surface-alpha-2)";
+        e.currentTarget.style.background = "var(--hover-control)";
         e.currentTarget.style.color = "var(--text-primary)";
       }}
       onMouseLeave={(e) => {

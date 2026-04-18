@@ -94,7 +94,7 @@ export function CurrentWorkView({ data, view, onToggle, onAsk, onNavigate }: { d
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth={1.5}
+            strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
             className="mb-4 text-text-quaternary"

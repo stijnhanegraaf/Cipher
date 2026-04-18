@@ -192,7 +192,7 @@ function CheckRow({ status, label, detail }: { status: Status; label: string; de
         alignItems: "center",
         gap: 12,
         padding: "0 16px",
-        height: 40,
+        height: "var(--row-h-cozy)",
         borderBottom: "1px solid var(--border-subtle)",
       }}
     >
@@ -225,12 +225,12 @@ function BrokenLinkRow({ sample, onOpen }: { sample: { from: string; label: stri
         alignItems: "center",
         gap: 12,
         padding: "0 16px",
-        height: 40,
+        height: "var(--row-h-cozy)",
         borderBottom: "1px solid var(--border-subtle)",
         cursor: "pointer",
       }}
     >
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--status-warning)", flexShrink: 0 }} />
+      <span style={{ width: "var(--dot-size-sm)", height: "var(--dot-size-sm)", borderRadius: "50%", background: "var(--status-warning)", flexShrink: 0 }} />
       <span style={{
         flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         color: "var(--text-primary)", fontSize: 13,
@@ -259,12 +259,12 @@ function StaleNoteRow({ sample, onOpen }: { sample: { path: string; title: strin
         alignItems: "center",
         gap: 12,
         padding: "0 16px",
-        height: 40,
+        height: "var(--row-h-cozy)",
         borderBottom: "1px solid var(--border-subtle)",
         cursor: "pointer",
       }}
     >
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--text-quaternary)", flexShrink: 0 }} />
+      <span style={{ width: "var(--dot-size-sm)", height: "var(--dot-size-sm)", borderRadius: "50%", background: "var(--text-quaternary)", flexShrink: 0 }} />
       <span style={{
         flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         color: "var(--text-primary)", fontSize: 13,

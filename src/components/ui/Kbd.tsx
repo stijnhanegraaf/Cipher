@@ -8,16 +8,15 @@
 export function Kbd({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <kbd
-      className={`inline-flex items-center justify-center mono-label text-text-tertiary ${className}`}
+      className={`inline-flex items-center justify-center micro text-text-tertiary ${className}`}
       style={{
-        minWidth: 16,
-        height: 16,
+        minWidth: "var(--kbd-size)",
+        height: "var(--kbd-size)",
         padding: "0 4px",
-        borderRadius: 4,
+        borderRadius: "var(--radius-small)",
         background: "var(--bg-surface-alpha-5)",
         border: "1px solid var(--border-standard)",
         boxShadow: "var(--shadow-micro)",
-        fontSize: 11,
         lineHeight: 1,
         letterSpacing: 0,
       }}

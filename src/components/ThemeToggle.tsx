@@ -64,7 +64,7 @@ export function ThemeToggle() {
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
-            strokeWidth={1.5}
+            strokeWidth={2}
           >
             <path
               strokeLinecap="round"
@@ -84,7 +84,7 @@ export function ThemeToggle() {
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
-            strokeWidth={1.5}
+            strokeWidth={2}
           >
             <path
               strokeLinecap="round"

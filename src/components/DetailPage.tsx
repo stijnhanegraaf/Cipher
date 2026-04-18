@@ -646,7 +646,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, la
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke={theme.text.quaternary}
-                    strokeWidth={1.5}
+                    strokeWidth={2}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     style={{ margin: "0 auto 24px" }}
