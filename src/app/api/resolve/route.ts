@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveLink, getVaultPath } from "@/lib/vault-reader";
+import { log } from "@/lib/log";
 
 // ─── GET /api/resolve?path=<any-link-input> ───────────────────────────
 // Resolves a user-facing link reference (short name, wiki label, relative path)
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
     const resolved = await resolveLink(input);
     return NextResponse.json({ input, resolved });
   } catch (error) {
-    console.error("Resolve API error:", error);
+    log.error("resolve", "API error", error);
     return NextResponse.json(
       { resolved: null, error: error instanceof Error ? error.message : "Resolve failed" },
       { status: 500 }

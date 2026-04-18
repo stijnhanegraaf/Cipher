@@ -13,6 +13,7 @@ import { ChatEmptyState } from "@/components/ChatEmptyState";
 import { SlashCommandMenu } from "@/components/SlashCommandMenu";
 import { fadeSlideUp } from "@/lib/motion";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
+import { log } from "@/lib/log";
 import { useUser } from "@/lib/hooks/useUser";
 import { useVault } from "@/lib/hooks/useVault";
 
@@ -340,7 +341,7 @@ export function ChatInterface() {
         response = getMockResponse(intent.viewType);
       }
     } catch (err) {
-      console.error("handleSubmit fetch error:", err);
+      log.error("chat", "handleSubmit fetch failed", err);
       // Fallback to mock on error
       try {
         const intent = await detectIntent(userMessage);

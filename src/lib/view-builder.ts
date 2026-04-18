@@ -49,6 +49,7 @@ import {
   type TableData,
   type EntityData,
 } from "./vault-reader";
+import { log } from "./log";
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
@@ -666,7 +667,7 @@ export async function buildSystemStatus(): Promise<ViewModel> {
       }
     }
   } catch (e) {
-    console.warn("Vault health scan failed:", e);
+    log.warn("view-builder", "vault health scan failed", e);
   }
 
   const data: SystemStatusData = {

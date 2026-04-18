@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readVaultFile, resolveLink, getVaultPath } from "@/lib/vault-reader";
 import { readFile, writeFile } from "fs/promises";
 import { join } from "path";
+import { log } from "@/lib/log";
 
 // ─── GET /api/file?path=wiki/work/open.md ─────────────────────────────
 // Returns raw markdown content + parsed metadata for a vault file
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error("File API error:", error);
+    log.error("file", "GET error", error);
     return NextResponse.json(
       { error: "Failed to read file", detail: error instanceof Error ? error.message : String(error) },
       { status: 500 }
@@ -110,7 +111,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Provide 'content' or 'lineIndex'+'newText'" }, { status: 400 });
     }
   } catch (error) {
-    console.error("File PUT error:", error);
+    log.error("file", "PUT error", error);
     return NextResponse.json(
       { error: "Failed to write file", detail: error instanceof Error ? error.message : String(error) },
       { status: 500 }

@@ -2,6 +2,7 @@
 // In production, this would talk to the real Obsidian vault + AI backend
 
 import { ResponseEnvelope } from "./view-models";
+import { log } from "./log";
 
 // ─── Real data flag ───────────────────────────────────────────────────
 // When true, the app calls the /api/query endpoint to get real vault data.
@@ -46,7 +47,7 @@ export async function fetchRealData(query: string, entityName?: string): Promise
     });
 
     if (!res.ok) {
-      console.warn(`fetchRealData: API returned ${res.status} ${res.statusText} for query "${query}"`);
+      log.warn("mock-data", `fetchRealData API returned ${res.status} ${res.statusText}`, { query });
       return null;
     }
 
@@ -57,7 +58,7 @@ export async function fetchRealData(query: string, entityName?: string): Promise
 
     return response;
   } catch (error) {
-    console.warn(`fetchRealData: Failed to fetch real data for query "${query}"`, error);
+    log.warn("mock-data", "fetchRealData failed", { query, error });
     return null;
   }
 }
