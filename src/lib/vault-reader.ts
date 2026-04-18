@@ -609,10 +609,12 @@ export async function resolveLink(linkPath: string): Promise<string | null> {
   // Tier 1: exact matches.
   const direct = [trimmed, trimmed.endsWith(".md") ? null : trimmed + ".md"].filter(Boolean) as string[];
 
-  // Tier 2 + 3: prefixed with each probed section folder + wiki fallback.
+  // Tier 2 + 3: prefixed paths.
   const prefixed: string[] = [];
+  const base = trimmed.endsWith(".md") ? trimmed : trimmed + ".md";
+
+  // For short names (no slash), probe each layout section folder.
   if (!hasSlash && layout) {
-    const base = trimmed.endsWith(".md") ? trimmed : trimmed + ".md";
     for (const dir of [
       layout.entitiesDir,
       layout.projectsDir,
@@ -623,10 +625,14 @@ export async function resolveLink(linkPath: string): Promise<string | null> {
     ]) {
       if (dir) prefixed.push(`${dir}/${base}`);
     }
-    // Also try bare wiki/ and root.
-    if (layout.hasWiki) prefixed.push(`wiki/${base}`);
-    prefixed.push(base);
   }
+
+  // Always try wiki/ prefix — most vault content lives under wiki/.
+  // This fixes paths like "knowledge/research/lenses/contrarian" which
+  // need the wiki/ prefix but were skipped because they contain a slash.
+  if (layout?.hasWiki) prefixed.push(`wiki/${base}`);
+  // Also try the bare path (for vaults without wiki/ structure).
+  prefixed.push(base);
 
   for (const candidate of [...direct, ...prefixed]) {
     try {
@@ -635,19 +641,22 @@ export async function resolveLink(linkPath: string): Promise<string | null> {
     } catch { /* next */ }
   }
 
-  // Tier 4: basename index. Case-insensitive fallback for short names.
-  if (!hasSlash) {
-    try {
-      const index = await buildBasenameIndex(root);
-      const key = (trimmed.endsWith(".md") ? trimmed.slice(0, -3) : trimmed).toLowerCase();
-      const hits = index.get(key);
-      if (hits && hits.length > 0) {
-        // Prefer the shortest path on ambiguity — most likely the canonical location.
-        const best = [...hits].sort((a, b) => a.length - b.length)[0];
-        return anchor ? best + "#" + anchor : best;
-      }
-    } catch { /* fall through */ }
-  }
+  // Tier 4: basename index. Case-insensitive fallback for any link.
+  // For paths with slashes, match the final segment and prefer structural matches.
+  try {
+    const index = await buildBasenameIndex(root);
+    const lastSegment = (trimmed.includes("/") ? trimmed.split("/").pop() : trimmed) || trimmed;
+    const key = (lastSegment.endsWith(".md") ? lastSegment.slice(0, -3) : lastSegment).toLowerCase();
+    const hits = index.get(key);
+    if (hits && hits.length > 0) {
+      // For nested paths (e.g. "knowledge/research/lenses/contrarian"),
+      // prefer hits that match the full path structure.
+      const fullKey = trimmed.toLowerCase().replace(/\.md$/, "");
+      const structuralMatch = hits.find(h => h.toLowerCase().includes(fullKey));
+      const best = structuralMatch || [...hits].sort((a, b) => a.length - b.length)[0];
+      return anchor ? best + "#" + anchor : best;
+    }
+  } catch { /* fall through */ }
 
   return null;
 }
