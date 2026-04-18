@@ -90,7 +90,7 @@ export function PinDialog({ open, initial, onClose, onSave }: Props) {
             className="fixed inset-0"
             style={{
               zIndex: 500,
-              background: "color-mix(in srgb, var(--bg-marketing) 85%, transparent)",
+              background: "color-mix(in srgb, var(--bg-marketing) 60%, transparent)",
               backdropFilter: "blur(8px)",
               WebkitBackdropFilter: "blur(8px)",
             }}
