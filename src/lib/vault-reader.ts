@@ -385,13 +385,20 @@ export function parseTable(text: string): TableData {
 
 export function extractLinks(text: string): ObsidianLink[] {
   const links: ObsidianLink[] = [];
-  const re = /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g;
+  // Regex: capture [[path]] or [[path|label]].
+  // In markdown tables, \| escapes the pipe delimiter so it doesn't split
+  // the table cell. Obsidian writes [[link\|label]] in tables.
+  // Character class [^\]|] is actually [^\\]|] in source — "not \ or ] or |".
+  // But in JS regex, [^\\]|] parses as [^\\] (not backslash) then |] outside.
+  // Fix: use [^\]\\|] to correctly mean "not ] \ |".
+  const re = /\[\[([^\]\\|]+?)(?:\|([^\]]+?))?\]\]/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
-    links.push({
-      path: match[1].trim(),
-      label: (match[2] || match[1]).trim(),
-    });
+    const rawPath = match[1].trim().replace(/\\+$/, '');
+    const rawLabel = (match[2] || match[1]).trim();
+    if (rawPath) {
+      links.push({ path: rawPath, label: rawLabel });
+    }
   }
   return links;
 }
