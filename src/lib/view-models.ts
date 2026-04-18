@@ -210,6 +210,12 @@ export interface VaultHealthMetrics {
   hubs: HubNote[];
   /** Distribution by top-level folder (sorted desc). */
   folders: FolderCount[];
+  /** Backlink-count buckets: how the vault distributes connectivity. */
+  linkDistribution: {
+    bucket: string;
+    range: string;
+    count: number;
+  }[];
 }
 
 export interface SystemStatusData {

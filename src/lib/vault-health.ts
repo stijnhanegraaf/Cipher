@@ -169,6 +169,23 @@ export async function buildVaultHealth(): Promise<VaultHealthMetrics | null> {
     .map(([folder, count]) => ({ folder, count }))
     .sort((a, b) => b.count - a.count);
 
+  // Backlink-count distribution across every note. Bucketed to 5 tiers.
+  const buckets = [
+    { bucket: "Orphan",    range: "0",     count: 0 },
+    { bucket: "Light",     range: "1–2",   count: 0 },
+    { bucket: "Linked",    range: "3–5",   count: 0 },
+    { bucket: "Connected", range: "6–10",  count: 0 },
+    { bucket: "Hub",       range: "11+",   count: 0 },
+  ];
+  for (const p of paths) {
+    const b = backlinks.get(p) ?? 0;
+    if (b === 0) buckets[0].count++;
+    else if (b <= 2) buckets[1].count++;
+    else if (b <= 5) buckets[2].count++;
+    else if (b <= 10) buckets[3].count++;
+    else buckets[4].count++;
+  }
+
   const metrics: VaultHealthMetrics = {
     brokenLinks: {
       count: brokenAll.length,
@@ -186,6 +203,7 @@ export async function buildVaultHealth(): Promise<VaultHealthMetrics | null> {
     orphans,
     hubs,
     folders,
+    linkDistribution: buckets,
   };
 
   _cache.set(root, { builtAt: now, metrics });

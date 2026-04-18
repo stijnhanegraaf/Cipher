@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { PageShell, PageAction } from "@/components/PageShell";
 import { StatusDot, Badge, MarkdownRenderer } from "@/components/ui";
 import { ActivitySparkline } from "@/components/ui/ActivitySparkline";
+import { LinkDistributionChart } from "@/components/ui/LinkDistributionChart";
 import { useSheet } from "@/lib/hooks/useSheet";
 import type {
   SystemStatusData,
@@ -89,11 +90,29 @@ export function SystemPage() {
           {/* ── Stat cards row ───────────────────────────── */}
           {health && <StatCards health={health} healthyCount={healthyCount} attentionCount={attentionCount} />}
 
-          {/* ── Activity ──────────────────────────────────── */}
+          {/* ── Activity + Connectivity — 50/50 ────────────── */}
           {health && (
-            <Section label="Activity">
-              <div style={{ padding: "20px 32px 24px" }}>
-                <ActivitySparkline days={health.activity.days} peak={health.activity.peak} total={health.activity.total} />
+            <Section label="Pulse">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                  gap: 32,
+                  padding: "20px 32px 28px",
+                }}
+              >
+                <div>
+                  <div className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 14 }}>
+                    Activity · 30 days
+                  </div>
+                  <ActivitySparkline days={health.activity.days} peak={health.activity.peak} total={health.activity.total} />
+                </div>
+                <div>
+                  <div className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 14 }}>
+                    Connectivity
+                  </div>
+                  <LinkDistributionChart data={health.linkDistribution} total={health.totalFiles} />
+                </div>
               </div>
             </Section>
           )}
