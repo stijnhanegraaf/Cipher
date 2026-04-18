@@ -864,6 +864,15 @@
   margin: 0 -6px;
 }
 
+/* Hover-revealed remove button on recent-query rows. Starts at opacity 0
+   (set inline), fades in when the parent app-row is hovered or its button
+   is keyboard-focused. */
+.app-row:hover .recent-remove,
+.app-row:focus-within .recent-remove,
+.recent-remove:focus-visible {
+  opacity: 1;
+}
+
 /* ─────────────────────────────────────────────
    UTILITIES LAYER
    ───────────────────────────────────────────── */
