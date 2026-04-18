@@ -38,6 +38,20 @@ export function SystemPage() {
   const [refreshTick, setRefreshTick] = useState(0);
   const [brokenExpanded, setBrokenExpanded] = useState(false);
   const [staleExpanded, setStaleExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyBroken = useCallback(async (samples: BrokenLinkSample[]) => {
+    const lines = [
+      `Broken wiki-links in vault (${samples.length} total):`,
+      "",
+      ...samples.map((s) => `- [[${s.label}]]  in  ${s.from}`),
+    ];
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1400);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -139,15 +153,16 @@ export function SystemPage() {
               label="Broken links"
               count={health.brokenLinks.count}
               action={
-                !brokenExpanded && health.brokenLinks.count > health.brokenLinks.samples.length ? (
-                  <SeeAllButton onClick={() => setBrokenExpanded(true)}>
-                    See all
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <SeeAllButton onClick={() => handleCopyBroken(health.brokenLinks.all)}>
+                    {copied ? "Copied" : "Copy all paths"}
                   </SeeAllButton>
-                ) : brokenExpanded ? (
-                  <SeeAllButton onClick={() => setBrokenExpanded(false)}>
-                    Collapse
-                  </SeeAllButton>
-                ) : undefined
+                  {!brokenExpanded && health.brokenLinks.count > health.brokenLinks.samples.length ? (
+                    <SeeAllButton onClick={() => setBrokenExpanded(true)}>See all</SeeAllButton>
+                  ) : brokenExpanded ? (
+                    <SeeAllButton onClick={() => setBrokenExpanded(false)}>Collapse</SeeAllButton>
+                  ) : null}
+                </div>
               }
             >
               <ListScroll expanded={brokenExpanded}>
@@ -492,7 +507,6 @@ function HubRow({ hub, onOpen }: { hub: HubNote; onOpen: () => void }) {
 }
 
 function BrokenLinkRow({ sample, onOpen }: { sample: BrokenLinkSample; onOpen: () => void }) {
-  const fromShort = (sample.from.split("/").pop() || sample.from).replace(/\.md$/i, "");
   return (
     <div
       role="button"
@@ -511,11 +525,23 @@ function BrokenLinkRow({ sample, onOpen }: { sample: BrokenLinkSample; onOpen: (
       }}
     >
       <span style={{ width: "var(--dot-size-sm)", height: "var(--dot-size-sm)", borderRadius: "50%", background: "var(--status-warning)", flexShrink: 0 }} />
-      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-primary)", fontSize: 13 }}>
+      <span style={{ minWidth: 160, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-primary)", fontSize: 13 }}>
         <span style={{ color: "var(--text-tertiary)" }}>[[</span>{sample.label}<span style={{ color: "var(--text-tertiary)" }}>]]</span>
       </span>
-      <span className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.02em", flexShrink: 0 }}>
-        in {fromShort}
+      <span
+        className="mono-label"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          color: "var(--text-quaternary)",
+          letterSpacing: "0.02em",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          textAlign: "right",
+        }}
+      >
+        {sample.from}
       </span>
     </div>
   );
