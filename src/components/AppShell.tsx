@@ -41,6 +41,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const sheet = useSheet();
 
   const [vaultDrawerOpen, setVaultDrawerOpen] = useState(false);
+  const [drawerScopedPath, setDrawerScopedPath] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
 
@@ -160,6 +161,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           recentQueries={recentQueries}
           onRemoveRecent={handleRemoveRecent}
           onClearRecents={handleClearRecents}
+          onOpenPin={(path) => {
+            setVaultDrawerOpen(true);
+            setDrawerScopedPath(path);
+          }}
         />
       </div>
 
@@ -187,7 +192,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
       <VaultDrawer
         open={vaultDrawerOpen}
-        onClose={() => setVaultDrawerOpen(false)}
+        scopedPath={drawerScopedPath ?? undefined}
+        onClose={() => { setVaultDrawerOpen(false); setDrawerScopedPath(null); }}
         onNavigate={(query) => {
           setVaultDrawerOpen(false);
           handleAsk(query);
