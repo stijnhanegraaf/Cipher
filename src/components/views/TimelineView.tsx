@@ -1,5 +1,7 @@
 "use client";
 
+/** Renders TimelineSynthesisData in the chat-summary variant. */
+
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
 import { TimelineSynthesisData, ViewModel } from "@/lib/view-models";

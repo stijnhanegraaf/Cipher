@@ -1,5 +1,7 @@
 "use client";
 
+/** Renders CurrentWorkData in the chat-summary variant. */
+
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";

@@ -1,5 +1,7 @@
-// Mock data layer - simulates the retrieval/orchestration layer
-// In production, this would talk to the real Obsidian vault + AI backend
+/**
+ * Mock data layer — simulated ResponseEnvelopes for UI development.
+ * Production path talks to the real vault via view-builder.
+ */
 
 import { ResponseEnvelope } from "./view-models";
 import { log } from "./log";

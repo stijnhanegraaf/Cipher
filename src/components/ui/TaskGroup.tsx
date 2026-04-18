@@ -1,5 +1,7 @@
 "use client";
 
+/** TaskGroup — collapsible group of task rows with checkbox toggles. */
+
 import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { fadeSlideUp, transition } from "@/lib/motion";

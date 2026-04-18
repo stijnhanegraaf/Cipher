@@ -1,5 +1,7 @@
 "use client";
 
+/** Renders BrowseData in the chat-summary variant. */
+
 import { motion } from "framer-motion";
 import { springs } from "@/lib/motion";
 import { Badge } from "@/components/ui";

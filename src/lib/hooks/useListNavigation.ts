@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * useListNavigation — arrow/jk list navigation with Enter to activate.
+ * Returns active index + key handler; scroll-into-view on change.
+ */
+
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface ListNavigationOptions<T> {

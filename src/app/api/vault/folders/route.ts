@@ -1,3 +1,6 @@
+/**
+ * GET /api/vault/folders — lists vault folders for pin selection.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { readdir } from "fs/promises";
 import { join } from "path";

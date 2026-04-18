@@ -1,3 +1,6 @@
+/**
+ * GET /api/resolve — resolves a wiki-link target to its vault path.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { resolveLink, getVaultPath } from "@/lib/vault-reader";
 import { log } from "@/lib/log";

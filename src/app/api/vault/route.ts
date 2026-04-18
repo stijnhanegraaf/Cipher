@@ -1,3 +1,8 @@
+/**
+ * GET /api/vault — returns the active vault path + meta.
+ * POST /api/vault — sets a new vault path (hot-swap).
+ * DELETE /api/vault — clears the active vault.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { existsSync, statSync } from "fs";
 import { basename } from "path";

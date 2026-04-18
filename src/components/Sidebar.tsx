@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Persistent 240px left rail: brand + vault chip, primary nav, Pinned
+ * group with user-customisable folder shortcuts, Recent queries, theme
+ * + palette toggles. Vault-agnostic; pins live in <vault>/.cipher/.
+ */
+
 import { useState } from "react";
 import { Reorder } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";

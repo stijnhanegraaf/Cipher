@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * /browse/system page — vault health dashboard (broken links, stale
+ * notes, hubs, distributions). Fed by /api/query system_status.
+ */
+
 import { useCallback, useEffect, useState } from "react";
 import { PageShell, PageAction } from "@/components/PageShell";
 import { StatusDot, Badge, MarkdownRenderer } from "@/components/ui";

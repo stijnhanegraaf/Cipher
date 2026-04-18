@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Floating menu that appears above the chat input when the user starts
+ * a message with "/". Each command navigates or runs a query.
+ */
+
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Kbd } from "@/components/ui";

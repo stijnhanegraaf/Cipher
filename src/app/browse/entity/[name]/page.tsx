@@ -1,3 +1,6 @@
+/**
+ * /browse/entity/[name] route — mounts EntityPage.
+ */
 import { EntityPage } from "@/components/browse/EntityPage";
 
 export default async function EntityRoute({ params }: { params: Promise<{ name: string }> }) {

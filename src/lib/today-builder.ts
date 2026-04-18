@@ -1,3 +1,9 @@
+/**
+ * Aggregates today + up-next open tasks from the vault's work folder(s).
+ *
+ * Returns a ranked list with bucket/status/priority. Consumed by
+ * /api/today and /browse (TodayPage).
+ */
 import "server-only";
 import { readdir, stat } from "fs/promises";
 import { extname, join } from "path";

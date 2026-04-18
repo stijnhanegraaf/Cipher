@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Canvas-based force-directed graph renderer. Consumes Graph from
+ * vault-graph; handles pan/zoom, hover highlights, click-to-open.
+ */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Graph, GraphEdge, GraphNode } from "@/lib/vault-graph";
 

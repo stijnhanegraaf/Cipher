@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * /browse/search page — query-driven search across vault files.
+ */
+
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PageShell } from "@/components/PageShell";

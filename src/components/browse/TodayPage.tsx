@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * /browse page — Today dashboard: ranked open tasks + up-next bucket.
+ * Consumes /api/today; row toggles hit /api/toggle.
+ */
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageShell, PageAction } from "@/components/PageShell";

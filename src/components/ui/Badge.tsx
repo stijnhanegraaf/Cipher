@@ -1,5 +1,7 @@
 "use client";
 
+/** Badge — small label chip with tone variants. */
+
 import { motion } from "framer-motion";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { HoverCard } from "./HoverCard";

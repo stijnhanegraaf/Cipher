@@ -1,3 +1,7 @@
+/**
+ * GET /api/settings/sidebar — reads sidebar pins/customisation.
+ * PUT /api/settings/sidebar — writes sidebar settings to <vault>/.cipher/.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import {
   readSidebarSettings,

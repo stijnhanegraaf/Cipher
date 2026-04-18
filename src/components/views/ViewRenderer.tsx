@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * ViewRenderer — dispatches a ViewModel to the matching *View component.
+ * Central switch for the chat-summary render path.
+ */
+
 import { motion } from "framer-motion";
 import { cardEntrance } from "@/lib/motion";
 import {

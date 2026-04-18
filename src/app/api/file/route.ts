@@ -1,3 +1,7 @@
+/**
+ * GET /api/file — reads a vault file (resolves wiki-link if needed).
+ * PUT /api/file — writes markdown back to the vault atomically.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { readVaultFile, resolveLink, getVaultPath } from "@/lib/vault-reader";
 import { readFile, writeFile } from "fs/promises";

@@ -1,3 +1,6 @@
+/**
+ * GET /api/today — returns TodayPayload aggregated from the vault.
+ */
 import { NextResponse } from "next/server";
 import { buildToday } from "@/lib/today-builder";
 import { getVaultPath } from "@/lib/vault-reader";

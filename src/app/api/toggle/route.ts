@@ -1,3 +1,6 @@
+/**
+ * POST /api/toggle — flips a markdown checkbox at a given file + line.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { readFile, writeFile } from "fs/promises";
 import { join } from "path";

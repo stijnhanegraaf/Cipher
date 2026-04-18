@@ -1,3 +1,6 @@
+/**
+ * GET /api/vault/graph — returns the vault's node-edge graph.
+ */
 import { NextResponse } from "next/server";
 import { buildGraph } from "@/lib/vault-graph";
 import { getVaultPath } from "@/lib/vault-reader";

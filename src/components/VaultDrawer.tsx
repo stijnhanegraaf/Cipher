@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * File-tree drawer. Optional scopedPath prop roots the drawer at a
+ * pinned folder; hover-reveal pin button on folders feeds into
+ * useSidebarPins.
+ */
+
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { transition } from "@/lib/motion";

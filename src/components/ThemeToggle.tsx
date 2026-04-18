@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Icon button that flips between dark/light theme by toggling the
+ * .light class on <html>. Persists choice to localStorage.
+ */
+
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 

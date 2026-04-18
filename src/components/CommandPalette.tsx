@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Command K command palette with fuzzy-scored actions + grouped sections.
+ * Keyboard: up/down/jk navigate, Enter runs, Esc closes.
+ */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";

@@ -1,5 +1,7 @@
 "use client";
 
+/** Renders SystemStatusData in the chat-summary variant. */
+
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
 import { SystemStatusData, Status, ViewModel } from "@/lib/view-models";
