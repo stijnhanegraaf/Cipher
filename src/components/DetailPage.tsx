@@ -122,7 +122,7 @@ function TableOfContents({
                 border: "none",
                 cursor: "pointer",
                 borderRadius: 4,
-                transition: "color 0.15s, background 0.15s",
+                transition: "color var(--motion-hover) var(--ease-default), background var(--motion-hover) var(--ease-default)",
                 textOverflow: "ellipsis",
                 overflow: "hidden",
                 whiteSpace: "nowrap" as const,
@@ -237,7 +237,9 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, la
         setData(json);
         setLoading(false);
       })
-      // Scroll to anchor (if any) once content is rendered.
+      // Scroll to anchor (if any) once content is rendered, then flash a
+      // 2s brand-tinted highlight on the landed heading so the user sees
+      // where the deep-link dropped them.
       .then(() => {
         if (!anchor) return;
         const id = `heading-${anchor}`;
@@ -245,7 +247,14 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, la
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
             const el = scrollRef.current?.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null;
-            if (el) el.scrollIntoView({ block: "start", behavior: "smooth" });
+            if (!el) return;
+            el.scrollIntoView({ block: "start", behavior: "smooth" });
+            // Retrigger animation each time the path/anchor combination
+            // changes by toggling the class.
+            el.classList.remove("anchor-highlight");
+            void el.offsetWidth;
+            el.classList.add("anchor-highlight");
+            window.setTimeout(() => el.classList.remove("anchor-highlight"), 2100);
           })
         );
       })
@@ -470,7 +479,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, la
                 border: "none",
                 cursor: "pointer",
                 color: theme.text.tertiary,
-                transition: "background 0.15s, color 0.15s",
+                transition: "background var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
                 flexShrink: 0,
               }}
               onMouseEnter={(e) => {
@@ -513,7 +522,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, la
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-                  transition: "color 0.15s",
+                  transition: "color var(--motion-hover) var(--ease-default)",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.color = theme.brand.violet; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = theme.text.quaternary; }}
@@ -578,7 +587,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, la
                 letterSpacing: "0.02em",
                 textDecoration: "none",
                 opacity: 0.5,
-                transition: "opacity 0.15s",
+                transition: "opacity var(--motion-hover) var(--ease-default)",
               }}
               onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; }}
               onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.5"; }}

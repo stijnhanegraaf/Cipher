@@ -41,17 +41,13 @@ const duration = {
 // The others are kept for explicit playful moments — never default to bouncy.
 export const springs: Record<string, any> = {
   /** Critically-damped: no overshoot, snappy. Use for state toggles. */
-  soft:    { type: "spring", stiffness: 320, damping: 32, mass: 0.9 },
+  soft:  { type: "spring", stiffness: 320, damping: 32, mass: 0.9 },
   /** Gentle lean-in for hover/press — low amplitude. */
-  hover:   { type: "spring", stiffness: 300, damping: 32 },
-
-  // Deprecated for UI state — available for explicit playful overrides only.
-  bouncy:    { type: "spring", stiffness: 260, damping: 20, mass: 0.8 },
-  gentle:    { type: "spring", stiffness: 200, damping: 25, mass: 1 },
-  snappy:    { type: "spring", stiffness: 400, damping: 25, mass: 0.5 },
-  stiff:     { type: "spring", stiffness: 500, damping: 30, mass: 1 },
-  cardEnter: { type: "spring", stiffness: 320, damping: 32, mass: 0.9 }, // now critically-damped
-  press:     { type: "spring", stiffness: 400, damping: 32 },
+  hover: { type: "spring", stiffness: 300, damping: 32 },
+  // v8 note: bouncy / gentle / snappy / stiff / cardEnter / press were
+  // removed. For UI state changes use `soft`. For hover/press interactions
+  // use the duration + ease-out `transition.*` presets below — no spring
+  // should be reached for on a hover/focus/press state.
 };
 
 /**

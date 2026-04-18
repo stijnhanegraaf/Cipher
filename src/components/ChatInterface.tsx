@@ -635,7 +635,7 @@ export function ChatInterface() {
                       fontWeight: 510,
                       letterSpacing: -0.1,
                       cursor: "pointer",
-                      transition: "background-color 0.15s",
+                      transition: "background-color var(--motion-hover) var(--ease-default)",
                     }}
                   >
                     Connect
@@ -849,7 +849,7 @@ export function ChatInterface() {
                   backgroundColor: palette.level3,
                   border: `1px solid ${palette.borderStandard}`,
                   borderRadius: 12,
-                  transition: "border-color 0.2s, box-shadow 0.2s",
+                  transition: "border-color var(--motion-hover) var(--ease-default), box-shadow var(--motion-hover) var(--ease-default)",
                   boxShadow: "var(--shadow-elevated)",
                 }}
               >
@@ -892,7 +892,7 @@ export function ChatInterface() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    transition: "background-color 0.15s",
+                    transition: "background-color var(--motion-hover) var(--ease-default)",
                     opacity: input.trim() && !isProcessing ? 1 : 0.3,
                   }}
                 >
