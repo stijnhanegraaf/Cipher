@@ -5,13 +5,14 @@ import { stagger, fadeSlideUp } from "@/lib/motion";
 import { TimelineSynthesisData } from "@/lib/view-models";
 import { Badge, CalloutBox } from "@/components/ui";
 
-// Theme color palette — dot + bg tint + border tint per cycling theme
+// Theme color palette — dot + bg tint + border tint per cycling theme.
+// Sourced from CSS tokens so light/dark adapts automatically.
 const themeAccents = [
-  { dot: "#5e6ad2", bg: "rgba(94,106,210,0.06)",  border: "rgba(94,106,210,0.15)" },
-  { dot: "#7170ff", bg: "rgba(113,112,255,0.06)",  border: "rgba(113,112,255,0.15)" },
-  { dot: "#10b981", bg: "rgba(16,185,129,0.06)",   border: "rgba(16,185,129,0.15)" },
-  { dot: "#d0d6e0", bg: "rgba(208,214,224,0.04)",  border: "rgba(208,214,224,0.08)" },
-  { dot: "#8a8f98", bg: "rgba(138,143,152,0.04)",   border: "rgba(138,143,152,0.08)" },
+  { dot: "var(--accent-brand)",       bg: "color-mix(in srgb, var(--accent-brand) 6%, transparent)",   border: "color-mix(in srgb, var(--accent-brand) 15%, transparent)" },
+  { dot: "var(--accent-violet)",      bg: "color-mix(in srgb, var(--accent-violet) 6%, transparent)",  border: "color-mix(in srgb, var(--accent-violet) 15%, transparent)" },
+  { dot: "var(--status-done)",        bg: "color-mix(in srgb, var(--status-done) 6%, transparent)",    border: "color-mix(in srgb, var(--status-done) 15%, transparent)" },
+  { dot: "var(--text-secondary)",     bg: "color-mix(in srgb, var(--text-secondary) 4%, transparent)", border: "color-mix(in srgb, var(--text-secondary) 8%, transparent)" },
+  { dot: "var(--text-tertiary)",      bg: "color-mix(in srgb, var(--text-tertiary) 4%, transparent)",  border: "color-mix(in srgb, var(--text-tertiary) 8%, transparent)" },
 ];
 
 export function TimelineView({ data, view, onNavigate }: { data: TimelineSynthesisData; view: any; onNavigate?: (path: string) => void }) {

@@ -540,7 +540,7 @@ export function ChatInterface() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  boxShadow: "0 8px 24px rgba(94,106,210,0.25), 0 0 0 1px rgba(255,255,255,0.06) inset",
+                  boxShadow: "0 8px 24px color-mix(in srgb, var(--accent-brand) 25%, transparent), 0 0 0 1px var(--border-standard) inset",
                 }}
               >
                 <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
@@ -604,7 +604,7 @@ export function ChatInterface() {
                     borderRadius: 8,
                     background: palette.level3,
                     border: `1px solid ${palette.borderStandard}`,
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                    boxShadow: "var(--shadow-micro)",
                   }}
                 >
                   <input
@@ -671,7 +671,7 @@ export function ChatInterface() {
                             borderRadius: 12,
                             borderBottomRightRadius: 4,
                             padding: "10px 16px",
-                            boxShadow: `rgba(0,0,0,0.2) 0px 0px 0px 1px`,
+                            boxShadow: "var(--shadow-ring)",
                           }}
                         >
                           <p
@@ -828,7 +828,7 @@ export function ChatInterface() {
         <div
           style={{
             flexShrink: 0,
-            backgroundColor: "rgba(8,9,10,0.85)",
+            backgroundColor: "var(--bg-glass)",
             backdropFilter: "blur(24px) saturate(180%)",
             WebkitBackdropFilter: "blur(24px) saturate(180%)",
             borderTop: `1px solid ${palette.borderSubtle}`,
@@ -850,7 +850,7 @@ export function ChatInterface() {
                   border: `1px solid ${palette.borderStandard}`,
                   borderRadius: 12,
                   transition: "border-color 0.2s, box-shadow 0.2s",
-                  boxShadow: "rgba(0,0,0,0.4) 0px 2px 4px",
+                  boxShadow: "var(--shadow-elevated)",
                 }}
               >
                 <SlashCommandMenu value={input} onSelect={() => setInput("")} onAsk={(q) => handleSubmit(q)} />
@@ -886,7 +886,7 @@ export function ChatInterface() {
                     width: 32,
                     height: 32,
                     borderRadius: 6,
-                    backgroundColor: input.trim() && !isProcessing ? palette.brandIndigo : "rgba(255,255,255,0.05)",
+                    backgroundColor: input.trim() && !isProcessing ? palette.brandIndigo : "var(--bg-surface-alpha-5)",
                     border: "none",
                     cursor: input.trim() && !isProcessing ? "pointer" : "default",
                     display: "flex",
