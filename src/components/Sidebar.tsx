@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Reorder } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
 import { useVault } from "@/lib/hooks/useVault";
 import { useSidebarPins } from "@/lib/hooks/useSidebarPins";
@@ -54,7 +55,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
   const vault = useVault();
   const router = useRouter();
   const pathname = usePathname();
-  const { pins, addPin, removePin, updatePin } = useSidebarPins();
+  const { pins, addPin, removePin, updatePin, reorderPins } = useSidebarPins();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPin, setEditingPin] = useState<PinEntry | null>(null);
   const isBrowse = pathname === "/browse" || pathname?.startsWith("/browse/");
@@ -316,17 +317,28 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
             <span className="mono-label" style={{ letterSpacing: "0.04em" }}>+ Add</span>
           </button>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Reorder.Group
+          axis="y"
+          values={pins}
+          onReorder={(next) => reorderPins(next)}
+          style={{ display: "flex", flexDirection: "column", gap: 2, listStyle: "none", padding: 0, margin: 0 }}
+        >
           {pins.map((pin) => (
-            <PinnedRow
+            <Reorder.Item
               key={pin.id}
-              pin={pin}
-              onOpen={() => onOpenPin?.(pin.path)}
-              onEdit={() => { setEditingPin(pin); setDialogOpen(true); }}
-              onRemove={() => removePin(pin.id)}
-            />
+              value={pin}
+              style={{ listStyle: "none" }}
+              dragTransition={{ bounceStiffness: 400, bounceDamping: 32 }}
+            >
+              <PinnedRow
+                pin={pin}
+                onOpen={() => onOpenPin?.(pin.path)}
+                onEdit={() => { setEditingPin(pin); setDialogOpen(true); }}
+                onRemove={() => removePin(pin.id)}
+              />
+            </Reorder.Item>
           ))}
-        </div>
+        </Reorder.Group>
       </div>
 
       <PinDialog
