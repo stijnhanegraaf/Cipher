@@ -12,8 +12,8 @@ interface BrowseItem {
 }
 
 interface BrowseData {
-  title: string;
-  kind: "entities" | "projects" | "research";
+  title?: string;
+  kind?: "entities" | "projects" | "research";
   items: BrowseItem[];
 }
 
@@ -36,7 +36,7 @@ const kindIcons: Record<string, React.ReactNode> = {
 };
 
 export function BrowseView({ data }: { data: BrowseData }) {
-  const icon = kindIcons[data.kind] || kindIcons.projects;
+  const icon = (data.kind && kindIcons[data.kind]) || kindIcons.projects;
 
   return (
     <div>

@@ -106,7 +106,7 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile, scopedPath,
           const s: VaultSection[] = [];
           if (data.entities?.length) s.push({ key: "entities", label: "Entities", icon: sectionIcons.entities, items: data.entities });
           if (data.projects?.length) s.push({ key: "projects", label: "Projects", icon: sectionIcons.projects, items: data.projects });
-          if (data.research?.length) s.push({ key: "research", label: "Research", icon: sectionIcons.research, items: data.research.map((r: any) => ({ name: r.name, path: r.dir })) });
+          if (data.research?.length) s.push({ key: "research", label: "Research", icon: sectionIcons.research, items: data.research.map((r: { name: string; dir: string }) => ({ name: r.name, path: r.dir })) });
           if (!cancelled) setSections(s);
         } catch (e) {
           if (!cancelled) setError(e instanceof Error ? e.message : "Could not load vault");
