@@ -671,29 +671,77 @@ function _invalidateResolverCaches() {
   _basenameIndex.clear();
 }
 
-/** Return the three hub files: dashboard, index, home */
-export async function getHubFiles(): Promise<HubFile[]> {
-  const hubs = [
-    { name: "Dashboard", path: "wiki/dashboard.md" },
-    { name: "Index", path: "wiki/index.md" },
-    { name: "Home", path: "wiki/home.md" },
-  ];
+/** Join a layout-provided dir with a filename, handling null dirs gracefully. */
+function inDir(dir: string | null, ...parts: string[]): string | null {
+  if (!dir) return null;
+  return [dir, ...parts].filter(Boolean).join("/");
+}
 
+/** Try a list of candidate paths; return the first that readVaultFile() can open. */
+async function firstReadable(candidates: (string | null)[]): Promise<ParsedFile | null> {
+  for (const c of candidates) {
+    if (!c) continue;
+    const file = await readVaultFile(c);
+    if (file) return file;
+  }
+  return null;
+}
+
+/**
+ * Build a list of candidate paths for a file that might live in either a
+ * probed layout directory, a vault-root variant, or a legacy wiki/ path.
+ * Used by all "read the canonical X file" helpers below.
+ */
+function hubCandidates(dir: string | null, fileName: string): string[] {
+  const out: string[] = [];
+  const from = inDir(dir, fileName);
+  if (from) out.push(from);
+  // Root-level fallback (some vaults put system files at root).
+  out.push(fileName);
+  // wiki/ prefix fallback — if the layout didn't detect a specific dir
+  // but the vault still uses wiki/ structure, try the legacy paths.
+  if (!dir?.startsWith("wiki/")) out.push(`wiki/${fileName}`);
+  return out;
+}
+
+/** Return hub files (dashboard / index / home / README) from wherever they live. */
+export async function getHubFiles(): Promise<HubFile[]> {
+  const layout = getVaultLayout();
+  const names: Array<{ name: string; fileCandidates: string[] }> = [
+    { name: "Dashboard", fileCandidates: ["dashboard.md", "Dashboard.md"] },
+    { name: "Index",     fileCandidates: ["index.md", "Index.md", "README.md"] },
+    { name: "Home",      fileCandidates: ["home.md", "Home.md"] },
+  ];
   const results: HubFile[] = [];
-  for (const hub of hubs) {
-    const file = await readVaultFile(hub.path);
-    results.push({ name: hub.name, path: hub.path, file });
+  for (const { name, fileCandidates } of names) {
+    // Probe the hubFile if the layout detected one, plus every named
+    // variant at root / layout.root / wiki/ prefixed paths.
+    const probePaths: string[] = [];
+    if (layout?.hubFile) probePaths.push(layout.hubFile);
+    for (const fn of fileCandidates) {
+      probePaths.push(fn);
+      probePaths.push(`wiki/${fn}`);
+    }
+    let match: { path: string; file: ParsedFile } | null = null;
+    for (const p of probePaths) {
+      const file = await readVaultFile(p);
+      if (file) { match = { path: p, file }; break; }
+    }
+    results.push({ name, path: match?.path ?? fileCandidates[0], file: match?.file ?? null });
   }
   return results;
 }
 
-/** List all entity files from wiki/knowledge/entities/ as IndexEntry[] */
+/** List all entity files from the probed entities directory. */
 export async function getEntityIndex(): Promise<import("./view-models").IndexEntry[]> {
-  const paths = await listVaultFiles("wiki/knowledge/entities");
+  const layout = getVaultLayout();
+  if (!layout?.entitiesDir) return [];
+  const paths = await listVaultFiles(layout.entitiesDir);
   const results: import("./view-models").IndexEntry[] = [];
+  const hubBasename = layout.entitiesDir.split("/").pop() || "";
   for (const p of paths) {
     const name = p.split("/").pop()?.replace(".md", "") || "";
-    if (name === "entities") continue; // skip hub file
+    if (name === hubBasename) continue; // skip a file that matches the dir name (hub convention)
     let area: string | undefined;
     let type: string | undefined;
     try {
@@ -708,26 +756,34 @@ export async function getEntityIndex(): Promise<import("./view-models").IndexEnt
   return results;
 }
 
-/** List all journal entries as IndexEntry[] */
+/** List all journal entries as IndexEntry[]. */
 export async function getJournalIndex(): Promise<import("./view-models").IndexEntry[]> {
-  const paths = await listVaultFiles("wiki/journal");
+  const layout = getVaultLayout();
+  if (!layout?.journalDir) return [];
+  const paths = await listVaultFiles(layout.journalDir);
+  const hubBasename = layout.journalDir.split("/").pop() || "";
   return paths
-    .filter((p) => p.endsWith(".md") && !p.endsWith("journal.md"))
+    .filter((p) => p.endsWith(".md") && !p.endsWith(`${hubBasename}.md`))
     .map((p) => {
       const name = p.split("/").pop()?.replace(".md", "") || "";
       return { name, path: p };
     });
 }
 
-/** List all project files from wiki/projects/ (top-level .md only) as IndexEntry[] */
+/** List all project files (top-level .md only) as IndexEntry[]. */
 export async function getProjectIndex(): Promise<import("./view-models").IndexEntry[]> {
-  const entries = await readdir(join(VAULT_PATH_(), "wiki/projects")).catch(() => [] as string[]);
+  const layout = getVaultLayout();
+  if (!layout?.projectsDir) return [];
+  const entries = await readdir(join(VAULT_PATH_(), layout.projectsDir)).catch(() => [] as string[]);
   const results: import("./view-models").IndexEntry[] = [];
+  const hubBasename = layout.projectsDir.split("/").pop() || "";
+  // Common "hub" filenames that describe the folder rather than an item.
+  const SKIP_NAMES = new Set([hubBasename, "index", "readme", "ideas", "projects"]);
   for (const e of entries) {
     if (!e.endsWith(".md")) continue;
     const name = e.replace(".md", "");
-    if (name === "projects" || name === "ideas") continue; // skip hub files
-    const p = "wiki/projects/" + e;
+    if (SKIP_NAMES.has(name.toLowerCase())) continue;
+    const p = `${layout.projectsDir}/${e}`;
     let area: string | undefined;
     let type: string | undefined;
     try {
@@ -742,59 +798,84 @@ export async function getProjectIndex(): Promise<import("./view-models").IndexEn
   return results;
 }
 
-/** List all research project directories as ResearchProject[] */
+/**
+ * List all research project directories. Looks first in
+ * `<researchDir>/projects/`, then in `<researchDir>/` itself (for vaults
+ * that use the research dir as the flat project list).
+ */
 export async function getResearchProjects(): Promise<import("./view-models").ResearchProject[]> {
-  const absDir = join(VAULT_PATH_(), "wiki/knowledge/research/projects");
-  try {
-    const entries = await readdir(absDir, { withFileTypes: true });
-    return entries
-      .filter(e => e.isDirectory() && !e.name.startsWith("."))
-      .map(e => ({
-        name: e.name.replace(/-/g, " "),
-        dir: "wiki/knowledge/research/projects/" + e.name,
-      }));
-  } catch {
-    return [];
+  const layout = getVaultLayout();
+  if (!layout?.researchDir) return [];
+  const candidates = [`${layout.researchDir}/projects`, layout.researchDir];
+  for (const dir of candidates) {
+    const absDir = join(VAULT_PATH_(), dir);
+    try {
+      const entries = await readdir(absDir, { withFileTypes: true });
+      const dirs = entries
+        .filter((e) => e.isDirectory() && !e.name.startsWith(".") && e.name !== "projects")
+        .map((e) => ({ name: e.name.replace(/-/g, " "), dir: `${dir}/${e.name}` }));
+      if (dirs.length > 0) return dirs;
+    } catch { /* try next candidate */ }
   }
+  return [];
 }
 
 // ─── Schema-aware convenience readers ─────────────────────────────────
 
-/** Read and parse wiki/work/open.md with group structure */
+/** Read the "open work" file from the probed workDir (common names). */
 export async function readWorkOpen(): Promise<{ file: ParsedFile | null; groups: WorkGroup[] }> {
-  const file = await readVaultFile("wiki/work/open.md");
+  const layout = getVaultLayout();
+  const file = await firstReadable([
+    ...hubCandidates(layout?.workDir ?? null, "open.md"),
+    ...hubCandidates(layout?.workDir ?? null, "now.md"),
+    ...hubCandidates(layout?.workDir ?? null, "today.md"),
+  ]);
   if (!file) return { file: null, groups: [] };
   return { file, groups: parseWorkItems(file) };
 }
 
-/** Read and parse wiki/work/waiting-for.md */
+/** Read the "waiting for" file. Vault-agnostic: probes workDir + common names. */
 export async function readWorkWaitingFor(): Promise<{ file: ParsedFile | null; groups: WorkGroup[] }> {
-  const file = await readVaultFile("wiki/work/waiting-for.md");
+  const layout = getVaultLayout();
+  const file = await firstReadable([
+    ...hubCandidates(layout?.workDir ?? null, "waiting-for.md"),
+    ...hubCandidates(layout?.workDir ?? null, "waiting.md"),
+    ...hubCandidates(layout?.workDir ?? null, "blocked.md"),
+  ]);
   if (!file) return { file: null, groups: [] };
   return { file, groups: parseWorkItems(file) };
 }
 
-/** Read and parse wiki/system/status.md with semantic status checks */
+/** Read the system status file from the probed systemDir. */
 export async function readSystemStatus(): Promise<{ file: ParsedFile | null; checks: StatusCheck[] }> {
-  const file = await readVaultFile("wiki/system/status.md");
+  const layout = getVaultLayout();
+  const file = await firstReadable([
+    ...hubCandidates(layout?.systemDir ?? null, "status.md"),
+    ...hubCandidates(layout?.systemDir ?? null, "health.md"),
+  ]);
   if (!file) return { file: null, checks: [] };
   return { file, checks: parseStatusChecks(file) };
 }
 
-/** Read wiki/system/open-loops.md */
+/** Read the open-loops / follow-ups file. */
 export async function readOpenLoops(): Promise<{ file: ParsedFile | null; groups: WorkGroup[] }> {
-  const file = await readVaultFile("wiki/system/open-loops.md");
+  const layout = getVaultLayout();
+  const file = await firstReadable([
+    ...hubCandidates(layout?.systemDir ?? null, "open-loops.md"),
+    ...hubCandidates(layout?.systemDir ?? null, "loops.md"),
+    ...hubCandidates(layout?.systemDir ?? null, "followups.md"),
+  ]);
   if (!file) return { file: null, groups: [] };
   return { file, groups: parseWorkItems(file) };
 }
 
-/** Read an entity file and parse it into structured EntityData */
+/** Read an entity file from the probed entitiesDir. Tries several name variants. */
 export async function readEntity(name: string): Promise<EntityData | null> {
-  // Try direct path first, then common locations
-  const candidates = [
-    `wiki/knowledge/entities/${name}.md`,
-    `wiki/knowledge/entities/${name}`,
-    name.endsWith(".md") ? name : null,
+  const layout = getVaultLayout();
+  const entitiesDir = layout?.entitiesDir ?? null;
+  const candidates: string[] = [
+    ...hubCandidates(entitiesDir, `${name}.md`),
+    name.endsWith(".md") ? name : `${name}.md`,
     name,
   ].filter(Boolean) as string[];
 
@@ -805,24 +886,74 @@ export async function readEntity(name: string): Promise<EntityData | null> {
   return null;
 }
 
-
-/** Read a monthly work log */
+/**
+ * Read a monthly work log. Vault-specific folder scheme is unknown up-front,
+ * so we probe the most common patterns in the probed workDir:
+ *   <workDir>/log/<year>/<month>.md
+ *   <workDir>/log/<month>-<year>.md
+ *   <workDir>/<year>/<month>.md
+ *   <workDir>/<month>-<year>.md
+ *   <workDir>/<year>-<month>.md  (iso)
+ */
 export async function readWorkLog(year: number, month: string): Promise<{ file: ParsedFile | null; days: WorkLogDay[] }> {
+  const layout = getVaultLayout();
   const monthLower = month.toLowerCase();
-  const file = await readVaultFile(`wiki/work/log/${year}/${monthLower}.md`);
+  const monthNum = monthIndex(monthLower);
+  const monthNumStr = monthNum >= 0 ? String(monthNum + 1).padStart(2, "0") : "";
+  const candidates: (string | null)[] = layout?.workDir
+    ? [
+        inDir(layout.workDir, "log", String(year), `${monthLower}.md`),
+        inDir(layout.workDir, "log", `${monthLower}-${year}.md`),
+        inDir(layout.workDir, String(year), `${monthLower}.md`),
+        inDir(layout.workDir, `${monthLower}-${year}.md`),
+        monthNumStr ? inDir(layout.workDir, "log", `${year}-${monthNumStr}.md`) : null,
+        monthNumStr ? inDir(layout.workDir, `${year}-${monthNumStr}.md`) : null,
+      ]
+    : [];
+  // Legacy wiki/ fallbacks for vaults still using that scheme.
+  candidates.push(`wiki/work/log/${year}/${monthLower}.md`);
+  const file = await firstReadable(candidates);
   if (!file) return { file: null, days: [] };
   return { file, days: parseWorkLog(file) };
 }
 
-/** Read a weekly work summary */
-export async function readWorkWeek(year: number, weekNum: number): Promise<ParsedFile | null> {
-  const weekStr = `W${String(weekNum).padStart(2, "0")}`;
-  return readVaultFile(`wiki/work/weeks/${year}/${weekStr}.md`);
+function monthIndex(m: string): number {
+  const names = ["january","february","march","april","may","june","july","august","september","october","november","december"];
+  const i = names.indexOf(m.toLowerCase());
+  return i; // -1 when not found
 }
 
-/** Read a research project and all its output files */
+/** Read a weekly summary. Probes common week-file patterns. */
+export async function readWorkWeek(year: number, weekNum: number): Promise<ParsedFile | null> {
+  const layout = getVaultLayout();
+  const weekStr = `W${String(weekNum).padStart(2, "0")}`;
+  const weekLower = `w${String(weekNum).padStart(2, "0")}`;
+  const candidates: (string | null)[] = layout?.workDir
+    ? [
+        inDir(layout.workDir, "weeks", String(year), `${weekStr}.md`),
+        inDir(layout.workDir, "weeks", String(year), `${weekLower}.md`),
+        inDir(layout.workDir, "weeks", `${year}-${weekStr}.md`),
+        inDir(layout.workDir, "weeks", `${year}-${weekLower}.md`),
+      ]
+    : [];
+  candidates.push(`wiki/work/weeks/${year}/${weekStr}.md`);
+  return firstReadable(candidates);
+}
+
+/** Read a research project from the probed researchDir. */
 export async function readResearchProject(name: string): Promise<ResearchProject | null> {
-  return parseResearchProject(`wiki/knowledge/research/projects/${name}`);
+  const layout = getVaultLayout();
+  const candidates: (string | null)[] = [
+    inDir(layout?.researchDir ?? null, "projects", name),
+    inDir(layout?.researchDir ?? null, name),
+    `wiki/knowledge/research/projects/${name}`,
+  ];
+  for (const dir of candidates) {
+    if (!dir) continue;
+    const p = await parseResearchProject(dir);
+    if (p) return p;
+  }
+  return null;
 }
 
 // ─── Directory listing ───────────────────────────────────────────────
@@ -856,15 +987,21 @@ export async function searchVault(
   const terms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
   if (terms.length === 0) return [];
 
-  const dirs = [
-    "wiki/work",
-    "wiki/system",
-    "wiki/knowledge",
-    "wiki/projects",
-    "wiki/memory",
-    "wiki/journal",
-    "wiki/private",
-  ];
+  // Walk every directory the layout probed, plus a few conventional
+  // extras that aren't in the probe set (memory / private / notes / inbox).
+  // Prefixes match the vault shape so flat-root vaults still work.
+  const layout = getVaultLayout();
+  const probed = [
+    layout?.workDir,
+    layout?.systemDir,
+    layout?.entitiesDir,
+    layout?.projectsDir,
+    layout?.researchDir,
+    layout?.journalDir,
+  ].filter((d): d is string => !!d);
+  const extras = ["memory", "private", "notes", "inbox"];
+  const extraPrefixed = layout?.hasWiki ? extras.map((n) => `wiki/${n}`) : extras;
+  const dirs = Array.from(new Set([...probed, ...extraPrefixed]));
 
   const allFiles = new Set<string>();
   for (const dir of dirs) {
