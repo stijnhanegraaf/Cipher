@@ -194,7 +194,7 @@ export function TaskItemRow({ item, index = 0, onToggle, onNavigate, onAsk, file
           <p
             className={`small ${isDone ? "text-text-quaternary" : "text-text-primary"}`}
             style={{
-              transition: "color 150ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity 150ms cubic-bezier(0.25, 0.1, 0.25, 1)",
+              transition: "color var(--motion-hover) var(--ease-default), opacity var(--motion-hover) var(--ease-default)",
               opacity: isDone ? 0.55 : 1,
               textDecoration: isDone ? "line-through" : "none",
               textDecorationColor: "var(--text-quaternary)",

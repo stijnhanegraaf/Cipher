@@ -186,7 +186,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                   style={{
                     textDecoration: "none",
                     borderBottom: "1px solid transparent",
-                    transition: "border-color 0.15s, color 0.15s",
+                    transition: "border-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = "currentColor"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = "transparent"; }}
@@ -206,7 +206,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 style={{
                   textDecoration: "none",
                   borderBottom: "1px solid transparent",
-                  transition: "border-color 0.15s, color 0.15s",
+                  transition: "border-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = "currentColor"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = "transparent"; }}
