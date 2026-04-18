@@ -11,6 +11,7 @@ import { CommandPalette, type PaletteAction } from "@/components/CommandPalette"
 import { useSheet } from "@/lib/hooks/useSheet";
 import { useVault } from "@/lib/hooks/useVault";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
+import { useSidebarPins } from "@/lib/hooks/useSidebarPins";
 
 /**
  * AppShell — persistent chrome shared by every route.
@@ -39,6 +40,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const vault = useVault();
   const sheet = useSheet();
+  const { addPin } = useSidebarPins();
 
   const [vaultDrawerOpen, setVaultDrawerOpen] = useState(false);
   const [drawerScopedPath, setDrawerScopedPath] = useState<string | null>(null);
@@ -202,6 +204,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           setVaultDrawerOpen(false);
           sheet.open(path);
         }}
+        onClearScope={() => setDrawerScopedPath(null)}
+        onPinFolder={(path, label) => addPin({ path, label, icon: "folder" })}
       />
 
       <HintChip hidden={!!sheet.path || vaultDrawerOpen || paletteOpen} />
