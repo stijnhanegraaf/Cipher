@@ -23,6 +23,8 @@ interface VaultDrawerProps {
   onClose: () => void;
   onNavigate: (query: string) => void;
   onOpenFile: (path: string) => void;
+  /** When set, drawer renders rooted at this folder. Wired in Task A6. */
+  scopedPath?: string;
 }
 
 const sectionIcons: Record<string, React.ReactNode> = {
@@ -68,7 +70,8 @@ const sectionIcons: Record<string, React.ReactNode> = {
   ),
 };
 
-export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDrawerProps) {
+export function VaultDrawer({ open, onClose, onNavigate, onOpenFile, scopedPath }: VaultDrawerProps) {
+  void scopedPath; // wired in Task A6
   const [sections, setSections] = useState<VaultSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
