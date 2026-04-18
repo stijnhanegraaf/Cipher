@@ -25,6 +25,10 @@ interface VaultDrawerProps {
   onOpenFile: (path: string) => void;
   /** When set, drawer renders rooted at this folder. Wired in Task A6. */
   scopedPath?: string;
+  /** Called when the user clicks the breadcrumb "← All folders" link in scoped mode. */
+  onClearScope?: () => void;
+  /** When set, folders show a hover-revealed pin icon that calls this. */
+  onPinFolder?: (path: string, label: string) => void;
 }
 
 const sectionIcons: Record<string, React.ReactNode> = {
@@ -70,8 +74,11 @@ const sectionIcons: Record<string, React.ReactNode> = {
   ),
 };
 
-export function VaultDrawer({ open, onClose, onNavigate, onOpenFile, scopedPath }: VaultDrawerProps) {
-  void scopedPath; // wired in Task A6
+export function VaultDrawer({ open, onClose, onNavigate, onOpenFile, scopedPath, onClearScope, onPinFolder }: VaultDrawerProps) {
+  const isInScope = (itemPath: string): boolean => {
+    if (!scopedPath) return true;
+    return itemPath === scopedPath || itemPath.startsWith(scopedPath + "/");
+  };
   const [sections, setSections] = useState<VaultSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -197,6 +204,38 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile, scopedPath 
               className="flex-1 overflow-y-auto"
               style={{ scrollbarWidth: "thin" }}
             >
+              {scopedPath && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 16px",
+                    borderBottom: "1px solid var(--border-subtle)",
+                    background: "var(--bg-surface-alpha-2)",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => onClearScope?.()}
+                    className="focus-ring mono-label"
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--accent-brand)",
+                      cursor: "pointer",
+                      padding: 0,
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    ← All folders
+                  </button>
+                  <span className="mono-label" style={{ color: "var(--text-quaternary)" }}>·</span>
+                  <span className="caption" style={{ color: "var(--text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {scopedPath}
+                  </span>
+                </div>
+              )}
               {loading && (
                 <div className="p-8 text-center caption text-text-quaternary">
                   Loading vault…
@@ -215,81 +254,134 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile, scopedPath 
                 </div>
               )}
 
-              {sections.map((section, si) => {
-                const isCollapsed = collapsed[section.key];
-                return (
-                  <div key={section.key}>
-                    <button
-                      onClick={() => toggleSection(section.key)}
-                      className="flex items-center gap-2 w-full pt-4 px-4 pb-2 micro uppercase text-text-quaternary cursor-pointer transition-colors duration-150"
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      {sectionIcons[section.key] || sectionIcons.entities}
-                      {section.label}
-                      <span className="tiny" style={{ opacity: 0.5 }}>{section.items.length}</span>
-                      <svg
-                        width={10}
-                        height={10}
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="ml-auto transition-transform duration-150"
+              {(() => {
+                const visibleSections = sections
+                  .map((section) => ({ ...section, items: section.items.filter((item) => isInScope(item.path)) }))
+                  .filter((section) => section.items.length > 0);
+                return visibleSections.map((section, si) => {
+                  const isCollapsed = collapsed[section.key];
+                  return (
+                    <div key={section.key}>
+                      <button
+                        onClick={() => toggleSection(section.key)}
+                        className="flex items-center gap-2 w-full pt-4 px-4 pb-2 micro uppercase text-text-quaternary cursor-pointer transition-colors duration-150"
                         style={{
-                          transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
+                          background: "transparent",
+                          border: "none",
+                          letterSpacing: 0.5,
                         }}
                       >
-                        <path d="M6 9l6 6 6-6" />
-                      </svg>
-                    </button>
-
-                    <AnimatePresence initial={false}>
-                      {!isCollapsed && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
-                          style={{ overflow: "hidden" }}
+                        {sectionIcons[section.key] || sectionIcons.entities}
+                        {section.label}
+                        <span className="tiny" style={{ opacity: 0.5 }}>{section.items.length}</span>
+                        <svg
+                          width={10}
+                          height={10}
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="ml-auto transition-transform duration-150"
+                          style={{
+                            transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
+                          }}
                         >
-                          {section.items.map((item) => (
-                            <button
-                              key={item.path + item.name}
-                              onClick={() => dispatchItem(section.key, item)}
-                              className="app-row flex items-center justify-between w-full py-2 pr-4 pl-8 caption text-text-primary cursor-pointer text-left transition-colors duration-150 hover:bg-[var(--bg-surface-alpha-4)]"
-                              style={{
-                                background: "transparent",
-                                border: "none",
-                                borderRadius: 4,
-                              }}
-                            >
-                              <span className="truncate">{item.name}</span>
-                              {item.type && (
-                                <span className="tiny text-text-quaternary ml-2 shrink-0">
-                                  {item.type}
-                                </span>
-                              )}
-                            </button>
-                          ))}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
+                      </button>
 
-                    {si < sections.length - 1 && (
-                      <div
-                        className="mx-4 my-2"
-                        style={{ height: 1, backgroundColor: "var(--border-subtle)" }}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+                      <AnimatePresence initial={false}>
+                        {!isCollapsed && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+                            style={{ overflow: "hidden" }}
+                          >
+                            {section.items.map((item) => {
+                              const isFolderItem = !item.path.toLowerCase().endsWith(".md");
+                              return (
+                                <div
+                                  key={item.path + item.name}
+                                  className="app-row flex items-center justify-between w-full py-2 pr-4 pl-8 caption text-text-primary text-left transition-colors duration-150 hover:bg-[var(--bg-surface-alpha-4)]"
+                                  style={{ borderRadius: 4 }}
+                                >
+                                  <button
+                                    onClick={() => dispatchItem(section.key, item)}
+                                    className="flex items-center flex-1 min-w-0 cursor-pointer text-left"
+                                    style={{
+                                      background: "transparent",
+                                      border: "none",
+                                      color: "inherit",
+                                      font: "inherit",
+                                      padding: 0,
+                                    }}
+                                  >
+                                    <span className="truncate">{item.name}</span>
+                                    {item.type && (
+                                      <span className="tiny text-text-quaternary ml-2 shrink-0">
+                                        {item.type}
+                                      </span>
+                                    )}
+                                  </button>
+                                  {isFolderItem && onPinFolder && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onPinFolder(item.path, item.name);
+                                      }}
+                                      aria-label={`Pin ${item.name}`}
+                                      title="Pin to sidebar"
+                                      className="focus-ring recent-remove"
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        width: 20,
+                                        height: 20,
+                                        borderRadius: "var(--radius-small)",
+                                        background: "transparent",
+                                        border: "none",
+                                        color: "var(--text-quaternary)",
+                                        cursor: "pointer",
+                                        flexShrink: 0,
+                                        marginLeft: 8,
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = "var(--hover-control)";
+                                        e.currentTarget.style.color = "var(--text-primary)";
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = "transparent";
+                                        e.currentTarget.style.color = "var(--text-quaternary)";
+                                      }}
+                                    >
+                                      <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 2l3 7 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {si < visibleSections.length - 1 && (
+                        <div
+                          className="mx-4 my-2"
+                          style={{ height: 1, backgroundColor: "var(--border-subtle)" }}
+                        />
+                      )}
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </motion.div>
         </>
