@@ -385,20 +385,18 @@ export function parseTable(text: string): TableData {
 
 export function extractLinks(text: string): ObsidianLink[] {
   const links: ObsidianLink[] = [];
-  // Regex: capture [[path]] or [[path|label]].
-  // In markdown tables, \| escapes the pipe delimiter so it doesn't split
-  // the table cell. Obsidian writes [[link\|label]] in tables.
-  // Character class [^\]|] is actually [^\\]|] in source — "not \ or ] or |".
-  // But in JS regex, [^\\]|] parses as [^\\] (not backslash) then |] outside.
-  // Fix: use [^\]\\|] to correctly mean "not ] \ |".
+  // Character class [^\]\\|] correctly excludes ], \, and | so an escaped
+  // pipe inside a Markdown table (e.g. [[work/work\|Work]]) terminates the
+  // path at `work/work` instead of letting the trailing `\` leak into the
+  // captured path. Safety net: strip any residual trailing backslash from
+  // both path and label.
   const re = /\[\[([^\]\\|]+?)(?:\|([^\]]+?))?\]\]/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
-    const rawPath = match[1].trim().replace(/\\+$/, '');
-    const rawLabel = (match[2] || match[1]).trim();
-    if (rawPath) {
-      links.push({ path: rawPath, label: rawLabel });
-    }
+    const rawPath = match[1].trim().replace(/\\+$/, "");
+    const rawLabel = ((match[2] ?? match[1]).trim()).replace(/\\+$/, "");
+    if (!rawPath) continue;
+    links.push({ path: rawPath, label: rawLabel });
   }
   return links;
 }
