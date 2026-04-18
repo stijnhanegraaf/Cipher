@@ -1,156 +1,125 @@
-# Cipher
+<h1 align="center">Cipher</h1>
 
-A chat-native, AI-powered visual interface over a canonical markdown knowledge base.
+<p align="center">
+  An AI-native chat + dashboard interface over your Obsidian-style markdown vault.
+</p>
 
-## What it is
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-5e6ad2?style=flat-square" alt="MIT"></a>
+  <img src="https://img.shields.io/badge/Next.js-16-000?style=flat-square&logo=next.js" alt="Next.js 16">
+  <img src="https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript" alt="TypeScript">
+</p>
 
-**Cipher** is a read-only prototype of an AI-native frontend that renders structured visual views from a markdown-backed knowledge system. It's not a notes app with an AI sidebar — it's a chat-first operating layer where AI shapes what gets shown.
+<p align="center">
+  <img src="docs/images/chat.png" width="32%" alt="Chat"/>
+  <img src="docs/images/today.png" width="32%" alt="Today"/>
+  <img src="docs/images/graph.png" width="32%" alt="Graph"/>
+</p>
 
-### Core idea
+---
 
-One input (chat), many possible outputs (dashboards, entity pages, timelines, status panels, search results). The system understands intent and returns the right view type, backed by typed view-models that are validated before rendering.
+## What Cipher is
 
-## Architecture
+Point Cipher at a folder of markdown notes. Ask it things in chat. Get bespoke pages — Today, System health, Timeline, a force-directed Graph, Entity/Topic detail — instead of wall-of-text answers. Everything reads from the files in your vault. Nothing leaves your machine.
 
-```
-┌─────────────┐     ┌──────────────────┐     ┌──────────────┐
-│  Chat Input  │────▶│  Intent Router   │────▶│  Retrieval   │
-│  (iMessage)  │     │  (detect intent) │     │  (mock data) │
-└─────────────┘     └──────────────────┘     └──────────────┘
-                                                       │
-                                                       ▼
-                                              ┌──────────────────┐
-                                              │  View Model Layer │
-                                              │  (typed schemas)  │
-                                              └──────────────────┘
-                                                       │
-                                                       ▼
-                                              ┌──────────────────┐
-                                              │  Render Layer    │
-                                              │  (React views)   │
-                                              └──────────────────┘
-```
+> **Works with any Obsidian vault layout.** Cipher probes your vault's folder names (`entities`/`people`/`contacts`, `journal`/`daily`, `projects`, `research`, `work`, `system`, …) and adapts. No folder renaming required.
 
-### Layers (from docs)
+## Key features
 
-1. **Canonical knowledge layer** — Obsidian markdown (not in this repo)
-2. **Retrieval/orchestration layer** — Intent routing + data gathering (mocked)
-3. **View-model layer** — Typed JSON schemas (see `src/lib/view-models.ts`)
-4. **Render layer** — React components via bounded catalog
-5. **Chat** — Single prompt bar, always visible
+- **Chat** with slash commands (`/today`, `/system`, `/graph`, …) and hover-action Copy / Regenerate
+- **Today dashboard** with optimistic task check-off + undo
+- **System health** — 30-day activity sparkline, 5-bucket connectivity chart, broken-link detection, stale-note detection, top hubs
+- **Graph** — force-directed vault map with hub-weighted physics, orphan ring, bloom halos
+- **Bespoke pages** for System, Timeline, Search, Entity, Topic — not chat chrome, real pages with breadcrumbs + deep links
+- **Custom pinned sidebar** — pin any folder with a label + icon; config lives in your vault so it syncs with it
+- **Linear-grade design system** — 4px grid, single token source in `globals.css`, dark + light, keyboard-first
+- **Local-only** — no auth, no remote server, no telemetry
 
-## Tech stack
-
-- **Next.js 16** (App Router)
-- **TypeScript** strict mode
-- **Tailwind CSS** v4 for styling
-- **Framer Motion** for animations
-- **Typed view-models** as the AI→UI contract
-- No json-render integration yet (custom React render layer for now; json-render adapter planned for Phase 2)
-
-## View types supported
-
-| View | Description | Example Query |
-|------|-------------|---------------|
-| `current_work` | Operational dashboard — tasks, highlights, period links | "What matters now?" |
-| `entity_overview` | Entity page — summary, connections, timeline | "Tell me about Tebi" |
-| `topic_overview` | Topic/project page — current state, questions, next steps | "What is the AI Visual Cipher?" |
-| `timeline_synthesis` | Temporal view — themes, events, gaps | "What changed this month?" |
-| `system_status` | Health panel — checks, warnings, attention items | "System health" |
-| `search_results` | Fallback — clustered results with suggested views | "review prep" |
-
-## UI primitives (component catalog)
-
-**Shell:** ViewRenderer, ViewPanel
-
-**Content:** SectionBlock, SummaryCard, MetricRow, TaskGroup/TaskItem, EntityHeader, LinkList, TimelineMini, ThemeGroup, CalloutBox, Badge
-
-**Evidence:** SourceList, SourceItem, FreshnessHint, ConfidenceHint
-
-**Actions:** ActionBar, ActionButton
-
-## Design
-
-- Apple-level UI quality — clean, minimal, lots of whitespace
-- Light mode first, dark mode toggle
-- Inter font for SF-like typography
-- Smooth animations via Framer Motion
-- Mobile responsive
-- iMessage-style chat bar — centered, inviting
-
-## Running
+## Quick start
 
 ```bash
-# Install
+git clone https://github.com/stijnhanegraaf/brain-frontend
+cd brain-frontend
 npm install
-
-# Development
+cp .env.example .env.local    # set VAULT_PATH to your vault directory
 npm run dev
-# → http://localhost:3000
-
-# Or specify port
-npx next dev -p 3333
-
-# Production build
-npm run build
-npm start
+# open http://localhost:3000
 ```
 
-## Project structure
+If you don't set `VAULT_PATH`, Cipher probes common locations — `~/Obsidian`, `~/Documents/Obsidian`, `~/Projects/Obsidian`, sibling `../Obsidian`. First one it finds wins.
+
+## Point it at your vault
+
+Cipher auto-detects folder roles by name. This table shows what it looks for:
+
+| Role in Cipher | Your folder can be named… |
+|---|---|
+| Entities (people, companies, systems) | `entities`, `people`, `contacts`, or `knowledge/entities` |
+| Journal (per-day notes) | `journal`, `daily`, `daily-notes` |
+| Projects | `projects` or `knowledge/projects` |
+| Research | `research` or `knowledge/research` |
+| Work (open, waiting-for, logs, weeks) | `work` or `tasks` |
+| System (status, health, open-loops) | `system` |
+| Hub file | `dashboard.md`, `index.md`, `home.md`, or `README.md` at the vault root |
+
+Folders under a `wiki/` root are auto-detected too. Anything the probe doesn't find is simply ignored — the feature that depends on it just doesn't render a section.
+
+## Customising the sidebar
+
+Two ways to pin a folder:
+
+- **`+ Add` in the Pinned group** — type or pick a path, choose a label + icon, save.
+- **Hover-pin in the vault drawer** — hover any folder row and click the pin icon. Defaults to the folder name; edit later via double-click.
+
+Your pins are saved to `<vault>/.cipher/sidebar.json`. Whatever syncs your vault (Obsidian Sync, iCloud, Dropbox) syncs your pins.
+
+<p align="center">
+  <img src="docs/images/sidebar-pins.png" width="60%" alt="Sidebar pins"/>
+</p>
+
+## Project layout
 
 ```
 src/
-├── app/
-│   ├── layout.tsx          # Root layout with Inter font, theme script
-│   ├── page.tsx            # Home — ChatInterface + ThemeToggle
-│   └── globals.css         # Design tokens, scrollbar, selection styles
-├── components/
-│   ├── ChatInterface.tsx   # Main chat UI with welcome screen + messages
-│   ├── ThemeToggle.tsx     # Light/dark mode toggle with localStorage
-│   ├── ui/
-│   │   ├── Badge.tsx       # All UI primitives (Badge, MetricRow, EntityHeader, etc.)
-│   │   ├── TaskGroup.tsx   # Task group and task item components
-│   │   └── index.ts        # Re-exports
-│   └── views/
-│       ├── ViewRenderer.tsx      # Routes view types to components
-│       ├── CurrentWorkView.tsx   # Work dashboard view
-│       ├── EntityOverviewView.tsx # Entity page view
-│       ├── TopicOverviewView.tsx  # Topic page view
-│       ├── TimelineView.tsx       # Timeline synthesis view
-│       ├── SystemStatusView.tsx   # System health view
-│       └── SearchResultsView.tsx  # Search results view
-└── lib/
-    ├── view-models.ts      # All TypeScript types for the view-model contract
-    └── mock-data.ts        # Mock retrieval data for all 6 view types
+  app/                 Next.js 16 App Router routes + API endpoints
+    api/               /api/query, /api/today, /api/settings/sidebar, /api/vault/*
+    browse/            /browse, /browse/system, /browse/timeline, /browse/graph, …
+    chat/              /chat surface
+    file/[...path]/    direct file view
+  components/          React components
+    browse/            TodayPage, SystemPage, TimelinePage, GraphPage, …
+    sidebar/           Sidebar extras (PinDialog)
+    ui/                Reusable primitives (PinIcon, StatusDot, Badge, HoverCard, …)
+    views/             Chat-summary renderers (ViewRenderer + per-view modes)
+  lib/
+    vault-reader.ts    Vault layout probe + schema-aware readers + search
+    vault-health.ts    Activity / broken-links / stale-notes / hubs scanner
+    vault-graph.ts     Nodes + edges builder (cached per vault)
+    view-builder.ts    Intent -> typed view model
+    intent-detector.ts NL -> intent classifier
+    settings.ts        <vault>/.cipher/sidebar.json read/write
+    today-builder.ts   Today page data aggregation
 ```
 
-## Phase 1 status
+## Development
 
-✅ Chat input as main entry point (iMessage-style)  
-✅ Typed view-models as the AI→UI interface  
-✅ Bounded component catalog (no arbitrary HTML from AI)  
-✅ All 6 view types rendered  
-✅ Dark/light mode  
-✅ Mobile responsive  
-✅ Framer Motion animations  
-✅ Source visibility on every view  
-✅ Action buttons (read-only navigation)  
-🔲 json-render integration (Phase 2)  
-🔲 Real retrieval API (Phase 2)  
-🔲 Write-back actions (Phase 3)  
+```bash
+npm run dev          # dev server on :3000
+npm run build        # production build
+npm run start        # serve production build
+npx tsc --noEmit     # type check
+```
 
-## Key design principles
+No test framework yet. Verification is manual + `curl` for the API routes + `grep` for token/convention compliance.
 
-1. **Typed view-models** — AI never emits raw HTML/components, only validated JSON schemas
-2. **Bounded rendering** — Only approved component compositions, never freeform
-3. **Source visibility** — Every view can show where data came from
-4. **Chat-first** — One input, many output types
-5. **Apple-level UI** — Clean, minimal, whitespace, Inter typography, subtle shadows
+## Design language
 
-## Related docs
+Every colour, padding, radius, font size, and motion duration in Cipher comes from a CSS custom property defined in `src/app/globals.css`. Components reach for the tokens (`var(--accent-brand)`, `var(--row-h-cozy)`, `var(--motion-hover)`, `.app-row`, `.focus-ring`) instead of inventing their own values. This is what makes the app feel like one thing instead of assembled parts. Contributions that add new UI should stick to the existing tokens — add a new token only when no existing one fits.
 
-- Product spec: `Obsidian/wiki/projects/ai-visual-brain-frontend-product-spec.md`
-- UI schema: `Obsidian/wiki/projects/ai-visual-brain-frontend-ui-schema.md`
-- Component catalog: `Obsidian/wiki/projects/ai-visual-brain-frontend-component-catalog.md`
-- Retrieval contract: `Obsidian/wiki/projects/ai-visual-brain-frontend-retrieval-contract.md`
-- Research: `Obsidian/wiki/projects/ai-visual-brain-frontend-research.md`
+## Contributing
+
+PRs welcome. Read `CONTRIBUTING.md` for the code-style rules and PR checklist.
+
+## License
+
+MIT — see `LICENSE`. Your data stays on your machine; the license on your modifications is yours.
