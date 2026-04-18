@@ -46,6 +46,13 @@ const UNDONE_PATTERNS = [
   /^reopen\s+(.+)$/i,
 ];
 
+/**
+ * Detect a natural-language "mark done / undone" instruction in a query.
+ *
+ * Matches phrases like `"mark X as done"`, `"I finished X"`, `"uncheck X"`.
+ * Returns the extracted task name + target checkbox state, or null when
+ * the query isn't a toggle instruction at all.
+ */
 export function detectToggleIntent(query: string): ToggleIntent | null {
   const trimmed = query.trim();
 
@@ -524,6 +531,18 @@ function detectIntentByKeywords(query: string): IntentResult {
 
 // ─── Main detect function ──────────────────────────────────────────────
 
+/**
+ * Map a natural-language query to a typed Intent + ViewType.
+ *
+ * Pipeline: dynamic vault-index load → conversational-pattern match →
+ * fuzzy match against entity / research / project names (Levenshtein
+ * fallback) → time-relative heuristics → system / work keyword scoring
+ * → search fallback. Always resolves to an IntentResult; low-confidence
+ * matches fall through to `search_results` rather than throwing.
+ *
+ * The returned `files` array is a hint set the builder can pre-warm;
+ * an empty list means "let the builder decide".
+ */
 export async function detectIntent(query: string): Promise<IntentResult> {
   const q = query.toLowerCase().trim();
 

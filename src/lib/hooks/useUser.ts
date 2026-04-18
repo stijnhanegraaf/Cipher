@@ -25,6 +25,12 @@ const CURRENT_USER: UserProfile = {
   initial: computeInitial(envName),
 };
 
+/**
+ * Return the current user profile (name + single-letter initial).
+ *
+ * Backed by `NEXT_PUBLIC_USER_NAME` at build time — falls back to
+ * `"You"` / `"·"` when unset. Static: no network calls, no reactivity.
+ */
 export function useUser(): UserProfile {
   return CURRENT_USER;
 }

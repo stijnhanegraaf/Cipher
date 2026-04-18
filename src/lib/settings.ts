@@ -29,6 +29,13 @@ const EMPTY: SidebarConfig = { version: 1, pins: [] };
 const FILE_REL = ".cipher/sidebar.json";
 
 // ─── Read ────────────────────────────────────────────────────────────
+/**
+ * Read the sidebar settings from `<vault>/.cipher/sidebar.json`.
+ *
+ * Returns an EMPTY config (no pins) when no vault is connected, when the
+ * file doesn't exist, or when the JSON fails schema validation — never
+ * throws. Malformed files are logged and treated as empty.
+ */
 export async function readSidebarSettings(): Promise<SidebarConfig> {
   const root = getVaultPath();
   if (!root) return EMPTY;
@@ -46,6 +53,13 @@ export async function readSidebarSettings(): Promise<SidebarConfig> {
 }
 
 // ─── Write (atomic: temp + rename) ───────────────────────────────────
+/**
+ * Persist sidebar settings to `<vault>/.cipher/sidebar.json`.
+ *
+ * Validates the config first, then writes via tmp-file + rename so a
+ * crash mid-write never leaves a truncated file on disk. Throws when no
+ * vault is connected or the config fails validation.
+ */
 export async function writeSidebarSettings(config: SidebarConfig): Promise<void> {
   const root = getVaultPath();
   if (!root) throw new Error("No vault connected");

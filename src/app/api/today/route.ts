@@ -8,6 +8,12 @@ import { log } from "@/lib/log";
 
 // GET /api/today — returns { today, upNext, counts } for the TodayPage.
 
+/**
+ * `GET /api/today` — aggregated open tasks for the TodayPage.
+ *
+ * Response: `TodayPayload` ({ today, upNext, counts }). Status: 200 on
+ * success, 409 when no vault is connected, 500 on unexpected failure.
+ */
 export async function GET() {
   try {
     if (!getVaultPath()) {

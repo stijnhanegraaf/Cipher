@@ -28,6 +28,14 @@ interface VaultResponse {
   connected: boolean;
 }
 
+/**
+ * Subscribe to the server's active-vault state.
+ *
+ * On mount, GETs `/api/vault` to learn path / name / connected. Exposes
+ * `connect(path)` (POST `/api/vault`, hot-swap without restart),
+ * `disconnect()` (DELETE), and `refresh()` for manual resync. Errors
+ * surface via the `error` field rather than throwing.
+ */
 export function useVault(): VaultState {
   const [state, setState] = useState<Omit<VaultState, "connect" | "disconnect" | "refresh">>({
     path: "",

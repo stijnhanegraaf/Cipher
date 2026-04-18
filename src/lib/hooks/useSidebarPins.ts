@@ -25,6 +25,16 @@ async function persist(config: SidebarConfig): Promise<void> {
   }
 }
 
+/**
+ * Manage the sidebar pin list, persisted in `<vault>/.cipher/sidebar.json`.
+ *
+ * On mount, GETs `/api/settings/sidebar` to hydrate the pin list. All
+ * mutations (add / remove / update / reorder) apply optimistically, then
+ * fire a PUT in the background; failures are logged, UI state is kept,
+ * next mount resyncs with the server.
+ *
+ * @returns `{ pins, loading, addPin, removePin, updatePin, reorderPins }`.
+ */
 export function useSidebarPins() {
   const [pins, setPins] = useState<PinEntry[]>([]);
   const [loading, setLoading] = useState(true);

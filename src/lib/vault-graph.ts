@@ -74,6 +74,15 @@ async function walkMd(root: string, maxDepth = 6): Promise<string[]> {
 
 // ─── Build ───────────────────────────────────────────────────────────
 
+/**
+ * Build the directed node-edge graph for the active vault.
+ *
+ * Every .md file becomes a node; every wiki-link that `resolveLink()`
+ * can resolve becomes an edge (self-loops and duplicate edges dropped).
+ * Cost is O(n × avg-links). Results are cached per-vault until
+ * `invalidateGraphCache()` clears them. Returns an empty graph when no
+ * vault is connected.
+ */
 export async function buildGraph(): Promise<Graph> {
   const root = getVaultPath();
   if (!root) return { nodes: [], edges: [], folders: [] };
@@ -142,7 +151,11 @@ export async function buildGraph(): Promise<Graph> {
   return graph;
 }
 
-/** Clear cached graph. Called from setVaultPath in vault-reader. */
+/**
+ * Flush the cached graph. Call after vault changes — normally done
+ * automatically on `setVaultPath()`, but invoke manually when mutating
+ * vault content out-of-band.
+ */
 export function invalidateGraphCache(): void {
   _graphCache.clear();
 }

@@ -9,8 +9,13 @@ import { basename } from "path";
 import { getVaultPath, setVaultPath } from "@/lib/vault-reader";
 
 /**
- * POST /api/vault — hot-swap the active vault.
- * No file writes, no server restart — updates the in-memory current vault.
+ * `POST /api/vault` — hot-swap the active vault path.
+ *
+ * Body: `{ path }`. Expands leading `~` and validates the path exists
+ * and is a directory before swapping. Clears in-memory caches
+ * (layout / parsed files / basename index) so subsequent reads hit the
+ * new vault. Status: 200 success, 400 when path missing / invalid,
+ * 500 on unexpected failure.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -44,7 +49,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** GET /api/vault — current active vault and connection state. */
+/**
+ * `GET /api/vault` — current active vault path and connection state.
+ *
+ * Response: `{ activePath, name, connected }`. `connected` reflects a
+ * live `existsSync` check so stale paths report false.
+ */
 export async function GET() {
   const activePath = getVaultPath();
   const connected = activePath ? existsSync(activePath) : false;
@@ -56,7 +66,11 @@ export async function GET() {
   });
 }
 
-/** DELETE /api/vault — disconnect without swapping to another. */
+/**
+ * `DELETE /api/vault` — disconnect the active vault without swapping to
+ * another. Clears all in-memory caches; reads after this return null
+ * until a new `POST /api/vault` call connects a vault. Always 200.
+ */
 export async function DELETE() {
   setVaultPath(null);
   return NextResponse.json({ success: true });

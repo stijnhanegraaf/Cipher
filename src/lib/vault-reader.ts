@@ -41,7 +41,12 @@ export function getVaultPath(): string | null {
   return _currentVaultPath;
 }
 
-/** Hot-swap the active vault path without restarting the server. */
+/**
+ * Hot-swap the active vault path without restarting the server.
+ *
+ * Clears all in-memory caches (layout probe, parsed-file cache, basename
+ * index) so the next read reflects the new vault. Pass null to disconnect.
+ */
 export function setVaultPath(path: string | null): void {
   _currentVaultPath = path;
   _layoutCache.clear();
@@ -94,6 +99,14 @@ function firstExistingFile(root: string, candidates: string[]): string | null {
   return null;
 }
 
+/**
+ * Probe the active vault's top-level folder structure.
+ *
+ * Memoised per-vault: the first call walks candidate folder names
+ * (entities / projects / journal / research / work / system) and the
+ * result is cached until setVaultPath() clears it. Returns null when
+ * no vault is connected.
+ */
 export function getVaultLayout(): VaultLayout | null {
   const root = _currentVaultPath;
   if (!root) return null;
@@ -233,6 +246,15 @@ const cache = new Map<string, ParsedFile>();
 
 // ─── Core read + parse ───────────────────────────────────────────────
 
+/**
+ * Read and parse a vault-relative markdown file.
+ *
+ * Uses an in-memory cache keyed on the relative path and invalidated
+ * via mtime, so repeated reads of an unchanged file are cheap. Returns
+ * null when the file does not exist or cannot be read (does not throw).
+ *
+ * @param relPath  path relative to the vault root, e.g. `"wiki/foo.md"`.
+ */
 export async function readVaultFile(relPath: string): Promise<ParsedFile | null> {
   const absPath = join(VAULT_PATH_(), relPath);
   try {
@@ -305,16 +327,19 @@ function extractSections(content: string): Section[] {
   return sections;
 }
 
+/** Find a section by exact (case-insensitive) heading. Returns undefined when no match. */
 export function getSection(file: ParsedFile, heading: string): Section | undefined {
   return file.sections.find(s => s.heading.toLowerCase() === heading.toLowerCase());
 }
 
+/** All sections whose headings start with the given prefix (case-insensitive). Returns [] when none match. */
 export function getSectionsByPrefix(file: ParsedFile, prefix: string): Section[] {
   return file.sections.filter(s => s.heading.toLowerCase().startsWith(prefix.toLowerCase()));
 }
 
 // ─── Checkbox parsing ─────────────────────────────────────────────────
 
+/** Parse `- [ ]` / `- [x]` list items from raw markdown. Returns [] on malformed or empty input. */
 export function parseCheckboxes(text: string): CheckboxItem[] {
   const items: CheckboxItem[] = [];
   const lines = text.split("\n");
@@ -334,6 +359,12 @@ export function parseCheckboxes(text: string): CheckboxItem[] {
 
 // ─── Key-value parsing ────────────────────────────────────────────────
 
+/**
+ * Parse `- key: value` bullets and two-column markdown tables into a flat map.
+ *
+ * Tolerant: accepts either bullets or table rows, drops anything that
+ * doesn't match. Returns {} on empty/malformed input.
+ */
 export function parseKeyValuePairs(text: string): KeyValuePairs {
   const pairs: KeyValuePairs = {};
   for (const line of text.split("\n")) {
@@ -351,6 +382,12 @@ export function parseKeyValuePairs(text: string): KeyValuePairs {
 
 // ─── Markdown table parsing ───────────────────────────────────────────
 
+/**
+ * Parse a markdown table, keying each row by its column header.
+ *
+ * Expects pipe-delimited rows. Returns `{ headers: [], rows: [] }` if the
+ * input doesn't contain a recognisable table.
+ */
 export function parseTable(text: string): TableData {
   const lines = text.split("\n").filter(l => l.trim().startsWith("|"));
   if (lines.length < 2) return { headers: [], rows: [] };
@@ -388,6 +425,12 @@ export function parseTable(text: string): TableData {
 
 // ─── Link extraction ─────────────────────────────────────────────────
 
+/**
+ * Extract all `[[wiki-link]]` references from markdown text.
+ *
+ * Tolerant of escaped pipes inside table cells (e.g. `[[foo\|Alias]]`).
+ * Returns [] on malformed or link-free input; never throws.
+ */
 export function extractLinks(text: string): ObsidianLink[] {
   const links: ObsidianLink[] = [];
   // Character class [^\]\\|] correctly excludes ], \, and | so an escaped
@@ -408,6 +451,11 @@ export function extractLinks(text: string): ObsidianLink[] {
 
 // ─── Work items: ### groups with checkboxes ──────────────────────────
 
+/**
+ * Group checkbox items under their enclosing `###` (and some `##`) headings.
+ *
+ * Returns [] when the file has no heading-grouped checkboxes.
+ */
 export function parseWorkItems(file: ParsedFile): WorkGroup[] {
   const groups: WorkGroup[] = [];
   let currentGroup: WorkGroup | null = null;
@@ -440,6 +488,12 @@ export function parseWorkItems(file: ParsedFile): WorkGroup[] {
 
 // ─── Status checks: at-a-glance items with semantic meaning ──────────
 
+/**
+ * Flatten every checkbox in the file, tagging each with its section heading.
+ *
+ * Used for system-status views where the section name is the semantic label.
+ * Returns [] when the file has no checkboxes.
+ */
 export function parseStatusChecks(file: ParsedFile): StatusCheck[] {
   const items: StatusCheck[] = [];
 
@@ -487,6 +541,12 @@ function looksLikeDate(heading: string): boolean {
 
 // ─── Entity parsing ──────────────────────────────────────────────────
 
+/**
+ * Extract entity metadata (core framing, See Also, Related) from a parsed file.
+ *
+ * Always returns an EntityData — missing sections yield empty strings /
+ * empty link arrays rather than null.
+ */
 export async function parseEntity(file: ParsedFile): Promise<EntityData> {
   const name = file.path.split("/").pop()?.replace(/\.md$/, "") || "";
   let coreFraming = "";
@@ -525,6 +585,13 @@ const RESEARCH_OUTPUT_FILES = [
   "open-questions.md",
 ] as const;
 
+/**
+ * Read the four canonical research-project files from a directory.
+ *
+ * Returns null when none of the expected files (executive-summary,
+ * deep-dive, key-players, open-questions) exist in the directory — i.e.
+ * when this doesn't look like a research project at all.
+ */
 export async function parseResearchProject(dirRelPath: string): Promise<ResearchProject | null> {
   const name = dirRelPath.split("/").pop() || "";
 
@@ -594,15 +661,17 @@ async function buildBasenameIndex(root: string): Promise<Map<string, string[]>> 
 }
 
 /**
- * Resolve any user-facing link reference to an actual vault-relative file path.
+ * Resolve a wiki-link target to an absolute vault-relative path.
  *
- * Resolution order:
- *   1. Direct existence check (linkPath, linkPath + .md).
- *   2. Every probed section folder + linkPath + .md (e.g. entitiesDir/foo.md).
- *   3. Root + wiki/ prefix with the same.
- *   4. Basename index fallback — full vault walk, case-insensitive match.
+ * Tries in order: exact match → with `.md` suffix → every probed layout
+ * folder → legacy `wiki/` prefix → basename index fallback. On ambiguity
+ * the shortest matching path wins. Returns the resolved path when found,
+ * or null when the target doesn't exist in the active vault (or when no
+ * vault is connected).
  *
- * On ambiguity, prefer the shortest resolved path.
+ * @param linkPath  raw wiki-link body (e.g. `"projects/foo"` or `"foo"`).
+ *                  Leading slashes are stripped. Trailing `.md` is optional.
+ *                  A trailing `#anchor` is preserved on the returned path.
  */
 export async function resolveLink(linkPath: string): Promise<string | null> {
   const root = VAULT_PATH_();
@@ -827,7 +896,12 @@ export async function getResearchProjects(): Promise<import("./view-models").Res
 
 // ─── Schema-aware convenience readers ─────────────────────────────────
 
-/** Read the "open work" file from the probed workDir (common names). */
+/**
+ * Read the canonical "open work" file (open.md / now.md / today.md).
+ *
+ * Probes the active vault's workDir plus legacy `wiki/` fallbacks.
+ * Returns `{ file: null, groups: [] }` when no variant exists in this vault.
+ */
 export async function readWorkOpen(): Promise<{ file: ParsedFile | null; groups: WorkGroup[] }> {
   const layout = getVaultLayout();
   const file = await firstReadable([
@@ -839,7 +913,11 @@ export async function readWorkOpen(): Promise<{ file: ParsedFile | null; groups:
   return { file, groups: parseWorkItems(file) };
 }
 
-/** Read the "waiting for" file. Vault-agnostic: probes workDir + common names. */
+/**
+ * Read the "waiting-for" / blocked-items file from the probed workDir.
+ *
+ * Returns `{ file: null, groups: [] }` when the file isn't present in this vault.
+ */
 export async function readWorkWaitingFor(): Promise<{ file: ParsedFile | null; groups: WorkGroup[] }> {
   const layout = getVaultLayout();
   const file = await firstReadable([
@@ -851,7 +929,11 @@ export async function readWorkWaitingFor(): Promise<{ file: ParsedFile | null; g
   return { file, groups: parseWorkItems(file) };
 }
 
-/** Read the system status file from the probed systemDir. */
+/**
+ * Read the system-status file (status.md / health.md) from the probed systemDir.
+ *
+ * Returns `{ file: null, checks: [] }` when no status file exists.
+ */
 export async function readSystemStatus(): Promise<{ file: ParsedFile | null; checks: StatusCheck[] }> {
   const layout = getVaultLayout();
   const file = await firstReadable([
@@ -862,7 +944,11 @@ export async function readSystemStatus(): Promise<{ file: ParsedFile | null; che
   return { file, checks: parseStatusChecks(file) };
 }
 
-/** Read the open-loops / follow-ups file. */
+/**
+ * Read the open-loops / follow-ups file from the probed systemDir.
+ *
+ * Returns `{ file: null, groups: [] }` when no variant exists in this vault.
+ */
 export async function readOpenLoops(): Promise<{ file: ParsedFile | null; groups: WorkGroup[] }> {
   const layout = getVaultLayout();
   const file = await firstReadable([
@@ -874,7 +960,14 @@ export async function readOpenLoops(): Promise<{ file: ParsedFile | null; groups
   return { file, groups: parseWorkItems(file) };
 }
 
-/** Read an entity file from the probed entitiesDir. Tries several name variants. */
+/**
+ * Read and parse an entity note by name.
+ *
+ * Probes the vault's entitiesDir first, then root / wiki-prefixed variants.
+ * Returns null when no file matches in this vault.
+ *
+ * @param name  entity basename with or without trailing `.md`.
+ */
 export async function readEntity(name: string): Promise<EntityData | null> {
   const layout = getVaultLayout();
   const entitiesDir = layout?.entitiesDir ?? null;
@@ -899,6 +992,9 @@ export async function readEntity(name: string): Promise<EntityData | null> {
  *   <workDir>/<year>/<month>.md
  *   <workDir>/<month>-<year>.md
  *   <workDir>/<year>-<month>.md  (iso)
+ */
+/**
+ * Returns `{ file: null, days: [] }` when no monthly log exists for this period.
  */
 export async function readWorkLog(year: number, month: string): Promise<{ file: ParsedFile | null; days: WorkLogDay[] }> {
   const layout = getVaultLayout();
@@ -928,7 +1024,12 @@ function monthIndex(m: string): number {
   return i; // -1 when not found
 }
 
-/** Read a weekly summary. Probes common week-file patterns. */
+/**
+ * Read a weekly-summary file (e.g. W15 for a given year).
+ *
+ * Probes common folder layouts under the vault's workDir plus legacy
+ * `wiki/work/weeks/` paths. Returns null when none resolve.
+ */
 export async function readWorkWeek(year: number, weekNum: number): Promise<ParsedFile | null> {
   const layout = getVaultLayout();
   const weekStr = `W${String(weekNum).padStart(2, "0")}`;
@@ -945,7 +1046,13 @@ export async function readWorkWeek(year: number, weekNum: number): Promise<Parse
   return firstReadable(candidates);
 }
 
-/** Read a research project from the probed researchDir. */
+/**
+ * Read a research project directory by name.
+ *
+ * Probes `<researchDir>/projects/<name>`, `<researchDir>/<name>`, and the
+ * legacy `wiki/knowledge/research/projects/<name>`. Returns null when no
+ * directory contains the canonical research files.
+ */
 export async function readResearchProject(name: string): Promise<ResearchProject | null> {
   const layout = getVaultLayout();
   const candidates: (string | null)[] = [
@@ -963,6 +1070,15 @@ export async function readResearchProject(name: string): Promise<ResearchProject
 
 // ─── Directory listing ───────────────────────────────────────────────
 
+/**
+ * Recursively list files under a vault-relative directory.
+ *
+ * Walks subdirectories (skipping hidden ones) and filters by file extension.
+ * Returns [] when the directory doesn't exist rather than throwing.
+ *
+ * @param dirRelPath  vault-relative directory path.
+ * @param extension   file extension to match, including the leading dot (default `".md"`).
+ */
 export async function listVaultFiles(dirRelPath: string, extension = ".md"): Promise<string[]> {
   const absDir = join(VAULT_PATH_(), dirRelPath);
   try {
@@ -985,6 +1101,17 @@ export async function listVaultFiles(dirRelPath: string, extension = ".md"): Pro
 
 // ─── Full-text search across vault ────────────────────────────────────
 
+/**
+ * Full-text search across the vault's probed content folders.
+ *
+ * Tokenises the query on whitespace (terms shorter than 3 chars are
+ * dropped) and scores each file by term occurrences — headings weight
+ * 3x, body 1x. Results are sorted descending by score and capped at
+ * `maxResults`. Returns [] when no vault is connected or no query terms
+ * survive filtering.
+ *
+ * @param maxResults  hard cap on returned matches (default 20).
+ */
 export async function searchVault(
   query: string,
   maxResults = 20
@@ -1053,6 +1180,7 @@ export async function searchVault(
 
 // ─── Clear cache ──────────────────────────────────────────────────────
 
+/** Flush the parsed-file cache. Useful in tests; normal runtime invalidates via mtime. */
 export function clearCache(): void {
   cache.clear();
 }

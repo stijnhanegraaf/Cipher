@@ -12,6 +12,15 @@ import { log } from "@/lib/log";
 // The client uses this before opening DetailPage so clicking a broken wiki-link
 // surfaces a friendly "not found" UI instead of a raw 404 fetch page.
 
+/**
+ * `GET /api/resolve?path=<link>` — resolve any wiki-link input to a
+ * vault-relative `.md` path.
+ *
+ * Response: `{ input, resolved: string | null }`. Status codes:
+ * 200 on success (including `resolved: null` when the link doesn't match),
+ * 400 when `path` is missing, 409 when no vault is connected, 500 on
+ * unexpected failure.
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

@@ -80,6 +80,15 @@ const sectionIcons: Record<string, React.ReactNode> = {
   ),
 };
 
+/**
+ * Slide-in drawer listing the active vault's sectioned structure.
+ *
+ * On open, fetches `/api/vault/structure` once to populate the section
+ * list. `scopedPath` narrows the drawer to a single folder (when a pin
+ * opens the drawer); `onClearScope` restores the full listing.
+ * `onOpenFile` dispatches a file click, `onNavigate` routes to a section
+ * page, `onPinFolder` surfaces the pin dialog.
+ */
 export function VaultDrawer({ open, onClose, onNavigate, onOpenFile, scopedPath, onClearScope, onPinFolder }: VaultDrawerProps) {
   const isInScope = (itemPath: string): boolean => {
     if (!scopedPath) return true;

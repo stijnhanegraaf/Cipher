@@ -96,6 +96,14 @@ function AnimatedText({ text, onComplete }: { text: string; onComplete?: () => v
 // Component
 // ────────────────────────────────────────────────────────────────────
 
+/**
+ * Primary chat surface.
+ *
+ * On mount, subscribes to vault state via `useVault()` and renders an
+ * empty-state card when no vault is connected. Each submission POSTs to
+ * `/api/query` (falling back to `/api/toggle` when the input is a
+ * toggle-intent). Slash-prefixed inputs delegate to SlashCommandMenu.
+ */
 export function ChatInterface() {
   const user = useUser();
   const vault = useVault();

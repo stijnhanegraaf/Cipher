@@ -91,12 +91,12 @@ function extractLinksFromCheckbox(text: string): LinkRef[] {
 }
 
 /**
- * Resolve every LinkRef's `path` through the vault resolver so downstream
- * consumers (DetailPage, MarkdownRenderer) always receive an absolute vault
- * path — never a raw wiki label like "Foo". Unresolvable links are dropped.
+ * Resolve every LinkRef's `path` through the vault resolver.
  *
- * Deduplicates by resolved path so the same target appearing under different
- * labels doesn't render twice.
+ * Downstream consumers (DetailPage, MarkdownRenderer) always receive an
+ * absolute vault path — raw wiki labels that don't resolve are dropped.
+ * Deduplicates by resolved path so the same target under different labels
+ * doesn't render twice.
  */
 async function normalizeLinks<T extends { path: string; label: string }>(links: T[]): Promise<T[]> {
   const out: T[] = [];
@@ -130,6 +130,10 @@ function toStatus(s: string): "ok" | "warn" | "error" | "stale" | "fresh" {
   return "ok";
 }
 
+/**
+ * Build a SourceRef for citation / "open note" actions. All builders use
+ * this so the provenance shape stays consistent across views.
+ */
 function sourceRef(label: string, path: string, role?: string, relevance?: string): SourceRef {
   return {
     label,
@@ -225,6 +229,15 @@ function currentMonthPaths(): { current: string; previous: string; currentLabel:
 
 // ─── Current Work ─────────────────────────────────────────────────────
 
+/**
+ * Build the "Current Work" view model.
+ *
+ * Reads the vault's open-work + waiting-for files, groups tasks by the
+ * `### sub-section` headings under `## Active now` (falling back to a
+ * single group if that section is missing), infers status/priority from
+ * task text, and normalises every wiki-link into an absolute vault path.
+ * Always returns a ViewModel — empty groups when no work files are found.
+ */
 export async function buildCurrentWork(): Promise<ViewModel> {
   const { file: openFile } = await readWorkOpen();
   const { file: waitingFile } = await readWorkWaitingFor();
@@ -395,6 +408,14 @@ function getWeekNumber(d: Date): number {
 
 // ─── Entity Overview ──────────────────────────────────────────────────
 
+/**
+ * Build an entity-overview view model for a named entity.
+ *
+ * Reads the entity file from the probed entitiesDir, extracts core framing,
+ * See Also / Related links, and a Timeline table (if present). When
+ * `entityName` is undefined or the file doesn't exist, returns a stub
+ * view model with low confidence so the UI can render a helpful empty state.
+ */
 export async function buildEntityOverview(entityName?: string): Promise<ViewModel> {
   // No default entity — if the caller didn't specify one, we can't build an overview.
   if (!entityName) {
@@ -546,6 +567,14 @@ export async function buildEntityOverview(entityName?: string): Promise<ViewMode
 
 // ─── System Status ────────────────────────────────────────────────────
 
+/**
+ * Build the system-status view model.
+ *
+ * Aggregates: the system-status file (at-a-glance / runtime / cron), the
+ * open-loops file (attention items), and a best-effort vault-health scan
+ * (broken links, stale notes). Overall status is derived from the worst
+ * individual check. Health-scan errors are logged but do not fail the view.
+ */
 export async function buildSystemStatus(): Promise<ViewModel> {
   const { file: statusFile } = await readSystemStatus();
   const { file: loopsFile } = await readOpenLoops();
@@ -703,6 +732,14 @@ export async function buildSystemStatus(): Promise<ViewModel> {
 
 // ─── Timeline Synthesis ───────────────────────────────────────────────
 
+/**
+ * Build the timeline-synthesis view model.
+ *
+ * Reads up to the last 12 monthly work logs, every dated journal file, and
+ * every week-level summary in `<workDir>/weeks/`. Entries are grouped into
+ * themes by `inferTheme()` and returned sorted. Best-effort: missing
+ * folders silently contribute no entries rather than failing the view.
+ */
 export async function buildTimelineSynthesis(): Promise<ViewModel> {
   const monthNames = [
     "january", "february", "march", "april", "may", "june",
@@ -929,6 +966,14 @@ function extractDayEntries(
 
 // ─── Topic Overview ──────────────────────────────────────────────────
 
+/**
+ * Build a topic-overview view model for a project or research topic.
+ *
+ * Matches `query` first against research project directory names, then
+ * against the project index. Extracts summary / current state / key
+ * questions / next steps from conventional section headings. Returns a
+ * "Topic Not Found" stub when no match is found.
+ */
 export async function buildTopicOverview(query?: string): Promise<ViewModel> {
   const q = (query || "").toLowerCase();
 
@@ -1136,6 +1181,14 @@ export async function buildTopicOverview(query?: string): Promise<ViewModel> {
 
 // ─── Search Results ───────────────────────────────────────────────────
 
+/**
+ * Build a search-results view model.
+ *
+ * Walks every layout-probed content folder plus a few conventional extras
+ * (memory / private / notes / inbox), scores each file by term occurrence
+ * (headings weight 5x, body 1x) with a 90-day recency boost, and caps
+ * the list at 12 hits. Terms under 3 characters are dropped.
+ */
 export async function buildSearchResults(query: string): Promise<ViewModel> {
   // Search across every folder the vault layout probed, plus a few
   // common unknown-to-layout names as a backstop. Vault-agnostic.
@@ -1240,6 +1293,12 @@ function inferSuggestedViews(query: string): { intent: Intent; label: string }[]
 
 // ─── Browse Index ─────────────────────────────────────────────────────
 
+/**
+ * Build a browse-index view model (entities / projects / research).
+ *
+ * Always returns a ViewModel; an empty `items` array when the matching
+ * layout folder is absent.
+ */
 export async function buildBrowseIndex(
   indexType: "entities" | "projects" | "research"
 ): Promise<ViewModel> {
@@ -1294,6 +1353,13 @@ export async function buildBrowseIndex(
 
 // ─── Build by view type ──────────────────────────────────────────────
 
+/**
+ * Central view-type dispatcher.
+ *
+ * Maps a `ViewType` to the appropriate `build<X>()` builder, forwarding
+ * `query` (for topic / search) and `entityName` (for entity overview).
+ * Every builder returns a ViewModel; this function never returns null.
+ */
 export async function buildView(
   viewType: ViewType,
   query?: string,
