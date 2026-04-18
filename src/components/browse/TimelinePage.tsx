@@ -151,7 +151,7 @@ export function TimelinePage() {
                 gap: 12,
                 width: "100%",
                 padding: "0 16px",
-                height: 40,
+                height: "var(--row-h-cozy)",
                 border: "none",
                 background: "transparent",
                 textAlign: "left",
@@ -162,7 +162,7 @@ export function TimelinePage() {
             >
               <span
                 className="mono-label"
-                style={{ width: 104, color: "var(--text-quaternary)", flexShrink: 0, letterSpacing: "0.04em", whiteSpace: "nowrap" }}
+                style={{ width: 96, color: "var(--text-quaternary)", flexShrink: 0, letterSpacing: "0.04em", whiteSpace: "nowrap" }}
               >
                 {formatTimelineDate(item.date)}
               </span>

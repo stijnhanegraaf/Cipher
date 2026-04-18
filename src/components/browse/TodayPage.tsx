@@ -347,7 +347,7 @@ function TopicLabel({ topic }: { topic: string }) {
     <div
       className="mono-label"
       style={{
-        padding: "14px 16px 6px",
+        padding: "16px 16px 8px",
         color: "var(--text-quaternary)",
         letterSpacing: "0.04em",
         textTransform: "uppercase",

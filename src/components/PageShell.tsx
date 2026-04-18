@@ -73,11 +73,8 @@ export function PageShell({ title, subtitle, icon, actions, toolbar, children }:
           )}
           <div style={{ minWidth: 0 }}>
             <h1
+              className="heading-2"
               style={{
-                fontSize: 24,
-                fontWeight: 560,
-                letterSpacing: -0.4,
-                lineHeight: 1.2,
                 color: "var(--text-primary)",
                 margin: 0,
                 overflow: "hidden",
