@@ -39,6 +39,12 @@ import {
   parseEntity,
   parseWorkItems,
   parseWorkLog,
+  readWorkOpen,
+  readWorkWaitingFor,
+  readSystemStatus,
+  readOpenLoops,
+  readEntity,
+  getVaultLayout,
   type ParsedFile,
   type TableData,
   type EntityData,
@@ -165,6 +171,29 @@ function inferTheme(body: string | undefined): string | null {
   return null;
 }
 
+/**
+ * Resolve an expected "monthly work log" path from the probed vault layout.
+ * Defaults to `<workDir>/log/<year>/<month>.md` when the layout has a
+ * workDir. Legacy wiki/work/log/... fallback for older vaults.
+ */
+function monthLogPath(year: number, monthName: string): string {
+  const layout = getVaultLayout();
+  const workDir = layout?.workDir;
+  if (workDir) return `${workDir}/log/${year}/${monthName}.md`;
+  return `wiki/work/log/${year}/${monthName}.md`;
+}
+
+/**
+ * Resolve an expected "weekly work summary" path from the probed vault layout.
+ */
+function weekLogPath(year: number, weekNum: number): string {
+  const layout = getVaultLayout();
+  const workDir = layout?.workDir;
+  const weekStr = `W${String(weekNum).padStart(2, "0")}`;
+  if (workDir) return `${workDir}/weeks/${year}/${weekStr}.md`;
+  return `wiki/work/weeks/${year}/${weekStr}.md`;
+}
+
 function currentMonthPaths(): { current: string; previous: string; currentLabel: string; previousLabel: string } {
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -180,8 +209,8 @@ function currentMonthPaths(): { current: string; previous: string; currentLabel:
   const prevMonthName = monthNames[prevMonthIdx];
 
   return {
-    current: `wiki/work/log/${currentYear}/${currentMonthName}.md`,
-    previous: `wiki/work/log/${prevYear}/${prevMonthName}.md`,
+    current: monthLogPath(currentYear, currentMonthName),
+    previous: monthLogPath(prevYear, prevMonthName),
     currentLabel: `${currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1)} ${currentYear}`,
     previousLabel: `${prevMonthName.charAt(0).toUpperCase() + prevMonthName.slice(1)} ${prevYear}`,
   };
@@ -190,8 +219,8 @@ function currentMonthPaths(): { current: string; previous: string; currentLabel:
 // ─── Current Work ─────────────────────────────────────────────────────
 
 export async function buildCurrentWork(): Promise<ViewModel> {
-  const openFile = await readVaultFile("wiki/work/open.md");
-  const waitingFile = await readVaultFile("wiki/work/waiting-for.md");
+  const { file: openFile } = await readWorkOpen();
+  const { file: waitingFile } = await readWorkWaitingFor();
 
   const groups: TaskGroup[] = [];
 
@@ -303,11 +332,11 @@ export async function buildCurrentWork(): Promise<ViewModel> {
   const periodLinks: { week?: LinkRef; month?: LinkRef } = {};
   periodLinks.week = {
     label: `W${weekNum}`,
-    path: `wiki/work/weeks/${now.getFullYear()}/W${weekNum}.md`,
+    path: weekLogPath(now.getFullYear(), weekNum),
   };
   periodLinks.month = {
     label: `${monthNames[now.getMonth()].charAt(0).toUpperCase() + monthNames[now.getMonth()].slice(1)} ${now.getFullYear()}`,
-    path: `wiki/work/log/${now.getFullYear()}/${monthNames[now.getMonth()]}.md`,
+    path: monthLogPath(now.getFullYear(), monthNames[now.getMonth()]),
   };
 
   // Normalize every task item's links — unresolvable raw wiki labels drop out,
@@ -334,13 +363,13 @@ export async function buildCurrentWork(): Promise<ViewModel> {
     layout: "stack",
     data,
     sources: [
-      sourceRef("Open Work", "wiki/work/open.md", "current_state"),
-      sourceRef("Waiting For", "wiki/work/waiting-for.md", "blocked_items"),
+      ...(openFile ? [sourceRef("Open Work", openFile.path, "current_state")] : []),
+      ...(waitingFile ? [sourceRef("Waiting For", waitingFile.path, "blocked_items")] : []),
     ],
-    actions: [
-      { id: uid("act"), type: "open_note", label: "Open Work Notes", target: { path: "wiki/work/open.md" }, safety: "safe" },
-    ],
-    sourceFile: "wiki/work/open.md",
+    actions: openFile
+      ? [{ id: uid("act"), type: "open_note", label: "Open Work Notes", target: { path: openFile.path }, safety: "safe" }]
+      : [],
+    sourceFile: openFile?.path,
     meta: { confidence: 0.9, freshness: "fresh", generatedAt: new Date().toISOString(), primarySourceCount: groups.length },
   };
 }
@@ -376,9 +405,13 @@ export async function buildEntityOverview(entityName?: string): Promise<ViewMode
   }
 
   const name = entityName;
-  const primaryFile = `wiki/knowledge/entities/${name}.md`;
+  const layout = getVaultLayout();
+  const primaryFile = layout?.entitiesDir
+    ? `${layout.entitiesDir}/${name}.md`
+    : `wiki/knowledge/entities/${name}.md`;
 
-  // Read primary file
+  // Read primary file. Falls back to parent dirs via readEntity's probe
+  // when the layout doesn't match the expected shape.
   const mainFile = await readVaultFile(primaryFile);
   if (!mainFile) {
     return {
@@ -460,7 +493,7 @@ export async function buildEntityOverview(entityName?: string): Promise<ViewMode
   }
 
   // Build "why now" from open work
-  const openFile = await readVaultFile("wiki/work/open.md");
+  const { file: openFile } = await readWorkOpen();
   let whyNow: string | undefined;
   if (openFile && openFile.content.toLowerCase().includes(name.toLowerCase())) {
     whyNow = `There are active work items referencing ${name.charAt(0).toUpperCase() + name.slice(1).replace(/-/g, " ")}.`;
@@ -507,8 +540,8 @@ export async function buildEntityOverview(entityName?: string): Promise<ViewMode
 // ─── System Status ────────────────────────────────────────────────────
 
 export async function buildSystemStatus(): Promise<ViewModel> {
-  const statusFile = await readVaultFile("wiki/system/status.md");
-  const loopsFile = await readVaultFile("wiki/system/open-loops.md");
+  const { file: statusFile } = await readSystemStatus();
+  const { file: loopsFile } = await readOpenLoops();
 
   const checks: StatusItem[] = [];
   let overallStatus: "ok" | "warn" | "error" | "stale" | "fresh" = "ok";
@@ -650,13 +683,13 @@ export async function buildSystemStatus(): Promise<ViewModel> {
     layout: "stack",
     data,
     sources: [
-      sourceRef("System Status", "wiki/system/status.md", "system"),
-      sourceRef("Open Loops", "wiki/system/open-loops.md", "system"),
+      ...(statusFile ? [sourceRef("System Status", statusFile.path, "system")] : []),
+      ...(loopsFile ? [sourceRef("Open Loops", loopsFile.path, "system")] : []),
     ],
-    actions: [
-      { id: uid("act"), type: "open_note", label: "Open System Status", target: { path: "wiki/system/status.md" }, safety: "safe" },
-    ],
-    sourceFile: "wiki/system/status.md",
+    actions: statusFile
+      ? [{ id: uid("act"), type: "open_note", label: "Open System Status", target: { path: statusFile.path }, safety: "safe" }]
+      : [],
+    sourceFile: statusFile?.path,
     meta: { confidence: 0.95, freshness: "fresh", generatedAt: new Date().toISOString(), primarySourceCount: 2 },
   };
 }
@@ -675,32 +708,35 @@ export async function buildTimelineSynthesis(): Promise<ViewModel> {
   const dateEntries: { date: string; label: string; summary: string; body: string; sourcePath: string; anchor?: string }[] = [];
   const sourceFiles: string[] = [];
 
-  // 1. Walk backward up to 12 months of monthly work logs.
+  // 1. Walk backward up to 12 months of monthly work logs using the
+  //    probed work-log path scheme.
   const nowTs = new Date();
   for (let offset = 0; offset < 12; offset++) {
     const d = new Date(nowTs.getFullYear(), nowTs.getMonth() - offset, 1);
-    const rel = `wiki/work/log/${d.getFullYear()}/${monthNames[d.getMonth()]}.md`;
+    const rel = monthLogPath(d.getFullYear(), monthNames[d.getMonth()]);
     const file = await readVaultFile(rel);
     if (!file) continue;
     sourceFiles.push(rel);
     extractDayEntries(file, d.getFullYear(), dateEntries, monthNames, rel);
   }
 
-  // 2. Walk wiki/journal/ — one file per day with YYYY-MM-DD.md filename.
+  // 2. Walk the journal directory (probed from vault layout) — one file
+  //    per day with YYYY-MM-DD.md filename.
   try {
     const { readdir } = await import("fs/promises");
     const { getVaultPath } = await import("./vault-reader");
     const root = getVaultPath();
-    if (root) {
+    const layout = getVaultLayout();
+    if (root && layout?.journalDir) {
       const { existsSync } = await import("fs");
       const { join } = await import("path");
-      const journalDir = join(root, "wiki/journal");
-      if (existsSync(journalDir)) {
-        const journalFiles = await readdir(journalDir);
+      const journalDirAbs = join(root, layout.journalDir);
+      if (existsSync(journalDirAbs)) {
+        const journalFiles = await readdir(journalDirAbs);
         for (const name of journalFiles) {
           const m = name.match(/^(\d{4})-(\d{2})-(\d{2})\.md$/i);
           if (!m) continue;
-          const rel = `wiki/journal/${name}`;
+          const rel = `${layout.journalDir}/${name}`;
           const file = await readVaultFile(rel);
           if (!file) continue;
           sourceFiles.push(rel);
@@ -717,13 +753,16 @@ export async function buildTimelineSynthesis(): Promise<ViewModel> {
             summary,
             body: file.content,
             sourcePath: rel,
-            // Journal files are whole-day, so no anchor needed — open at top.
           });
         }
       }
+    }
 
-      // 3. Walk wiki/work/weeks/<year>/ — week-level summary files.
-      const weeksRoot = join(root, "wiki/work/weeks");
+    // 3. Walk <workDir>/weeks/<year>/ — week-level summary files.
+    if (root && layout?.workDir) {
+      const { existsSync } = await import("fs");
+      const { join } = await import("path");
+      const weeksRoot = join(root, layout.workDir, "weeks");
       if (existsSync(weeksRoot)) {
         const years = await readdir(weeksRoot).catch(() => []);
         for (const year of years) {
@@ -731,7 +770,7 @@ export async function buildTimelineSynthesis(): Promise<ViewModel> {
           const weekFiles = await readdir(yearDir).catch(() => []);
           for (const name of weekFiles) {
             if (!name.toLowerCase().endsWith(".md")) continue;
-            const rel = `wiki/work/weeks/${year}/${name}`;
+            const rel = `${layout.workDir}/weeks/${year}/${name}`;
             const file = await readVaultFile(rel);
             if (!file) continue;
             sourceFiles.push(rel);
@@ -1091,18 +1130,22 @@ export async function buildTopicOverview(query?: string): Promise<ViewModel> {
 // ─── Search Results ───────────────────────────────────────────────────
 
 export async function buildSearchResults(query: string): Promise<ViewModel> {
-  // Search across ALL vault directories including private
-  const dirs = [
-    "wiki/work",
-    "wiki/system",
-    "wiki/knowledge",
-    "wiki/projects",
-    "wiki/memory",
-    "wiki/journal",
-    "wiki/private",
-  ];
+  // Search across every folder the vault layout probed, plus a few
+  // common unknown-to-layout names as a backstop. Vault-agnostic.
+  const layout = getVaultLayout();
+  const probed = [
+    layout?.workDir,
+    layout?.systemDir,
+    layout?.entitiesDir,
+    layout?.projectsDir,
+    layout?.researchDir,
+    layout?.journalDir,
+  ].filter((d): d is string => !!d);
+  const extras = ["memory", "private", "notes", "inbox"];
+  const extraPrefixed = layout?.hasWiki ? extras.map((n) => `wiki/${n}`) : extras;
+  const dirs = Array.from(new Set([...probed, ...extraPrefixed]));
 
-  // Collect all files from all directories
+  // Collect all files from every dir.
   const allFiles = new Set<string>();
   for (const dir of dirs) {
     const files = await listVaultFiles(dir);

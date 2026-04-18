@@ -3,6 +3,7 @@ import { readdir, stat } from "fs/promises";
 import { join, extname } from "path";
 import {
   getVaultPath,
+  getVaultLayout,
   readVaultFile,
   extractLinks,
   resolveLink,
@@ -26,8 +27,30 @@ const SAMPLE_CAP = 8;
 const FULL_CAP = 200;
 const HUB_CAP = 10;
 
-/** Folders we consider "active" for stale-note reporting. */
-const ACTIVE_FOLDERS = ["wiki/projects", "wiki/work", "wiki/knowledge", "wiki/system"];
+/**
+ * Folders we consider "active" for stale-note reporting. Derived from the
+ * probed vault layout at call time, so any vault structure works.
+ */
+function activeFolders(): string[] {
+  const layout = getVaultLayout();
+  if (!layout) return [];
+  const dirs = [
+    layout.projectsDir,
+    layout.workDir,
+    layout.entitiesDir,
+    layout.researchDir,
+    layout.systemDir,
+  ].filter((d): d is string => !!d);
+  // Also include the parent of entitiesDir / researchDir when they sit
+  // under a common umbrella (e.g. wiki/knowledge/entities + research) —
+  // so notes in the umbrella root are tracked too.
+  const umbrellas = new Set<string>();
+  for (const d of dirs) {
+    const parent = d.includes("/") ? d.split("/").slice(0, -1).join("/") : "";
+    if (parent && parent !== layout.root && parent !== "wiki") umbrellas.add(parent);
+  }
+  return Array.from(new Set([...dirs, ...umbrellas]));
+}
 
 async function walkMd(root: string): Promise<string[]> {
   const out: string[] = [];
@@ -61,8 +84,8 @@ function topFolder(p: string): string {
   return p.includes("/") ? p.split("/")[0] : "(root)";
 }
 
-function isActive(path: string): boolean {
-  return ACTIVE_FOLDERS.some((f) => path.startsWith(f));
+function isActive(path: string, active: string[]): boolean {
+  return active.some((f) => path.startsWith(f));
 }
 
 /**
@@ -84,6 +107,7 @@ export async function buildVaultHealth(): Promise<VaultHealthMetrics | null> {
   const now = Date.now();
   const dayMs = 24 * 60 * 60 * 1000;
   const days: number[] = new Array(30).fill(0);
+  const active = activeFolders();
 
   const brokenAll: BrokenLinkSample[] = [];
   const staleAll: StaleNoteSample[] = [];
@@ -117,7 +141,7 @@ export async function buildVaultHealth(): Promise<VaultHealthMetrics | null> {
       const ageMs = now - mtime;
       const ageDays = Math.floor(ageMs / dayMs);
       if (ageDays < 30) days[29 - ageDays]++;
-      if (isActive(path) && ageDays >= STALE_DAYS) {
+      if (isActive(path, active) && ageDays >= STALE_DAYS) {
         if (staleAll.length < FULL_CAP) {
           staleAll.push({ path, title: titles.get(path) ?? path, daysStale: ageDays });
         }
