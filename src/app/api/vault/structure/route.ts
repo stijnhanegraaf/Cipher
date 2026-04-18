@@ -9,6 +9,7 @@ import {
 import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 import { log } from "@/lib/log";
+import type { IndexEntry, ResearchProject } from "@/lib/view-models";
 
 /**
  * Returns the active vault's top-level structure for the drawer.
@@ -66,21 +67,21 @@ export async function GET() {
       sections.push({
         key: "entities",
         label: "Entities",
-        items: entities.map((e: any) => ({ name: e.name, path: e.path, type: e.type })),
+        items: entities.map((e: IndexEntry) => ({ name: e.name, path: e.path, type: e.type })),
       });
     }
     if (projects.length > 0) {
       sections.push({
         key: "projects",
         label: "Projects",
-        items: projects.map((p: any) => ({ name: p.name, path: p.path })),
+        items: projects.map((p: IndexEntry) => ({ name: p.name, path: p.path })),
       });
     }
     if (research.length > 0) {
       sections.push({
         key: "research",
         label: "Research",
-        items: research.map((r: any) => ({ name: r.name, path: r.dir })),
+        items: research.map((r: ResearchProject) => ({ name: r.name, path: r.dir })),
       });
     }
     if (layout.journalDir) {

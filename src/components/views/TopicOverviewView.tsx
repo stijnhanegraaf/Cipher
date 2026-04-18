@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
-import { TopicOverviewData } from "@/lib/view-models";
+import { TopicOverviewData, ViewModel } from "@/lib/view-models";
 import { EntityHeader, SectionBlock, LinkList, TimelineMini, StatusDot, MarkdownRenderer } from "@/components/ui";
 
 const topicEmoji: Record<string, string> = {
@@ -12,7 +12,7 @@ const topicEmoji: Record<string, string> = {
   system: "⚙️",
 };
 
-export function TopicOverviewView({ data, view, onNavigate }: { data: TopicOverviewData; view: any; onNavigate?: (path: string) => void }) {
+export function TopicOverviewView({ data, view, onNavigate }: { data: unknown; view: ViewModel; onNavigate?: (path: string) => void }) {
   const topic = data as TopicOverviewData;
   const emoji = topicEmoji[topic.topicType] || "📄";
 

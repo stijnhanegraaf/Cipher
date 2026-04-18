@@ -28,6 +28,14 @@ interface HoverCardProps {
   closeDelay?: number;
 }
 
+type TriggerProps = {
+  ref?: React.Ref<HTMLElement>;
+  onMouseEnter?: (e: React.MouseEvent) => void;
+  onMouseLeave?: (e: React.MouseEvent) => void;
+  onFocus?: (e: React.FocusEvent) => void;
+  onBlur?: (e: React.FocusEvent) => void;
+};
+
 export function HoverCard({
   children,
   content,
@@ -35,6 +43,7 @@ export function HoverCard({
   openDelay = 200,
   closeDelay = 100,
 }: HoverCardProps) {
+  const trigger = children as React.ReactElement<TriggerProps>;
   const triggerRef = useRef<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<{ x: number; y: number; side: "top" | "bottom" } | null>(null);
@@ -116,26 +125,27 @@ export function HoverCard({
     ref: (el: HTMLElement | null) => {
       triggerRef.current = el;
       // Forward existing ref if the child has one.
-      const childRef = (children as any).ref;
+      // React's ref types don't play nicely with cloneElement over unknown children.
+      const childRef = (trigger as unknown as { ref?: React.Ref<HTMLElement> }).ref;
       if (typeof childRef === "function") childRef(el);
-      else if (childRef && typeof childRef === "object") (childRef as any).current = el;
+      else if (childRef && typeof childRef === "object") (childRef as React.MutableRefObject<HTMLElement | null>).current = el;
     },
     onMouseEnter: (e: React.MouseEvent) => {
       if (isTouch()) return;
       schedule("open");
-      (children.props as any).onMouseEnter?.(e);
+      trigger.props.onMouseEnter?.(e);
     },
     onMouseLeave: (e: React.MouseEvent) => {
       schedule("close");
-      (children.props as any).onMouseLeave?.(e);
+      trigger.props.onMouseLeave?.(e);
     },
     onFocus: (e: React.FocusEvent) => {
       schedule("open");
-      (children.props as any).onFocus?.(e);
+      trigger.props.onFocus?.(e);
     },
     onBlur: (e: React.FocusEvent) => {
       schedule("close");
-      (children.props as any).onBlur?.(e);
+      trigger.props.onBlur?.(e);
     },
   };
 
@@ -145,9 +155,8 @@ export function HoverCard({
     onMouseLeave: () => schedule("close"),
   };
 
-  const clone = (children as any);
-  const Trigger = clone.type;
-  const mergedProps = { ...(clone.props as object), ...triggerProps };
+  const Trigger = trigger.type as React.ElementType;
+  const mergedProps = { ...(trigger.props as object), ...triggerProps };
 
   return (
     <>

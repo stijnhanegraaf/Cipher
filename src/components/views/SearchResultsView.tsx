@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
-import { SearchResultsData } from "@/lib/view-models";
+import { SearchResultsData, ViewModel } from "@/lib/view-models";
 import { Badge } from "@/components/ui";
 
 // Kind → display label & badge variant
@@ -26,7 +26,7 @@ function groupByKind(results: SearchResultsData["results"]) {
   return groups;
 }
 
-export function SearchResultsView({ data, view, onAsk, onNavigate }: { data: SearchResultsData; view: any; onAsk?: (query: string) => void; onNavigate?: (path: string) => void }) {
+export function SearchResultsView({ data, view, onAsk, onNavigate }: { data: unknown; view: ViewModel; onAsk?: (query: string) => void; onNavigate?: (path: string) => void }) {
   const search = data as SearchResultsData;
   const groups = groupByKind(search.results);
   const kindOrder = ["canonical_note", "entity", "topic", "derived_index", "runtime_status", "generated_summary", "other"];

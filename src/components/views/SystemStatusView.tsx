@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
-import { SystemStatusData, Status } from "@/lib/view-models";
+import { SystemStatusData, Status, ViewModel } from "@/lib/view-models";
 import { CalloutBox, Badge, StatusDot, MarkdownRenderer } from "@/components/ui";
 
 // Status visual configuration — derived from status CSS vars.
@@ -51,7 +51,7 @@ function OverallIndicator({ status, label }: { status: Status; label: string }) 
   );
 }
 
-export function SystemStatusView({ data, view, onNavigate }: { data: SystemStatusData; view: any; onNavigate?: (path: string) => void }) {
+export function SystemStatusView({ data, view, onNavigate }: { data: unknown; view: ViewModel; onNavigate?: (path: string) => void }) {
   const status = data as SystemStatusData;
 
   return (

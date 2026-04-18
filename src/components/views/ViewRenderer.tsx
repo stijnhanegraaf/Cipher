@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { cardEntrance } from "@/lib/motion";
 import {
+  BrowseIndexData,
   ViewModel,
   ViewType,
 } from "@/lib/view-models";
@@ -17,16 +18,24 @@ import { ActionBar } from "@/components/ui";
 import { formatFreshness, formatViewType, pluralize } from "@/lib/format";
 import { useVault } from "@/lib/hooks/useVault";
 
-const viewComponents: Record<ViewType, React.ComponentType<{ data: any; view: ViewModel; onToggle?: (itemId: string, checked: boolean) => void; onAsk?: (query: string) => void; onNavigate?: (path: string) => void }>> = {
+type ViewComponentProps = {
+  data: unknown;
+  view: ViewModel;
+  onToggle?: (itemId: string, checked: boolean) => void;
+  onAsk?: (query: string) => void;
+  onNavigate?: (path: string) => void;
+};
+
+const viewComponents: Record<ViewType, React.ComponentType<ViewComponentProps>> = {
   current_work: CurrentWorkView,
   entity_overview: EntityOverviewView,
   topic_overview: TopicOverviewView,
   timeline_synthesis: TimelineView,
   system_status: SystemStatusView,
   search_results: SearchResultsView,
-  browse_entities: ({ data }: { data: any; view: any }) => <BrowseView data={data} />,
-  browse_projects: ({ data }: { data: any; view: any }) => <BrowseView data={data} />,
-  browse_research: ({ data }: { data: any; view: any }) => <BrowseView data={data} />,
+  browse_entities: ({ data }) => <BrowseView data={data as BrowseIndexData} />,
+  browse_projects: ({ data }) => <BrowseView data={data as BrowseIndexData} />,
+  browse_research: ({ data }) => <BrowseView data={data as BrowseIndexData} />,
 };
 
 // Map view type to a small, stroke-2 icon for the header spine.

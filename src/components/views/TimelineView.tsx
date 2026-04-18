@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
-import { TimelineSynthesisData } from "@/lib/view-models";
+import { TimelineSynthesisData, ViewModel } from "@/lib/view-models";
 import { Badge, CalloutBox } from "@/components/ui";
 
 // Theme color palette — dot + bg tint + border tint per cycling theme.
@@ -15,7 +15,7 @@ const themeAccents = [
   { dot: "var(--text-tertiary)",      bg: "color-mix(in srgb, var(--text-tertiary) 4%, transparent)",  border: "color-mix(in srgb, var(--text-tertiary) 8%, transparent)" },
 ];
 
-export function TimelineView({ data, view, onNavigate }: { data: TimelineSynthesisData; view: any; onNavigate?: (path: string) => void }) {
+export function TimelineView({ data, view, onNavigate }: { data: unknown; view: ViewModel; onNavigate?: (path: string) => void }) {
   const timeline = data as TimelineSynthesisData;
 
   return (

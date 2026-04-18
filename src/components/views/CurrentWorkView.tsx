@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
-import { CurrentWorkData, TaskGroup as TaskGroupType } from "@/lib/view-models";
+import { CurrentWorkData, TaskGroup as TaskGroupType, ViewModel } from "@/lib/view-models";
 import { TaskGroupComponent, Badge } from "@/components/ui";
 
 type StatusFilter = "all" | "open" | "in_progress" | "blocked" | "done";
@@ -17,7 +17,7 @@ const filterLabels: Record<StatusFilter, string> = {
   done: "Done",
 };
 
-export function CurrentWorkView({ data, view, onToggle, onAsk, onNavigate }: { data: CurrentWorkData; view: any; onToggle?: (itemId: string, checked: boolean) => void; onAsk?: (query: string) => void; onNavigate?: (path: string) => void }) {
+export function CurrentWorkView({ data, view, onToggle, onAsk, onNavigate }: { data: unknown; view: ViewModel; onToggle?: (itemId: string, checked: boolean) => void; onAsk?: (query: string) => void; onNavigate?: (path: string) => void }) {
   const workData = data as CurrentWorkData;
   const [filter, setFilter] = useState<StatusFilter>("all");
 

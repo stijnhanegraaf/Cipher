@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
-import { EntityOverviewData } from "@/lib/view-models";
+import { EntityOverviewData, ViewModel } from "@/lib/view-models";
 import { EntityHeader, SectionBlock, LinkList, TimelineMini, MarkdownRenderer } from "@/components/ui";
 
 const entityEmoji: Record<string, string> = {
@@ -14,7 +14,7 @@ const entityEmoji: Record<string, string> = {
   place: "📍",
 };
 
-export function EntityOverviewView({ data, view, onNavigate }: { data: EntityOverviewData; view: any; onNavigate?: (path: string) => void }) {
+export function EntityOverviewView({ data, view, onNavigate }: { data: unknown; view: ViewModel; onNavigate?: (path: string) => void }) {
   const entity = data as EntityOverviewData;
   const emoji = entityEmoji[entity.entityType] || "📎";
 

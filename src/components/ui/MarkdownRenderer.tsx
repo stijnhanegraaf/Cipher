@@ -2,6 +2,7 @@
 
 import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
+import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CheckboxIndicator, StatusDot } from "./StatusDot";
 
@@ -223,9 +224,10 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
               {children}
             </ul>
           ),
-          li: ({ children, node, ...props }: any) => {
-            // GFM task list: react-markdown passes `checked` prop when item is a task
-            const checked = props.checked;
+          li: ({ children, ...props }) => {
+            // GFM task list: react-markdown passes `checked` prop when item is a task,
+            // though the Components type doesn't reflect that shape.
+            const checked = (props as { checked?: boolean | null }).checked;
             const isTask = checked !== undefined && checked !== null;
 
             if (isTask) {
@@ -270,7 +272,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
           ),
 
           // ── Code inline + code block child ──
-          code: ({ className, children, ...props }: any) => {
+          code: ({ className, children, ...props }) => {
             // Inline or block-child code — both use the same pill styling
             return (
               <code
@@ -368,7 +370,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
           // ── Checkbox input (GFM task lists) ──
           // We suppress the raw input element; rendering is handled by the li component
           input: () => null,
-        }}
+        } satisfies Components}
       >
         {processedContent}
       </ReactMarkdown>
