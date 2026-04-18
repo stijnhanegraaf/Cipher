@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { PinIcon, PIN_ICON_NAMES } from "@/components/ui/PinIcon";
 import type { PinEntry, PinIconName } from "@/lib/settings";
@@ -72,7 +73,13 @@ export function PinDialog({ open, initial, onClose, onSave }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  return (
+  // Portal to document.body so the fixed-position panel can't be re-contained
+  // by any transformed ancestor (framer-motion Reorder sets transform on
+  // drag handles inside the Sidebar tree, which would otherwise capture
+  // fixed descendants).
+  if (typeof window === "undefined") return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
@@ -256,6 +263,7 @@ export function PinDialog({ open, initial, onClose, onSave }: Props) {
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
