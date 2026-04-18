@@ -5,9 +5,17 @@ import { PageShell, PageAction } from "@/components/PageShell";
 import { StatusDot, Badge, MarkdownRenderer } from "@/components/ui";
 import { ActivitySparkline } from "@/components/ui/ActivitySparkline";
 import { useSheet } from "@/lib/hooks/useSheet";
-import type { SystemStatusData, Status } from "@/lib/view-models";
+import type {
+  SystemStatusData,
+  Status,
+  VaultHealthMetrics,
+  BrokenLinkSample,
+  StaleNoteSample,
+  HubNote,
+  FolderCount,
+} from "@/lib/view-models";
 
-/** Fetch system status via the existing /api/query pipeline. */
+// ─── Fetch ──────────────────────────────────────────────────────────
 async function fetchSystemData(): Promise<SystemStatusData | null> {
   const res = await fetch("/api/query", {
     method: "POST",
@@ -20,12 +28,15 @@ async function fetchSystemData(): Promise<SystemStatusData | null> {
   return (view?.data as SystemStatusData) ?? null;
 }
 
+// ─── Page ───────────────────────────────────────────────────────────
 export function SystemPage() {
   const sheet = useSheet();
   const [data, setData] = useState<SystemStatusData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [brokenExpanded, setBrokenExpanded] = useState(false);
+  const [staleExpanded, setStaleExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,22 +57,22 @@ export function SystemPage() {
     };
   }, [refreshTick]);
 
-  const refresh = useCallback(() => setRefreshTick((t) => t + 1), []);
+  const refresh = useCallback(() => {
+    setBrokenExpanded(false);
+    setStaleExpanded(false);
+    setRefreshTick((t) => t + 1);
+  }, []);
 
+  const health = data?.health;
   const healthyCount = data?.checks.filter((c) => c.status === "ok" || c.status === "fresh").length ?? 0;
   const attentionCount = data?.checks.filter((c) => c.status === "warn" || c.status === "error").length ?? 0;
-  const subtitle = data
-    ? `${healthyCount} healthy${attentionCount > 0 ? ` · ${attentionCount} needs attention` : ""}`
+  const subtitle = health
+    ? `${health.totalFiles} notes · ${health.totalLinks} links${attentionCount > 0 ? ` · ${attentionCount} need attention` : ""}`
     : undefined;
 
   return (
     <PageShell
-      icon={
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M13 2L3 14h9l-1 8 10-12h-9z" />
-        </svg>
-      }
-      title="System status"
+      title="System"
       subtitle={subtitle}
       actions={
         <PageAction label="Refresh" onClick={refresh}>
@@ -74,68 +85,98 @@ export function SystemPage() {
       {loading && <Loading />}
       {!loading && error && <ErrorBlock body={error} />}
       {!loading && !error && data && (
-        <>
-          {/* Vault activity — appears first so you immediately see the
-              pulse of the vault. */}
-          {data.health && (
-            <Section label="Vault activity" count={data.health.totalFiles}>
-              <div style={{ padding: "16px 16px 20px" }}>
-                <ActivitySparkline
-                  days={data.health.activity.days}
-                  peak={data.health.activity.peak}
-                  total={data.health.activity.total}
-                />
+        <div style={{ display: "flex", flexDirection: "column", paddingBottom: 48 }}>
+          {/* ── Stat cards row ───────────────────────────── */}
+          {health && <StatCards health={health} healthyCount={healthyCount} attentionCount={attentionCount} />}
+
+          {/* ── Activity ──────────────────────────────────── */}
+          {health && (
+            <Section label="Activity">
+              <div style={{ padding: "20px 32px 24px" }}>
+                <ActivitySparkline days={health.activity.days} peak={health.activity.peak} total={health.activity.total} />
               </div>
             </Section>
           )}
 
-          <Section label="Checks" count={data.checks.length}>
-            {data.checks.length === 0 ? (
-              <EmptyState body="No checks configured." />
-            ) : (
-              data.checks.map((check, i) => (
+          {/* ── Folder distribution ───────────────────────── */}
+          {health && health.folders.length > 0 && (
+            <Section label="Inventory">
+              <FolderStack folders={health.folders} total={health.totalFiles} />
+            </Section>
+          )}
+
+          {/* ── Hubs ──────────────────────────────────────── */}
+          {health && health.hubs.length > 0 && (
+            <Section label="Top hubs" count={health.hubs.length}>
+              {health.hubs.map((h) => (
+                <HubRow key={h.path} hub={h} onOpen={() => sheet.open(h.path)} />
+              ))}
+            </Section>
+          )}
+
+          {/* ── Broken links ──────────────────────────────── */}
+          {health && health.brokenLinks.count > 0 && (
+            <Section
+              label="Broken links"
+              count={health.brokenLinks.count}
+              action={
+                !brokenExpanded && health.brokenLinks.count > health.brokenLinks.samples.length ? (
+                  <SeeAllButton onClick={() => setBrokenExpanded(true)}>
+                    See all
+                  </SeeAllButton>
+                ) : brokenExpanded ? (
+                  <SeeAllButton onClick={() => setBrokenExpanded(false)}>
+                    Collapse
+                  </SeeAllButton>
+                ) : undefined
+              }
+            >
+              <ListScroll expanded={brokenExpanded}>
+                {(brokenExpanded ? health.brokenLinks.all : health.brokenLinks.samples).map((s, i) => (
+                  <BrokenLinkRow key={`${s.from}-${i}`} sample={s} onOpen={() => sheet.open(s.from)} />
+                ))}
+              </ListScroll>
+            </Section>
+          )}
+
+          {/* ── Stale notes ──────────────────────────────── */}
+          {health && health.staleNotes.count > 0 && (
+            <Section
+              label="Stale notes"
+              count={health.staleNotes.count}
+              action={
+                !staleExpanded && health.staleNotes.count > health.staleNotes.samples.length ? (
+                  <SeeAllButton onClick={() => setStaleExpanded(true)}>See all</SeeAllButton>
+                ) : staleExpanded ? (
+                  <SeeAllButton onClick={() => setStaleExpanded(false)}>Collapse</SeeAllButton>
+                ) : undefined
+              }
+            >
+              <ListScroll expanded={staleExpanded}>
+                {(staleExpanded ? health.staleNotes.all : health.staleNotes.samples).map((s, i) => (
+                  <StaleNoteRow key={`${s.path}-${i}`} sample={s} onOpen={() => sheet.open(s.path)} />
+                ))}
+              </ListScroll>
+            </Section>
+          )}
+
+          {/* ── Checks (curated from status.md) ───────────── */}
+          {data.checks.length > 0 && (
+            <Section label="Checks" count={data.checks.length}>
+              {data.checks.map((check, i) => (
                 <CheckRow key={i} status={check.status} label={check.label} detail={check.detail} />
-              ))
-            )}
-          </Section>
-
-          {data.health && data.health.brokenLinks.count > 0 && (
-            <Section label="Broken links" count={data.health.brokenLinks.count}>
-              {data.health.brokenLinks.samples.map((s, i) => (
-                <BrokenLinkRow
-                  key={i}
-                  sample={s}
-                  onOpen={() => sheet.open(s.from)}
-                />
               ))}
-              {data.health.brokenLinks.count > data.health.brokenLinks.samples.length && (
-                <p className="small" style={{ padding: "8px 16px 16px", color: "var(--text-quaternary)", margin: 0 }}>
-                  + {data.health.brokenLinks.count - data.health.brokenLinks.samples.length} more.
-                </p>
-              )}
             </Section>
           )}
 
-          {data.health && data.health.staleNotes.count > 0 && (
-            <Section label="Stale notes" count={data.health.staleNotes.count}>
-              {data.health.staleNotes.samples.map((s, i) => (
-                <StaleNoteRow key={i} sample={s} onOpen={() => sheet.open(s.path)} />
-              ))}
-              {data.health.staleNotes.count > data.health.staleNotes.samples.length && (
-                <p className="small" style={{ padding: "8px 16px 16px", color: "var(--text-quaternary)", margin: 0 }}>
-                  + {data.health.staleNotes.count - data.health.staleNotes.samples.length} more.
-                </p>
-              )}
-            </Section>
-          )}
-
+          {/* ── Needs attention (curated list) ─────────────── */}
           {data.attention && data.attention.length > 0 && (
             <Section label="Needs attention" count={data.attention.length}>
               <div
                 style={{
-                  margin: "12px 16px",
+                  margin: "12px 32px",
                   padding: "14px 16px",
-                  borderRadius: 8,
+                  borderRadius: "var(--radius-card)",
                   background: "color-mix(in srgb, var(--status-warning) 6%, transparent)",
                   borderLeft: "2px solid var(--status-warning)",
                 }}
@@ -146,13 +187,155 @@ export function SystemPage() {
               </div>
             </Section>
           )}
-        </>
+        </div>
       )}
     </PageShell>
   );
 }
 
-function Section({ label, count, children }: { label: string; count: number; children: React.ReactNode }) {
+// ─── Stat cards ─────────────────────────────────────────────────────
+function StatCards({ health, healthyCount, attentionCount }: { health: VaultHealthMetrics; healthyCount: number; attentionCount: number }) {
+  const brokenPct = health.totalLinks > 0 ? Math.round((health.brokenLinks.count / health.totalLinks) * 100) : 0;
+  const orphanPct = health.totalFiles > 0 ? Math.round((health.orphans / health.totalFiles) * 100) : 0;
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+        gap: 12,
+        padding: "24px 32px 8px",
+      }}
+    >
+      <StatCard
+        label="Notes"
+        value={health.totalFiles.toLocaleString()}
+        delta={`${orphanPct}% orphaned`}
+        deltaTone={orphanPct > 40 ? "warn" : "muted"}
+      />
+      <StatCard
+        label="Links"
+        value={health.totalLinks.toLocaleString()}
+        delta={`${health.hubs.length} hubs`}
+        deltaTone="muted"
+      />
+      <StatCard
+        label="Broken"
+        value={health.brokenLinks.count.toLocaleString()}
+        delta={`${brokenPct}% of links`}
+        deltaTone={brokenPct > 10 ? "warn" : brokenPct > 0 ? "attention" : "ok"}
+      />
+      <StatCard
+        label="This week"
+        value={health.activity.week.toLocaleString()}
+        delta={`${health.activity.total} in 30d`}
+        deltaTone="muted"
+      />
+      <StatCard
+        label="Checks"
+        value={healthyCount.toLocaleString()}
+        delta={attentionCount > 0 ? `${attentionCount} attention` : "all healthy"}
+        deltaTone={attentionCount > 0 ? "warn" : "ok"}
+      />
+    </div>
+  );
+}
+
+function StatCard({ label, value, delta, deltaTone }: { label: string; value: string; delta?: string; deltaTone?: "ok" | "warn" | "attention" | "muted" }) {
+  const deltaColor =
+    deltaTone === "ok" ? "var(--status-done)"
+    : deltaTone === "warn" ? "var(--status-warning)"
+    : deltaTone === "attention" ? "var(--text-secondary)"
+    : "var(--text-quaternary)";
+  return (
+    <div
+      style={{
+        padding: "14px 16px 16px",
+        borderRadius: "var(--radius-card)",
+        background: "var(--bg-surface-alpha-2)",
+        border: "1px solid var(--border-subtle)",
+      }}
+    >
+      <div className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 28, fontWeight: 590, letterSpacing: -0.8, lineHeight: 1.1, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
+        {value}
+      </div>
+      {delta && (
+        <div className="caption" style={{ marginTop: 4, color: deltaColor }}>
+          {delta}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Folder stacked bar ─────────────────────────────────────────────
+function FolderStack({ folders, total }: { folders: FolderCount[]; total: number }) {
+  // Linear-style horizontal stacked bar with a legend underneath.
+  const accents = [
+    "var(--accent-brand)",
+    "var(--accent-violet)",
+    "var(--status-done)",
+    "var(--status-in-progress)",
+    "var(--text-tertiary)",
+    "var(--text-quaternary)",
+  ];
+  const visible = folders.slice(0, 6);
+  const otherCount = folders.slice(6).reduce((s, f) => s + f.count, 0);
+  const bars = otherCount > 0 ? [...visible, { folder: "other", count: otherCount }] : visible;
+  return (
+    <div style={{ padding: "20px 32px 24px" }}>
+      <div
+        style={{
+          display: "flex",
+          height: 10,
+          width: "100%",
+          borderRadius: "var(--radius-full)",
+          overflow: "hidden",
+          background: "var(--bg-surface-alpha-2)",
+          marginBottom: 12,
+        }}
+      >
+        {bars.map((f, i) => (
+          <div
+            key={f.folder}
+            title={`${f.folder} — ${f.count}`}
+            style={{
+              width: `${(f.count / total) * 100}%`,
+              background: accents[i % accents.length],
+              transition: "background var(--motion-hover) var(--ease-default)",
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px" }}>
+        {bars.map((f, i) => (
+          <div key={f.folder} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 2,
+                background: accents[i % accents.length],
+                flexShrink: 0,
+              }}
+            />
+            <span className="caption" style={{ color: "var(--text-secondary)" }}>
+              {f.folder}
+            </span>
+            <span className="caption" style={{ color: "var(--text-quaternary)", fontVariantNumeric: "tabular-nums" }}>
+              {f.count}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Section wrapper ────────────────────────────────────────────────
+function Section({ label, count, action, children }: { label: string; count?: number; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section>
       <div
@@ -161,20 +344,66 @@ function Section({ label, count, children }: { label: string; count: number; chi
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "16px 16px 8px",
+          padding: "20px 32px 8px",
           color: "var(--text-tertiary)",
           letterSpacing: "0.04em",
           borderBottom: "1px solid var(--border-subtle)",
+          textTransform: "uppercase",
+          gap: 12,
         }}
       >
-        <span>{label.toUpperCase()}</span>
-        <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-quaternary)" }}>{count}</span>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <span>{label}</span>
+          {count !== undefined && (
+            <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-quaternary)" }}>
+              {count}
+            </span>
+          )}
+        </div>
+        {action}
       </div>
       {children}
     </section>
   );
 }
 
+function SeeAllButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="focus-ring"
+      style={{
+        background: "transparent",
+        border: "none",
+        color: "var(--accent-brand)",
+        cursor: "pointer",
+        padding: "2px 4px",
+        letterSpacing: 0,
+        textTransform: "none",
+      }}
+    >
+      <span className="caption-medium">{children}</span>
+    </button>
+  );
+}
+
+function ListScroll({ expanded, children }: { expanded: boolean; children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        maxHeight: expanded ? 480 : undefined,
+        overflowY: expanded ? "auto" : "visible",
+        transition: "max-height var(--motion-enter) var(--ease-default)",
+      }}
+      className="scrollbar-thin"
+    >
+      {children}
+    </div>
+  );
+}
+
+// ─── Rows ────────────────────────────────────────────────────────────
 function CheckRow({ status, label, detail }: { status: Status; label: string; detail?: string }) {
   const variant =
     status === "ok" || status === "fresh"
@@ -191,7 +420,7 @@ function CheckRow({ status, label, detail }: { status: Status; label: string; de
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: "0 16px",
+        padding: "0 32px",
         height: "var(--row-h-cozy)",
         borderBottom: "1px solid var(--border-subtle)",
       }}
@@ -202,6 +431,11 @@ function CheckRow({ status, label, detail }: { status: Status; label: string; de
       <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-primary)", fontSize: 13 }}>
         {label}
       </span>
+      {detail && (
+        <span className="caption" style={{ color: "var(--text-quaternary)", flexShrink: 0 }}>
+          {detail}
+        </span>
+      )}
       <Badge variant={variant} dot>
         {pillLabel}
       </Badge>
@@ -209,32 +443,56 @@ function CheckRow({ status, label, detail }: { status: Status; label: string; de
   );
 }
 
-function BrokenLinkRow({ sample, onOpen }: { sample: { from: string; label: string }; onOpen: () => void }) {
+function HubRow({ hub, onOpen }: { hub: HubNote; onOpen: () => void }) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
+      className="app-row focus-ring"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "0 32px",
+        height: "var(--row-h-cozy)",
+        borderBottom: "1px solid var(--border-subtle)",
+        cursor: "pointer",
+      }}
+    >
+      <span style={{ width: "var(--dot-size-sm)", height: "var(--dot-size-sm)", borderRadius: "50%", background: "var(--accent-brand)", flexShrink: 0 }} />
+      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-primary)", fontSize: 13 }}>
+        {hub.title}
+      </span>
+      <span className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.02em", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
+        {hub.backlinks} {hub.backlinks === 1 ? "ref" : "refs"}
+      </span>
+    </div>
+  );
+}
+
+function BrokenLinkRow({ sample, onOpen }: { sample: BrokenLinkSample; onOpen: () => void }) {
   const fromShort = (sample.from.split("/").pop() || sample.from).replace(/\.md$/i, "");
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); }
-      }}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
       className="app-row focus-ring"
       style={{
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: "0 16px",
+        padding: "0 32px",
         height: "var(--row-h-cozy)",
         borderBottom: "1px solid var(--border-subtle)",
         cursor: "pointer",
       }}
     >
       <span style={{ width: "var(--dot-size-sm)", height: "var(--dot-size-sm)", borderRadius: "50%", background: "var(--status-warning)", flexShrink: 0 }} />
-      <span style={{
-        flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        color: "var(--text-primary)", fontSize: 13,
-      }}>
+      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-primary)", fontSize: 13 }}>
         <span style={{ color: "var(--text-tertiary)" }}>[[</span>{sample.label}<span style={{ color: "var(--text-tertiary)" }}>]]</span>
       </span>
       <span className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.02em", flexShrink: 0 }}>
@@ -244,31 +502,26 @@ function BrokenLinkRow({ sample, onOpen }: { sample: { from: string; label: stri
   );
 }
 
-function StaleNoteRow({ sample, onOpen }: { sample: { path: string; title: string; daysStale: number }; onOpen: () => void }) {
+function StaleNoteRow({ sample, onOpen }: { sample: StaleNoteSample; onOpen: () => void }) {
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); }
-      }}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
       className="app-row focus-ring"
       style={{
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: "0 16px",
+        padding: "0 32px",
         height: "var(--row-h-cozy)",
         borderBottom: "1px solid var(--border-subtle)",
         cursor: "pointer",
       }}
     >
       <span style={{ width: "var(--dot-size-sm)", height: "var(--dot-size-sm)", borderRadius: "50%", background: "var(--text-quaternary)", flexShrink: 0 }} />
-      <span style={{
-        flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        color: "var(--text-primary)", fontSize: 13,
-      }}>
+      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-primary)", fontSize: 13 }}>
         {sample.title}
       </span>
       <span className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.02em", flexShrink: 0 }}>
@@ -278,11 +531,12 @@ function StaleNoteRow({ sample, onOpen }: { sample: { path: string; title: strin
   );
 }
 
+// ─── Empty / loading ────────────────────────────────────────────────
 function Loading() {
   return (
     <div style={{ padding: 32 }}>
       {[0, 1, 2].map((i) => (
-        <div key={i} className="animate-shimmer" style={{ height: 40, marginBottom: 4, borderRadius: 6, animationDelay: `${i * 0.12}s` }} />
+        <div key={i} className="animate-shimmer" style={{ height: "var(--row-h-cozy)", marginBottom: 4, borderRadius: 6, animationDelay: `${i * 0.12}s` }} />
       ))}
     </div>
   );
@@ -296,13 +550,5 @@ function ErrorBlock({ body }: { body: string }) {
       </p>
       <p className="small" style={{ color: "var(--text-tertiary)" }}>{body}</p>
     </div>
-  );
-}
-
-function EmptyState({ body }: { body: string }) {
-  return (
-    <p className="small" style={{ color: "var(--text-quaternary)", padding: 16, margin: 0 }}>
-      {body}
-    </p>
   );
 }

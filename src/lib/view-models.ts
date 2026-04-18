@@ -166,25 +166,50 @@ export interface StaleNoteSample {
   daysStale: number;
 }
 
+export interface FolderCount {
+  folder: string;
+  count: number;
+}
+
+export interface HubNote {
+  path: string;
+  title: string;
+  backlinks: number;
+}
+
 export interface VaultHealthMetrics {
   /** Broken wiki-links across the vault. */
   brokenLinks: {
     count: number;
+    /** Top N preview (default 8). */
     samples: BrokenLinkSample[];
+    /** Full list, capped at a generous limit (default 200). */
+    all: BrokenLinkSample[];
   };
   /** Notes untouched for >30 days in active folders. */
   staleNotes: {
     count: number;
     samples: StaleNoteSample[];
+    all: StaleNoteSample[];
   };
   /** Per-day edit counts, last 30 days. Oldest → newest. */
   activity: {
     days: number[];
     total: number;
     peak: number;
+    /** Edits in the last 7 days (trailing). */
+    week: number;
   };
   /** Total .md files scanned. */
   totalFiles: number;
+  /** Total wiki-links (resolved + unresolved). */
+  totalLinks: number;
+  /** Notes with zero in-links and zero out-links. */
+  orphans: number;
+  /** Top hubs by backlink count. */
+  hubs: HubNote[];
+  /** Distribution by top-level folder (sorted desc). */
+  folders: FolderCount[];
 }
 
 export interface SystemStatusData {
