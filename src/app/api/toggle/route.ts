@@ -6,7 +6,14 @@ import { readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { getVaultPath } from "@/lib/vault-reader";
 
-// POST /api/toggle — toggle a checkbox in a vault file
+/**
+ * `POST /api/toggle` — flip a markdown checkbox in a vault file.
+ *
+ * Body: `{ path, lineIndex, checked }`. Rewrites the line in place
+ * (`- [ ]` ↔ `- [x]`) and persists. Status: 200 on success, 400 when
+ * the body is invalid or the line is out of range, 404 when the file
+ * doesn't exist, 409 when no vault is connected, 500 otherwise.
+ */
 export async function POST(request: NextRequest) {
   try {
     const { path: relPath, lineIndex, checked } = await request.json();

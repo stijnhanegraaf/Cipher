@@ -11,6 +11,14 @@ import { log } from "@/lib/log";
 // Cached per vault in vault-graph.ts; first call is ~slow (walks vault +
 // resolves every link). Subsequent calls are instant.
 
+/**
+ * `GET /api/vault/graph` — node-edge graph for the active vault.
+ *
+ * Response: `{ nodes, edges, folders }`. First call walks the vault and
+ * resolves every wiki-link (slow); subsequent calls hit the per-vault
+ * cache until `invalidateGraphCache()` clears it. Status: 200 on
+ * success, 409 when no vault is connected, 500 on unexpected failure.
+ */
 export async function GET() {
   try {
     if (!getVaultPath()) {

@@ -11,6 +11,14 @@ import { log } from "@/lib/log";
 // ─── GET /api/file?path=wiki/work/open.md ─────────────────────────────
 // Returns raw markdown content + parsed metadata for a vault file
 
+/**
+ * `GET /api/file?path=<vault-path>` — read and parse a vault markdown file.
+ *
+ * Falls back to `resolveLink()` when the raw path isn't a file, so wiki-link
+ * bodies work too. Response includes `{ path, title, frontmatter, content,
+ * sections[] }`. Status: 200 on success, 400 when path missing,
+ * 404 when the file doesn't exist, 500 on unexpected failure.
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -75,6 +83,17 @@ export async function GET(request: NextRequest) {
 // Write content back to a vault file
 // Body: { path: string, content: string } or { path: string, lineIndex: number, newText: string }
 
+/**
+ * `PUT /api/file` — write a vault markdown file.
+ *
+ * Body: either `{ path, content }` for a full-file rewrite, or
+ * `{ path, lineIndex, newText }` for a single-line edit (used by inline
+ * task editing — preserves the `- [ ]` / `- [x]` prefix).
+ *
+ * Status: 200 on success, 400 when the body is malformed or lineIndex is
+ * out of range, 404 when line-edit target doesn't exist, 409 when no
+ * vault is connected, 500 on unexpected failure.
+ */
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();

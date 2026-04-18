@@ -18,6 +18,14 @@ interface Props {
   onSave: (values: { label: string; path: string; icon: PinIconName }) => void;
 }
 
+/**
+ * Modal dialog for adding or editing a folder pin.
+ *
+ * Portals to `document.body` so stacking context never conflicts with the
+ * sidebar. On open, debounced path input fetches folder autocomplete
+ * suggestions from `/api/vault/folders`. `Escape` dismisses; `onSave`
+ * fires with the normalised values, `onClose` cleans up local state.
+ */
 export function PinDialog({ open, initial, onClose, onSave }: Props) {
   const [path, setPath] = useState(initial?.path ?? "");
   const [label, setLabel] = useState(initial?.label ?? "");

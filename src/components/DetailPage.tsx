@@ -216,6 +216,16 @@ function Toast({ message, type, onDismiss }: { message: string; type: "success" 
 
 // ─── DetailPage component ─────────────────────────────────────────────
 
+/**
+ * Detail view for a single vault file.
+ *
+ * On mount (and whenever `path` changes), fetches `/api/file` for the
+ * file's parsed content and renders the markdown. When `anchor` is set,
+ * scrolls the matching heading into view and briefly highlights it.
+ * Edit mode swaps the rendered body for a textarea with debounced
+ * auto-save via PUT `/api/file`; status + toast feedback surface save
+ * failures. Breadcrumbs + onBack/onHome route back out of the sheet.
+ */
 export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, layoutId }: DetailPageProps) {
   const [data, setData] = useState<FileData | null>(null);
   const [error, setError] = useState<string | null>(null);

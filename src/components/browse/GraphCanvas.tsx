@@ -41,6 +41,15 @@ interface SimNode extends GraphNode {
   charge: number;
 }
 
+/**
+ * Canvas-rendered force-directed vault graph.
+ *
+ * Runs a silent pre-settle pass (~120 ticks) on mount so the initial
+ * paint lands close to steady state, then drives a degree-weighted
+ * Barnes-Hut-style repulsion + spring simulation on rAF. `visibleFolders`
+ * filters which nodes participate; `orphansOnly` restricts to zero-link
+ * nodes; `searchTerm` dims non-matches. Click a node to fire `onOpen`.
+ */
 export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, searchTerm }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);

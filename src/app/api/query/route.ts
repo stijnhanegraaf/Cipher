@@ -11,6 +11,13 @@ import { log } from "@/lib/log";
 
 // ─── GET /api/query — vault metadata ──────────────────────────────────
 
+/**
+ * `GET /api/query` — vault metadata (entity / project / research indexes).
+ *
+ * Used by the chat UI and command palette to pre-populate suggestions.
+ * Response: `{ version, vault: { path, connected }, entities, projects,
+ * research }`. 500 on unexpected failure.
+ */
 export async function GET() {
   try {
     const [entities, projects, research] = await Promise.all([
@@ -45,6 +52,17 @@ export async function GET() {
 
 // ─── POST /api/query — process a query ─────────────────────────────────
 
+/**
+ * `POST /api/query` — turn a natural-language query into a ViewModel.
+ *
+ * Body: `{ query, entityName? }`. Pipeline: `detectIntent(query)` →
+ * `buildView(viewType, query, entityName)` → wrap in a `ResponseEnvelope`
+ * with summary + optional body text + sources + actions.
+ *
+ * Status: 200 on success, 400 when `query` is missing, 500 on unexpected
+ * failure (envelope body always returned so the UI can render an error
+ * state uniformly).
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

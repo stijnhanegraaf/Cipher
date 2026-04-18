@@ -15,9 +15,12 @@ import { log } from "@/lib/log";
 import type { IndexEntry, ResearchProject } from "@/lib/view-models";
 
 /**
- * Returns the active vault's top-level structure for the drawer.
- * Sections are driven by the probed layout — only folders that actually exist
- * are included. Works for any Obsidian vault, not just the legacy wiki tree.
+ * `GET /api/vault/structure` — sectioned browse index for the sidebar drawer.
+ *
+ * Sections are driven by the probed vault layout; only folders that
+ * actually exist contribute entries. Response: `{ sections: [{ key,
+ * label, items }] }`. Status: 200 (empty sections array when no vault
+ * is connected), 500 on unexpected failure.
  */
 export async function GET() {
   try {

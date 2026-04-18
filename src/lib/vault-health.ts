@@ -101,6 +101,14 @@ function isActive(path: string, active: string[]): boolean {
  * stale-note full list, top hubs by backlink count, folder distribution,
  * orphan count, total links.
  */
+/**
+ * Walk the vault once and produce health metrics for the dashboard.
+ *
+ * Emits activity histogram + week total, broken-link list, stale-note list,
+ * top hubs, folder distribution, orphan count, link totals. Results are
+ * cached per-vault for 60s; `invalidateHealthCache()` clears the cache.
+ * Returns null when no vault is connected.
+ */
 export async function buildVaultHealth(): Promise<VaultHealthMetrics | null> {
   const root = getVaultPath();
   if (!root) return null;
@@ -241,6 +249,11 @@ export async function buildVaultHealth(): Promise<VaultHealthMetrics | null> {
   return metrics;
 }
 
+/**
+ * Flush the health-metrics cache so the next `buildVaultHealth()` call
+ * re-scans the vault. Call after vault swaps or any out-of-band content
+ * change; normal builds are cached for 60s.
+ */
 export function invalidateHealthCache(): void {
   _cache.clear();
 }

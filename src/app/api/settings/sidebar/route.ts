@@ -9,11 +9,24 @@ import {
   type SidebarConfig,
 } from "@/lib/settings";
 
+/**
+ * `GET /api/settings/sidebar` — read the current sidebar configuration.
+ *
+ * Response: `SidebarConfig` ({ version, pins[] }). Always 200; returns
+ * an empty pin list when no vault is connected or the file is absent.
+ */
 export async function GET() {
   const config = await readSidebarSettings();
   return NextResponse.json(config);
 }
 
+/**
+ * `PUT /api/settings/sidebar` — replace the sidebar configuration.
+ *
+ * Body: `SidebarConfig`. Writes atomically (tmp + rename). Status:
+ * 200 on success, 400 on invalid JSON / schema, 409 when no vault is
+ * connected, 500 on unexpected failure.
+ */
 export async function PUT(req: NextRequest) {
   let body: unknown;
   try {

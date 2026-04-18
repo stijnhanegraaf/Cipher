@@ -156,8 +156,13 @@ async function walkTasksInDir(root: string, relDir: string): Promise<TodayTask[]
 }
 
 /**
- * Aggregate open tasks from the vault's work folders into today + up-next.
- * Returns an empty payload gracefully when no vault / no work folders.
+ * Aggregate open tasks across the vault's work folders into today + up-next.
+ *
+ * Probes the layout workDir, vault root, and any top-level folder that
+ * contains a today.md / open.md / now.md file. Parses every `- [ ]`
+ * checkbox, dedupes by source+line, splits via `isTodayCandidate()`, and
+ * sorts by rank then mtime. Up-next is capped at 16 entries. Returns an
+ * empty payload when no vault is connected.
  */
 export async function buildToday(): Promise<TodayPayload> {
   const root = getVaultPath();

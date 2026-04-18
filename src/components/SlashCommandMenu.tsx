@@ -109,6 +109,14 @@ const COMMANDS: Command[] = [
   },
 ];
 
+/**
+ * Autocomplete menu for slash-commands in the chat input.
+ *
+ * Activates whenever `value` starts with `/`. Parses the keyword + arg,
+ * filters the registered command list, and on Enter / click dispatches
+ * the command's `run` callback (router navigation) or falls back to
+ * `onAsk(value)` when no command matches.
+ */
 export function SlashCommandMenu({ value, onSelect, onAsk }: SlashCommandMenuProps) {
   const router = useRouter();
   const [activeIndex, setActiveIndex] = useState(0);
