@@ -478,8 +478,7 @@ function RecentRow({ query, onOpen, onRemove }: { query: string; onOpen: () => v
             border: "none",
             color: "var(--text-quaternary)",
             cursor: "pointer",
-            opacity: 0,
-            transition: "opacity var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default), background var(--motion-hover) var(--ease-default)",
+            flexShrink: 0,
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "var(--hover-control)";
