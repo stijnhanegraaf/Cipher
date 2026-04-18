@@ -92,11 +92,11 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         y: h / 2 + Math.sin(angle) * r,
         vx: 0,
         vy: 0,
-        // Obsidian-tight: tiny leaf dots, modest hubs. Radius 1.5 → 6.5.
-        radius: Math.max(1.5, Math.min(6.5, 1.5 + Math.sqrt(n.backlinks) * 0.9)),
+        // Obsidian-precise: tiny leaf dots, small hubs. 1.2 → 5.
+        radius: Math.max(1.2, Math.min(5, 1.2 + Math.sqrt(n.backlinks) * 0.7)),
         degree,
         // Degree-weighted charge. Sqrt keeps hub push modest.
-        charge: 150 + Math.sqrt(degree) * 90,
+        charge: 130 + Math.sqrt(degree) * 80,
       };
     });
     simNodesRef.current = simNodes;
@@ -403,15 +403,15 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       if (hovered || selected) {
         ctx.fillStyle = colAccent;
         ctx.shadowColor = colAccent;
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = 18;
       } else if (isHub) {
         ctx.fillStyle = colStarHub;
-        ctx.shadowColor = isLight ? "rgba(94,106,210,0.5)" : "rgba(200,220,255,0.9)";
-        ctx.shadowBlur = 8;
+        ctx.shadowColor = isLight ? "rgba(94,106,210,0.6)" : "rgba(200,220,255,0.95)";
+        ctx.shadowBlur = 16;
       } else if (isBright) {
         ctx.fillStyle = colStarBright;
-        ctx.shadowColor = isLight ? "rgba(94,106,210,0.35)" : "rgba(200,220,255,0.9)";
-        ctx.shadowBlur = 4;
+        ctx.shadowColor = isLight ? "rgba(94,106,210,0.4)" : "rgba(200,220,255,0.85)";
+        ctx.shadowBlur = 8;
       } else {
         ctx.fillStyle = colStar;
         ctx.shadowBlur = 0;
