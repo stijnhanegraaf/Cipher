@@ -80,8 +80,13 @@ export function PinDialog({ open, initial, onClose, onSave }: Props) {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.12 }}
             onClick={onClose}
-            className="fixed inset-0 z-[400]"
-            style={{ background: "color-mix(in srgb, var(--bg-marketing) 60%, transparent)", backdropFilter: "blur(6px)" }}
+            className="fixed inset-0"
+            style={{
+              zIndex: 500,
+              background: "color-mix(in srgb, var(--bg-marketing) 85%, transparent)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+            }}
           />
           <motion.div
             role="dialog"
@@ -90,14 +95,17 @@ export function PinDialog({ open, initial, onClose, onSave }: Props) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
-            className="fixed left-1/2 top-[20vh] -translate-x-1/2 z-[401] w-[440px] max-w-[calc(100vw-32px)] flex flex-col"
+            className="fixed left-1/2 top-[20vh] -translate-x-1/2 w-[440px] max-w-[calc(100vw-32px)] flex flex-col"
             style={{
+              zIndex: 501,
               borderRadius: "var(--radius-panel)",
               background: "var(--bg-elevated)",
               border: "1px solid var(--border-standard)",
               boxShadow: "var(--shadow-dialog)",
               padding: 20,
               gap: 16,
+              opacity: 1,
+              isolation: "isolate",
             }}
           >
             <h2 className="heading-3" style={{ margin: 0, color: "var(--text-primary)" }}>
