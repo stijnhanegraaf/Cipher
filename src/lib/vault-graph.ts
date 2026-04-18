@@ -1,3 +1,7 @@
+/**
+ * Builds the vault's node-edge graph: every .md file is a node, every
+ * resolvable wiki-link is a directed edge. Cached per-vault.
+ */
 import "server-only";
 import { readdir, stat } from "fs/promises";
 import { extname, join } from "path";

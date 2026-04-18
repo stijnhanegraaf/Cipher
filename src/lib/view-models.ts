@@ -1,5 +1,7 @@
-// Internal view-model types - the contract between AI/retrieval and UI
-// These are app-owned, not renderer-owned
+/**
+ * Internal view-model types — the contract between retrieval/view-builder
+ * and the *View renderers. App-owned, not renderer-owned.
+ */
 
 // ─── Vault index types (shared with intent-detector) ──────────────────
 

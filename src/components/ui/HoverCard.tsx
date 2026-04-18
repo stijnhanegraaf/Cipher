@@ -1,5 +1,7 @@
 "use client";
 
+/** HoverCard — portal-rendered popover positioned near a trigger. */
+
 import { useEffect, useRef, useState, useCallback, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";

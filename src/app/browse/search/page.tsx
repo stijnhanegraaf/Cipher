@@ -1,3 +1,6 @@
+/**
+ * /browse/search route — mounts SearchPage inside Suspense.
+ */
 import { Suspense } from "react";
 import { SearchPage } from "@/components/browse/SearchPage";
 

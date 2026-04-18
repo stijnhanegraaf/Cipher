@@ -1,5 +1,11 @@
-// View Builder — builds typed view-models from vault data
-// Uses vault indexes and rich parsing for vault-aware, dynamic views
+/**
+ * Builds typed view-models from vault data for each detected intent.
+ *
+ * Given an intent + optional entity/topic name, returns a ViewModel
+ * (CurrentWorkData / SystemStatusData / TimelineSynthesisData / ...) with
+ * the sources, actions, and freshness meta the renderer needs. Vault-
+ * agnostic: paths come from getVaultLayout(), never hardcoded.
+ */
 
 import type {
   ViewModel,

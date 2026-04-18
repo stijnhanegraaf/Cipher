@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * DetailPage — URL-driven overlay sheet (?sheet=<path>&anchor=<slug>).
+ *
+ * Renders a single vault file with TOC + frontmatter badges + inline
+ * edit mode. Anchor scrolls + highlights on mount.
+ */
+
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import { MarkdownRenderer, Breadcrumbs } from "@/components/ui";

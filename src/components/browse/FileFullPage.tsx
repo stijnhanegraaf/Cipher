@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * /file/[...path] page — full-page vault file view with TOC + edit mode.
+ */
+
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageShell, PageAction } from "@/components/PageShell";

@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * useSidebarPins — fetches + mutates sidebar pins via /api/settings/sidebar.
+ * Returns the current pin list plus add/remove/reorder helpers.
+ */
+
 import { useCallback, useEffect, useState } from "react";
 import type { PinEntry, SidebarConfig } from "@/lib/settings";
 import { log } from "@/lib/log";

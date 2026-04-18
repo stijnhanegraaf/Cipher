@@ -1,3 +1,7 @@
+/**
+ * Reads and writes <vault>/.cipher/sidebar.json with schema validation
+ * and atomic writes (tmp + rename). Vault-portable user customisation.
+ */
 import "server-only";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { join } from "path";

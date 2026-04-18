@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Dismissible bottom-right tip chip ("press / to focus"). Persists
+ * dismissal in localStorage.
+ */
+
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Kbd } from "@/components/ui";

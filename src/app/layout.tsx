@@ -1,3 +1,6 @@
+/**
+ * Root layout — sets metadata, viewport, Inter font, and AppShell.
+ */
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";

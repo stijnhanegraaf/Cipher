@@ -1,7 +1,10 @@
-// Intent Detector — maps natural language queries to view types and vault files
-// Uses vault indexes when available (server-side) and falls back to keyword matching (client-side)
-// IMPORTANT: This module must NOT statically import vault-reader (which uses Node.js fs).
-// The vault-reader is loaded dynamically only when running server-side.
+/**
+ * Maps a natural-language query to a typed Intent + ViewType.
+ *
+ * Regex + keyword heuristics; no LLM call. Returns a best-guess intent
+ * plus hint files/keywords the builder can use to narrow vault reads.
+ * Must NOT statically import vault-reader (fs) — loaded dynamically server-side.
+ */
 
 import type { Intent, ViewType, IndexEntry, ResearchProject } from "./view-models";
 

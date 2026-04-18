@@ -1,3 +1,10 @@
+/**
+ * Vault health scanner — activity histogram, broken links, stale notes,
+ * hubs, folder distribution, link-count distribution.
+ *
+ * Walks every .md file once per scan. Results cached per-vault for 60s;
+ * consumed by /api/query (system_status) and /browse/system.
+ */
 import "server-only";
 import { readdir, stat } from "fs/promises";
 import { join, extname } from "path";

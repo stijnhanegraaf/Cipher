@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * /browse/topic/[name] page — topic overview with linked notes.
+ */
+
 import { useCallback, useEffect, useState } from "react";
 import { PageShell, PageAction } from "@/components/PageShell";
 import { LinkList, MarkdownRenderer } from "@/components/ui";

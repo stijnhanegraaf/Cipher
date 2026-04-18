@@ -1,6 +1,11 @@
-// Vault Reader — schema-aware parser for the Obsidian wiki vault
-// Understands the vault structure, parses domain-specific formats,
-// and provides navigation helpers for the view-builder layer.
+/**
+ * Reads and parses an Obsidian-style markdown vault.
+ *
+ * Hot-swappable vault path, layout probe (entities/journal/projects/...),
+ * schema-aware readers, wiki-link resolver with basename fallback. Every
+ * downstream module (view-builder, vault-health, vault-graph) goes through
+ * the helpers here — nothing bypasses this file to touch the filesystem.
+ */
 
 import "server-only";
 import { readFile, stat, readdir } from "fs/promises";

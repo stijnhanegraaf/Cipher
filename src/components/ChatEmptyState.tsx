@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * Raycast-style empty state for /chat — centered input, no chrome.
+ */
+
 import { useEffect, useRef, useState } from "react";
 import { SlashCommandMenu } from "@/components/SlashCommandMenu";
 

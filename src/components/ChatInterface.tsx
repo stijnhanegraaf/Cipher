@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * /chat surface — message list + input + slash commands + hover actions.
+ *
+ * Submits to /api/query, renders responses via ViewRenderer in
+ * chat-summary variant. Slash commands open SlashCommandMenu above the
+ * input; empty state uses ChatEmptyState.
+ */
+
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";

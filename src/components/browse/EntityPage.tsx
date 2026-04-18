@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * /browse/entity/[name] page — entity overview with linked notes + facts.
+ */
+
 import { useCallback, useEffect, useState } from "react";
 import { PageShell, PageAction } from "@/components/PageShell";
 import { LinkList, MarkdownRenderer } from "@/components/ui";

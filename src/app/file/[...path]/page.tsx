@@ -1,3 +1,6 @@
+/**
+ * /file/[...path] route — mounts FileFullPage for a single vault file.
+ */
 import { FileFullPage } from "@/components/browse/FileFullPage";
 
 export default async function FileRoute({ params }: { params: Promise<{ path: string[] }> }) {

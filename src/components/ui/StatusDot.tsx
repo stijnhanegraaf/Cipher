@@ -1,5 +1,7 @@
 "use client";
 
+/** StatusDot — coloured dot indicating freshness/status, with tooltip. */
+
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { springs, easings } from "@/lib/motion";

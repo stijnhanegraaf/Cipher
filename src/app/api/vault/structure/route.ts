@@ -1,3 +1,6 @@
+/**
+ * GET /api/vault/structure — returns entity/topic indices for the active vault.
+ */
 import { NextResponse } from "next/server";
 import {
   getEntityIndex,

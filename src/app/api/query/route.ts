@@ -1,3 +1,7 @@
+/**
+ * GET /api/query — health/describe for the query endpoint.
+ * POST /api/query — detects intent, builds a ViewModel from the vault.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { detectIntent } from "@/lib/intent-detector";
 import { buildView } from "@/lib/view-builder";

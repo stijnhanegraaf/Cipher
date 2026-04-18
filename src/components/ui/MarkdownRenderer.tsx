@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * MarkdownRenderer — react-markdown wrapper with wiki-link rewriting,
+ * GFM, and Cipher-styled elements (headings, tasks, tables).
+ */
+
 import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";

@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * useSheet — URL-driven DetailPage sheet controller (?sheet=...&anchor=...).
+ * Returns current sheet path/anchor + open/close helpers.
+ */
+
 import { useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 

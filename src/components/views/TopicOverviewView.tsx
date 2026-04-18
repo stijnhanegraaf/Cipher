@@ -1,5 +1,7 @@
 "use client";
 
+/** Renders TopicOverviewData in the chat-summary variant. */
+
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
 import { TopicOverviewData, ViewModel } from "@/lib/view-models";

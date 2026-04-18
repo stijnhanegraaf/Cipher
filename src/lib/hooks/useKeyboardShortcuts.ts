@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * useKeyboardShortcuts — registers global hotkeys (e.g. focus input,
+ * open palette, toggle theme). Ignores events inside editable targets.
+ */
+
 import { useEffect, RefObject } from "react";
 
 type Modifier = "meta" | "ctrl" | "shift" | "alt";

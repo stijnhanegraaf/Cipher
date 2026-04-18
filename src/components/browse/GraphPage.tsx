@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * /browse/graph page — wraps GraphCanvas with PageShell chrome.
+ */
+
 import { useEffect, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import { GraphCanvas } from "@/components/browse/GraphCanvas";

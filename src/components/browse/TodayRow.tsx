@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * TodayRow — single task row with checkbox + meta. Toggles hit /api/toggle.
+ */
+
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PriorityGlyph } from "@/components/browse/PriorityGlyph";

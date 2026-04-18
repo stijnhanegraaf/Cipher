@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * /browse/timeline page — chronological journal/activity timeline.
+ */
+
 import { useEffect, useMemo, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import { useSheet } from "@/lib/hooks/useSheet";

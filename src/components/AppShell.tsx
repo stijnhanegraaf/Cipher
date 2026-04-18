@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Top-level app chrome — mounts Sidebar, DetailPage sheet, CommandPalette,
+ * and routes content. Handles keyboard shortcuts and theme bootstrap.
+ */
+
 import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
