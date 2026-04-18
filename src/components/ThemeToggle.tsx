@@ -47,9 +47,9 @@ export function ThemeToggle() {
       }}
       aria-label="Toggle theme"
       whileHover={{
-        backgroundColor: dark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)",
+        backgroundColor: "var(--hover-control)",
       }}
-      transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+      transition={{ duration: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
     >
       <AnimatePresence mode="wait" initial={false}>
         {dark ? (

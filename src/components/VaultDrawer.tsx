@@ -150,7 +150,7 @@ export function VaultDrawer({ open, onClose, onNavigate, onOpenFile }: VaultDraw
             onClick={onClose}
             className="fixed inset-0 z-40"
             style={{
-              backgroundColor: "rgba(8,9,10,0.4)",
+              backgroundColor: "color-mix(in srgb, var(--bg-marketing) 60%, transparent)",
               backdropFilter: "blur(6px)",
               WebkitBackdropFilter: "blur(6px)",
             }}

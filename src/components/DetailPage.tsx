@@ -185,7 +185,7 @@ function Toast({ message, type, onDismiss }: { message: string; type: "success" 
         gap: 10,
         fontSize: 13,
         fontWeight: 510,
-        color: "#ffffff",
+        color: "var(--text-on-brand)",
         background: type === "success"
           ? "color-mix(in srgb, var(--accent-brand) 90%, transparent)"
           : "color-mix(in srgb, var(--status-blocked) 90%, transparent)",
@@ -410,7 +410,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, la
           position: "fixed",
           inset: 0,
           zIndex: 49,
-          backgroundColor: "rgba(8, 9, 10, 0.4)",
+          backgroundColor: "color-mix(in srgb, var(--bg-marketing) 60%, transparent)",
           backdropFilter: "blur(6px)",
           WebkitBackdropFilter: "blur(6px)",
         }}
@@ -706,7 +706,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, la
                                 borderRadius: 6,
                                 fontSize: 13,
                                 fontWeight: 510,
-                                color: "var(--text-on-brand, #ffffff)",
+                                color: "var(--text-on-brand)",
                                 background: theme.brand.indigo,
                                 border: "none",
                                 cursor: "pointer",

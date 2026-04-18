@@ -51,7 +51,7 @@ export function ChatEmptyState({ onSubmit }: Props) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          boxShadow: "0 8px 24px color-mix(in srgb, var(--accent-brand) 25%, transparent), 0 0 0 1px rgba(255,255,255,0.06) inset",
+          boxShadow: "0 8px 24px color-mix(in srgb, var(--accent-brand) 25%, transparent), 0 0 0 1px var(--border-standard) inset",
         }}
       >
         <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="var(--text-on-brand)" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">

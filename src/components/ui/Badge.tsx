@@ -92,9 +92,9 @@ const statusDotColors: Record<string, string> = {
 export function MetricRow({ label, value, status, change, changeType }: MetricRowProps) {
   const changeColor =
     changeType === "positive"
-      ? "#10b981"
+      ? "var(--status-done)"
       : changeType === "negative"
-        ? "#ef4444"
+        ? "var(--status-blocked)"
         : "var(--text-quaternary)";
 
   return (
