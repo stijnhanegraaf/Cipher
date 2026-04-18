@@ -30,6 +30,10 @@ interface SimNode extends GraphNode {
   vx: number;
   vy: number;
   radius: number;
+  /** in + out links; precomputed so repulsion + centering can weight by it. */
+  degree: number;
+  /** Per-node charge for degree-weighted repulsion. Hubs push harder. */
+  charge: number;
 }
 
 export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, searchTerm }: Props) {
@@ -81,6 +85,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       // Deterministic pseudo-random initial positions clustered near center.
       const angle = (i / graph.nodes.length) * Math.PI * 2;
       const r = 50 + ((i * 97) % 200);
+      const degree = n.backlinks + n.outlinks;
       return {
         ...n,
         x: w / 2 + Math.cos(angle) * r,
@@ -88,7 +93,11 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         vx: 0,
         vy: 0,
         // Wider dynamic range so hubs read as clear gravity centers (Obsidian-style).
-        radius: Math.max(1.6, Math.min(11, 1.6 + Math.sqrt(n.backlinks) * 1.35)),
+        radius: Math.max(1.8, Math.min(13, 1.8 + Math.sqrt(n.backlinks) * 1.6)),
+        degree,
+        // Degree-weighted charge. Hubs throw weight around; leaves barely push.
+        // Sqrt keeps a 20-backlink hub only ~3× the push of a 2-backlink node.
+        charge: 180 + Math.sqrt(degree) * 120,
       };
     });
     simNodesRef.current = simNodes;
@@ -100,12 +109,13 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     // up to 600 ticks or until total kinetic energy is negligible — whichever
     // comes first. The animation that follows does NOT run any physics, so
     // what the user sees is a completely still graph fading in.
-    for (let i = 0; i < 600; i++) {
+    for (let i = 0; i < 900; i++) {
       step();
-      if (i > 80 && i % 20 === 0) {
+      // Start checking for equilibrium once collisions have mostly resolved.
+      if (i > 120 && i % 25 === 0) {
         let energy = 0;
         for (const n of simNodes) energy += n.vx * n.vx + n.vy * n.vy;
-        if (energy < 0.02) break;
+        if (energy < 0.015) break;
       }
     }
     // Zero residual velocities so the frozen layout doesn't drift during fade.
@@ -192,8 +202,12 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     const byId = new Map<string, SimNode>();
     for (const n of nodes) byId.set(n.id, n);
 
-    // 1. Repulsion — O(n²), fine for <800 nodes.
-    const REPULSION = 450;
+    // 1. Repulsion + collision in one O(n²) pass.
+    //    Hubs push harder (degree-weighted charge). Nodes that would
+    //    overlap get forcibly separated — no geometry overlap at rest,
+    //    the exact thing that makes Obsidian's clusters read.
+    const COLLIDE_PAD = 2;
+    const REPULSION_NORM = 28000; // divisor to keep charge products in range
     for (let i = 0; i < nodes.length; i++) {
       const a = nodes[i];
       for (let j = i + 1; j < nodes.length; j++) {
@@ -202,20 +216,34 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         const dy = b.y - a.y;
         const distSq = dx * dx + dy * dy + 0.01;
         const dist = Math.sqrt(distSq);
-        const force = REPULSION / distSq;
-        const fx = (dx / dist) * force;
-        const fy = (dy / dist) * force;
-        a.vx -= fx;
-        a.vy -= fy;
-        b.vx += fx;
-        b.vy += fy;
+        const minDist = a.radius + b.radius + COLLIDE_PAD;
+
+        if (dist < minDist) {
+          // Collision: push apart so they just touch. Splits 50/50.
+          const push = (minDist - dist) * 0.5;
+          const nx = dx / dist;
+          const ny = dy / dist;
+          a.x -= nx * push;
+          a.y -= ny * push;
+          b.x += nx * push;
+          b.y += ny * push;
+        } else {
+          // Degree-weighted Coulomb-like repulsion.
+          const force = (a.charge * b.charge) / REPULSION_NORM / distSq;
+          const fx = (dx / dist) * force;
+          const fy = (dy / dist) * force;
+          a.vx -= fx;
+          a.vy -= fy;
+          b.vx += fx;
+          b.vy += fy;
+        }
       }
     }
 
-    // 2. Spring force on edges (Hooke's law toward target distance).
-    // Short target + stiff spring → Obsidian-style tight clusters.
-    const TARGET = 38;
-    const STIFFNESS = 0.085;
+    // 2. Spring force on edges. Short rest length + stiff — linked pairs
+    //    snap together tight, forming dense clusters.
+    const TARGET = 30;
+    const STIFFNESS = 0.10;
     for (const e of edges) {
       const a = byId.get(e.source);
       const b = byId.get(e.target);
@@ -232,15 +260,35 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       b.vy -= fy;
     }
 
-    // 3. Weak centering force to prevent drift.
-    const CENTER = 0.016;
+    // 3. Centering — weaker than before, so the connected cluster can settle
+    //    into its natural asymmetric shape. Orphans get reversed centering
+    //    below a radius threshold, which drifts them out to form the
+    //    Obsidian-style outer ring.
+    const CENTER = 0.006;
+    const ORPHAN_MIN_R = Math.min(w, h) * 0.22;
     for (const n of nodes) {
-      n.vx += (centerX - n.x) * CENTER;
-      n.vy += (centerY - n.y) * CENTER;
+      if (n.degree === 0) {
+        const dx = n.x - centerX;
+        const dy = n.y - centerY;
+        const r2 = dx * dx + dy * dy;
+        if (r2 < ORPHAN_MIN_R * ORPHAN_MIN_R && r2 > 0.01) {
+          // Push gently outward from center.
+          const d = Math.sqrt(r2);
+          n.vx += (dx / d) * 0.3;
+          n.vy += (dy / d) * 0.3;
+        } else {
+          // Far enough out — keep a minimal inward pull so they don't drift forever.
+          n.vx += (centerX - n.x) * 0.002;
+          n.vy += (centerY - n.y) * 0.002;
+        }
+      } else {
+        n.vx += (centerX - n.x) * CENTER;
+        n.vy += (centerY - n.y) * CENTER;
+      }
     }
 
     // 4. Integrate with damping.
-    const DAMPING = 0.85;
+    const DAMPING = 0.82;
     for (const n of nodes) {
       n.vx *= DAMPING;
       n.vy *= DAMPING;
