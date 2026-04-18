@@ -52,6 +52,21 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
+  // Remove a single recent query (and persist).
+  const handleRemoveRecent = useCallback((query: string) => {
+    setRecentQueries((prev) => {
+      const next = prev.filter((q) => q !== query);
+      try { localStorage.setItem("cipher-recent", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  // Clear everything.
+  const handleClearRecents = useCallback(() => {
+    setRecentQueries([]);
+    try { localStorage.removeItem("cipher-recent"); } catch {}
+  }, []);
+
   // ── Global shortcuts: ⌘K palette, Esc close top overlay. ───────────
   useKeyboardShortcuts([
     { key: "k", modifiers: ["meta"], handler: () => setPaletteOpen((v) => !v) },
@@ -143,6 +158,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           onToggleTheme={handleToggleTheme}
           activeKind={activeKind}
           recentQueries={recentQueries}
+          onRemoveRecent={handleRemoveRecent}
+          onClearRecents={handleClearRecents}
         />
       </div>
 

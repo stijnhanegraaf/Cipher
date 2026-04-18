@@ -26,6 +26,10 @@ export interface SidebarProps {
   activeKind?: string | null;
   /** Recent queries from localStorage. */
   recentQueries?: string[];
+  /** Remove a single recent query. */
+  onRemoveRecent?: (query: string) => void;
+  /** Clear all recent queries. */
+  onClearRecents?: () => void;
 }
 
 interface NavItem {
@@ -39,7 +43,7 @@ interface NavItem {
   activeWhen?: () => boolean;
 }
 
-export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, activeKind, recentQueries = [] }: SidebarProps) {
+export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, activeKind, recentQueries = [], onRemoveRecent, onClearRecents }: SidebarProps) {
   const vault = useVault();
   const router = useRouter();
   const pathname = usePathname();
@@ -281,44 +285,48 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           }}
         >
           <div
-            className="mono-label px-2"
+            className="px-2"
             style={{
-              color: "var(--text-quaternary)",
-              letterSpacing: "0.04em",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
               marginBottom: 8,
+              gap: 8,
             }}
           >
-            Recent
+            <span className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.04em" }}>
+              Recent
+            </span>
+            {onClearRecents && recentQueries.length > 0 && (
+              <button
+                type="button"
+                onClick={onClearRecents}
+                className="focus-ring"
+                title="Clear recent"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--text-quaternary)",
+                  cursor: "pointer",
+                  padding: "2px 6px",
+                  borderRadius: "var(--radius-small)",
+                  transition: "color var(--motion-hover) var(--ease-default)",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-secondary)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-quaternary)"; }}
+              >
+                <span className="mono-label" style={{ letterSpacing: "0.04em" }}>Clear</span>
+              </button>
+            )}
           </div>
           <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
             {recentQueries.slice(0, 8).map((query, i) => (
-              <button
+              <RecentRow
                 key={i}
-                type="button"
-                onClick={() => onAsk(query)}
-                className="focus-ring app-row flex items-center rounded-[6px] cursor-pointer"
-                style={{
-                  height: "var(--row-h-dense)",
-                  padding: "0 12px",
-                  background: "transparent",
-                  border: "none",
-                  color: "var(--text-tertiary)",
-                  textAlign: "left",
-                  fontSize: 12,
-                  fontWeight: 400,
-                  lineHeight: 1,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  transition: "background-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-surface-alpha-2)"; e.currentTarget.style.color = "var(--text-primary)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--text-tertiary)"; }}
-              >
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {query}
-                </span>
-              </button>
+                query={query}
+                onOpen={() => onAsk(query)}
+                onRemove={onRemoveRecent ? () => onRemoveRecent(query) : undefined}
+              />
             ))}
           </div>
         </div>
@@ -451,3 +459,68 @@ function SidebarHeaderButton({
     </button>
   );
 }
+
+function RecentRow({ query, onOpen, onRemove }: { query: string; onOpen: () => void; onRemove?: () => void }) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
+      className="focus-ring app-row rounded-[6px] cursor-pointer"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        height: "var(--row-h-dense)",
+        padding: "0 4px 0 12px",
+        color: "var(--text-tertiary)",
+        textAlign: "left",
+        transition: "background-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
+      }}
+    >
+      <span
+        className="caption"
+        style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+      >
+        {query}
+      </span>
+      {onRemove && (
+        <button
+          type="button"
+          aria-label="Remove from recent"
+          title="Remove"
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="focus-ring recent-remove"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 20,
+            height: 20,
+            borderRadius: "var(--radius-small)",
+            background: "transparent",
+            border: "none",
+            color: "var(--text-quaternary)",
+            cursor: "pointer",
+            opacity: 0,
+            transition: "opacity var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default), background var(--motion-hover) var(--ease-default)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--hover-control)";
+            e.currentTarget.style.color = "var(--text-primary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "var(--text-quaternary)";
+          }}
+        >
+          <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
