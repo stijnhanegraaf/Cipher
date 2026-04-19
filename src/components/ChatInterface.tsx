@@ -8,15 +8,18 @@
  * Supports /chat?q=<query> deep-link auto-fire.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PageShell, PageAction } from "@/components/PageShell";
 import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
 import { Composer, type ComposerHandle } from "@/components/chat/Composer";
 import { QACard, type QATurn, type QATurnCitation } from "@/components/chat/QACard";
+import { ModelPicker } from "@/components/chat/ModelPicker";
 import { log } from "@/lib/log";
 
 const STORAGE_KEY = "cipher-chat-history-v1";
+const MODEL_KEY = "cipher-chat-model";
+const DEFAULT_MODEL = process.env.NEXT_PUBLIC_CIPHER_CHAT_MODEL || "llama3.2:3b";
 const HISTORY_CAP = 20;
 
 interface StoredTurn {
@@ -41,9 +44,22 @@ type StreamEvent =
 export function ChatInterface() {
   const [turns, setTurns] = useState<QATurn[]>([]);
   const [streaming, setStreaming] = useState(false);
+  const [model, setModel] = useState<string>(DEFAULT_MODEL);
   const composerRef = useRef<ComposerHandle>(null);
   const searchParams = useSearchParams();
   const autoFiredRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(MODEL_KEY);
+      if (saved) setModel(saved);
+    } catch { /* ignore */ }
+  }, []);
+
+  const selectModel = useCallback((m: string) => {
+    setModel(m);
+    try { localStorage.setItem(MODEL_KEY, m); } catch { /* ignore */ }
+  }, []);
 
   // ── Hydrate history from localStorage on mount. ─────────────────────
   useEffect(() => {
@@ -115,7 +131,7 @@ export function ChatInterface() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ query, history: priorHistory }),
+        body: JSON.stringify({ query, history: priorHistory, model }),
       });
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
       const reader = res.body.getReader();
@@ -145,7 +161,7 @@ export function ChatInterface() {
     } finally {
       setStreaming(false);
     }
-  }, [turns, streaming]);
+  }, [turns, streaming, model]);
 
   const applyEvent = (id: string, ev: StreamEvent) => {
     setTurns((prev) => prev.map((t) => {
@@ -184,21 +200,21 @@ export function ChatInterface() {
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   }, []);
 
-  const modelLabel = useMemo(() => process.env.NEXT_PUBLIC_CIPHER_CHAT_MODEL || "llama3.2:3b", []);
-
   return (
     <PageShell
       title="Chat"
-      subtitle={`· ${modelLabel}`}
       contentMaxWidth={720}
       actions={
-        turns.length > 0 ? (
-          <PageAction label="Clear chat" onClick={clearChat}>
-            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" />
-            </svg>
-          </PageAction>
-        ) : null
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <ModelPicker current={model} onChange={selectModel} />
+          {turns.length > 0 && (
+            <PageAction label="Clear chat" onClick={clearChat}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" />
+              </svg>
+            </PageAction>
+          )}
+        </div>
       }
     >
       {turns.length === 0 ? (

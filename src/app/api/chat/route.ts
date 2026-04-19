@@ -30,6 +30,7 @@ const CHAT_MODEL = process.env.CIPHER_CHAT_MODEL || "llama3.2:3b";
 interface ChatRequest {
   query: string;
   history: ChatHistoryTurn[];
+  model?: string;
 }
 
 type ChatEvent =
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
   }
   const query = (body.query || "").trim();
   const history = Array.isArray(body.history) ? body.history.slice(-4) : [];
+  const model = (typeof body.model === "string" && body.model.trim()) || CHAT_MODEL;
   if (!query) return new Response("empty query", { status: 400 });
 
   const encoder = new TextEncoder();
@@ -103,7 +105,7 @@ export async function POST(req: Request) {
 
         const messages = buildPrompt({ query, history, chunks });
         const collected: string[] = [];
-        for await (const delta of streamChat(CHAT_MODEL, messages)) {
+        for await (const delta of streamChat(model, messages)) {
           collected.push(delta);
           emit({ type: "token", text: delta });
         }
