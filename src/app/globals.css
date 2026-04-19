@@ -983,7 +983,7 @@
 }
 .cipher-cursor[data-state="connected"] {
   animation: cipher-cursor-blink 1200ms ease-in-out infinite;
-  color: var(--text-primary);
+  color: var(--accent-brand-warm);
 }
 .cipher-cursor[data-state="disconnected"] {
   color: var(--text-quaternary);
