@@ -107,6 +107,8 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
   // Holds the latest `draw` so the rAF loop doesn't call a stale closure.
   const drawRef = useRef<() => void>(() => {});
   const reducedMotionRef = useRef(false);
+  const cometsRef = useRef<{ edgeKey: string; source: string; target: string; startedAt: number }[]>([]);
+  const prevHoveredRef = useRef<string | null>(null);
 
   // Which nodes are "active" given filters. ids not in this set render faded.
   const activeIds = useMemo(() => {
@@ -444,6 +446,8 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     // Focus neighbors — computed once per frame when focus is active.
     const neighborSet = focusId ? getOneHopNeighbors(focusId, edges) : null;
 
+    const nowPerf = performance.now();
+
     ctx.lineWidth = 0.4 / scale;
     for (const e of edges) {
       const a = byId.get(e.source);
@@ -469,9 +473,36 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     }
     ctx.globalAlpha = 1;
 
+    // Comet trails — consume cometsRef, drop finished entries.
+    if (!reducedMotionRef.current && cometsRef.current.length > 0) {
+      const alive: typeof cometsRef.current = [];
+      for (const c of cometsRef.current) {
+        const t = (nowPerf - c.startedAt) / 600;
+        if (t >= 1) continue;
+        const a = byId.get(c.source);
+        const b = byId.get(c.target);
+        if (!a || !b) continue;
+        const headX = a.x + (b.x - a.x) * t;
+        const headY = a.y + (b.y - a.y) * t;
+        const tailT = Math.max(0, t - 0.06);
+        const tailX = a.x + (b.x - a.x) * tailT;
+        const tailY = a.y + (b.y - a.y) * tailT;
+        const alpha = Math.sin(t * Math.PI);
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(headX, headY);
+        ctx.strokeStyle = colAccent;
+        ctx.lineWidth = 1.4 / scale;
+        ctx.globalAlpha = alpha * inhaleAlpha;
+        ctx.stroke();
+        alive.push(c);
+      }
+      cometsRef.current = alive;
+      ctx.globalAlpha = 1;
+    }
+
     // Nodes.
     const pulse = pulseRef.current;
-    const nowPerf = performance.now();
     for (const n of nodes) {
       const active = activeIds.size === 0 || activeIds.has(n.id);
       const hovered = n.id === hoveredId;
@@ -627,6 +658,26 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
   useEffect(() => {
     drawRef.current = draw;
   }, [draw]);
+
+  // On hover-enter, seed one comet per incident edge (cap 30).
+  useEffect(() => {
+    const prev = prevHoveredRef.current;
+    prevHoveredRef.current = hoveredId;
+    if (!hoveredId || hoveredId === prev) return;
+    if (reducedMotionRef.current) return;
+    const now = performance.now();
+    const edges = simEdgesRef.current;
+    const incident = edges.filter((e) => e.source === hoveredId || e.target === hoveredId).slice(0, 30);
+    for (const e of incident) {
+      cometsRef.current.push({
+        edgeKey: `${e.source}->${e.target}`,
+        source: e.source,
+        target: e.target,
+        startedAt: now,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hoveredId]);
 
   function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
     ctx.beginPath();
