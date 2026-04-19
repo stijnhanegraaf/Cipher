@@ -488,7 +488,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-quaternary)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = "color-mix(in srgb, var(--text-quaternary) 55%, transparent)"; }}
         >
-          stijn
+          by Stijn
         </a>
       </div>
     </aside>
