@@ -143,12 +143,10 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
     <aside
       className="sidebar flex flex-col shrink-0"
       style={{
-        width: 240,
-        height: "100dvh",
+        width: "100%",
+        flex: 1,
+        minHeight: 0,
         background: "var(--bg-panel)",
-        borderRight: "1px solid var(--border-subtle)",
-        position: "sticky",
-        top: 0,
         overflow: "hidden",
       }}
     >
