@@ -177,7 +177,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
               aria-label={`Cipher — ${ariaSuffix}`}
               style={{
                 display: "inline-flex",
-                alignItems: "center",
+                alignItems: "baseline",
                 padding: "4px 6px",
                 margin: "0 -6px",
                 borderRadius: 6,
@@ -185,17 +185,34 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
                 border: "none",
                 cursor: "pointer",
                 color: "var(--text-primary)",
-                fontFamily: "var(--font-mono)",
-                fontSize: 12,
-                fontWeight: 510,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
                 transition: "background var(--motion-hover) var(--ease-default)",
               }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
             >
-              CIPHER<span className="cipher-cursor" data-state={cursorState} aria-hidden="true">_</span>
+              <span
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 18,
+                  fontWeight: 400,
+                  letterSpacing: "-0.01em",
+                  lineHeight: 1,
+                }}
+              >
+                Cipher
+              </span>
+              <span
+                className="cipher-cursor"
+                data-state={cursorState}
+                aria-hidden="true"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 14,
+                  fontWeight: 510,
+                  marginLeft: 2,
+                  lineHeight: 1,
+                }}
+              >_</span>
               {cursorState !== "hidden" && (
                 <span
                   aria-hidden="true"
