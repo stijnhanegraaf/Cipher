@@ -639,6 +639,7 @@
      This is THE list-row style across the app. */
   .app-row {
     position: relative;
+    border-radius: var(--radius-row);
   }
   .app-row::before {
     content: "";
@@ -649,7 +650,7 @@
     width: 2px;
     border-radius: 2px;
     background: transparent;
-    transition: background var(--duration-fast) var(--ease-default);
+    transition: background var(--motion-micro) var(--ease-out-gentle);
     pointer-events: none;
   }
   .app-row:hover::before,

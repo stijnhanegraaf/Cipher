@@ -255,7 +255,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
               type="button"
               onClick={item.onClick}
               data-active={active ? "true" : undefined}
-              className="focus-ring app-row flex items-center gap-2.5 rounded-[6px] cursor-pointer"
+              className="focus-ring app-row flex items-center gap-2.5 rounded-[8px] cursor-pointer"
               style={{
                 height: 32,
                 padding: "0 12px",
@@ -292,7 +292,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 8,
+            marginBottom: 4,
           }}
         >
           <span className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.04em" }}>
@@ -369,7 +369,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
             style={{
               color: "var(--text-quaternary)",
               letterSpacing: "0.04em",
-              marginBottom: 8,
+              marginBottom: 4,
             }}
           >
             Recent
@@ -404,7 +404,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
         <button
           type="button"
           onClick={onPalette}
-          className="focus-ring app-row flex items-center gap-2.5 rounded-[6px] cursor-pointer"
+          className="focus-ring app-row flex items-center gap-2.5 rounded-[8px] cursor-pointer"
           style={{
             height: 32,
             padding: "0 12px",
@@ -444,7 +444,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
         <button
           type="button"
           onClick={onToggleTheme}
-          className="focus-ring app-row flex items-center gap-2.5 rounded-[6px] cursor-pointer"
+          className="focus-ring app-row flex items-center gap-2.5 rounded-[8px] cursor-pointer"
           style={{
             height: 32,
             padding: "0 12px",
@@ -522,7 +522,7 @@ function RecentRow({ query, onOpen, onRemove }: { query: string; onOpen: () => v
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
-      className="focus-ring app-row rounded-[6px] cursor-pointer"
+      className="focus-ring app-row rounded-[8px] cursor-pointer"
       style={{
         display: "flex",
         alignItems: "center",
@@ -596,7 +596,7 @@ function PinnedRow({
       onClick={onOpen}
       onDoubleClick={onEdit}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
-      className="focus-ring app-row rounded-[6px] cursor-pointer"
+      className="focus-ring app-row rounded-[8px] cursor-pointer"
       style={{
         display: "flex",
         alignItems: "center",
