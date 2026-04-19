@@ -147,17 +147,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const activeKind = null;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        height: "100dvh",
-        backgroundColor: "var(--bg-marketing)",
-        color: "var(--text-primary)",
-        position: "relative",
-      }}
-    >
-      <div className="sidebar-container">
+    <div className="app-shell" style={{ color: "var(--text-primary)" }}>
+      <aside className="chrome-panel chrome-panel--sidebar sidebar-container">
         <Sidebar
           onAsk={handleAsk}
           onHome={handleHome}
@@ -173,11 +164,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             setDrawerScopedPath(path);
           }}
         />
-      </div>
+      </aside>
 
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "100dvh" }}>
+      <main className="chrome-panel chrome-panel--main" style={{ display: "flex", flexDirection: "column" }}>
         {children}
-      </div>
+      </main>
 
       {/* Detail sheet — URL-driven via ?sheet=<path> */}
       <AnimatePresence mode="wait">
