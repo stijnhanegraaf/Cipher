@@ -11,7 +11,7 @@
  *            • IndexProgress while embeddings.json is being built.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ViewRenderer } from "@/components/views/ViewRenderer";
 import type { ResponseEnvelope } from "@/lib/view-models";
 import { StreamingText } from "./StreamingText";
@@ -60,10 +60,8 @@ export function QACard({ turn }: Props) {
           ASKED · {formatAgo(turn.createdAt)}
         </span>
         <h2
+          className="question-serif"
           style={{
-            fontSize: 17,
-            lineHeight: 1.4,
-            fontWeight: 500,
             color: "var(--text-primary)",
             margin: 0,
           }}
@@ -102,6 +100,7 @@ export function QACard({ turn }: Props) {
 }
 
 function SourcesRow({ citations, flashId }: { citations: QATurnCitation[]; flashId?: number }) {
+  const reducedMotion = useReducedMotion();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
       <span
@@ -110,17 +109,41 @@ function SourcesRow({ citations, flashId }: { citations: QATurnCitation[]; flash
           color: "var(--text-quaternary)",
           letterSpacing: "0.08em",
           fontVariantNumeric: "tabular-nums",
+          animation: reducedMotion
+            ? undefined
+            : `source-enter var(--motion-quick) var(--ease-spring-snap) both`,
         }}
       >
         SOURCES · {citations.length}
       </span>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {citations.map((c) => (
-          <CitationPill key={c.id} id={c.id} path={c.path} heading={c.heading} flashId={flashId} />
+        {citations.map((c, i) => (
+          <div
+            key={c.id}
+            style={{
+              animation: reducedMotion
+                ? undefined
+                : `source-enter var(--motion-quick) var(--ease-spring-snap) ${(i + 1) * 40}ms both`,
+            }}
+          >
+            <CitationPill id={c.id} path={c.path} heading={c.heading} flashId={flashId} />
+          </div>
         ))}
       </div>
     </div>
   );
+}
+
+function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduced(mql.matches);
+    sync();
+    mql.addEventListener("change", sync);
+    return () => mql.removeEventListener("change", sync);
+  }, []);
+  return reduced;
 }
 
 function ErrorRow({ message }: { message: string }) {
