@@ -124,6 +124,7 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
     setLoading(true);
     setError(null);
     setData(null);
+    let timer: ReturnType<typeof setTimeout> | undefined;
     (async () => {
       try {
         const res = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
@@ -141,7 +142,7 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
         // Enforce a 150ms minimum loading window so the skeleton doesn't flash.
         const elapsed = performance.now() - loadedAt;
         const wait = Math.max(0, 150 - elapsed);
-        setTimeout(() => {
+        timer = setTimeout(() => {
           if (cancelled) return;
           setData(built);
           setLoading(false);
@@ -154,6 +155,7 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
     })();
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
   }, [path]);
 

@@ -49,6 +49,8 @@ export function ChatInterface() {
   const composerRef = useRef<ComposerHandle>(null);
   const searchParams = useSearchParams();
   const autoFiredRef = useRef(false);
+  const turnsRef = useRef<QATurn[]>(turns);
+  useEffect(() => { turnsRef.current = turns; }, [turns]);
 
   useEffect(() => {
     try {
@@ -117,7 +119,7 @@ export function ChatInterface() {
       citations: [],
       status: "streaming",
     };
-    const priorHistory = turns
+    const priorHistory = turnsRef.current
       .filter((t) => t.status === "done")
       .slice(-4)
       .flatMap((t) => [
@@ -162,7 +164,7 @@ export function ChatInterface() {
     } finally {
       setStreaming(false);
     }
-  }, [turns, streaming, model]);
+  }, [streaming, model]);
 
   const applyEvent = (id: string, ev: StreamEvent) => {
     setTurns((prev) => prev.map((t) => {
