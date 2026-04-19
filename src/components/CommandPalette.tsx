@@ -5,7 +5,7 @@
  * Keyboard: up/down/jk navigate, Enter runs, Esc closes.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Kbd } from "@/components/ui";
@@ -67,9 +67,36 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
   const { entries: recentEntries, push: pushRecent } = useRecentFiles();
   const { pins } = useSidebarPins();
   // Used by the consumer for the one-line 'DetailPage push-on-open' in Task 9.
-  void pushRecent;
-  void router;
   void fuzzyScore;
+
+  const activateResult = useCallback((result: PaletteResult, newTab: boolean) => {
+    switch (result.kind) {
+      case "recent":
+      case "file":
+        if (newTab) router.push(`/file/${result.path}`);
+        else sheet.open(result.path);
+        pushRecent(result.path);
+        return;
+      case "pin":
+        router.push("/browse");
+        return;
+      case "entity":
+      case "project":
+        if (newTab) router.push(`/file/${result.path}`);
+        else sheet.open(result.path);
+        pushRecent(result.path);
+        return;
+      case "heading":
+        sheet.open(result.filePath, result.slug);
+        return;
+      case "command":
+        result.action.run();
+        return;
+      case "fallback-chat":
+        router.push(`/chat?q=${encodeURIComponent(result.query)}`);
+        return;
+    }
+  }, [router, sheet, pushRecent]);
 
   useEffect(() => {
     setMounted(true);
@@ -291,8 +318,8 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
                   results={emptyResults}
                   activeIndex={activeIndex}
                   itemProps={itemProps}
-                  onActivate={(r) => {
-                    activateResult(r, false);
+                  onActivate={(r, newTab) => {
+                    activateResult(r, newTab);
                     onClose();
                   }}
                 />
@@ -301,8 +328,8 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
                   results={typedResults}
                   activeIndex={activeIndex}
                   itemProps={itemProps}
-                  onActivate={(r) => {
-                    activateResult(r, false);
+                  onActivate={(r, newTab) => {
+                    activateResult(r, newTab);
                     onClose();
                   }}
                 />
@@ -341,16 +368,11 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
   );
 }
 
-function activateResult(result: PaletteResult, _newTab: boolean) {
-  // Full routing lands in Task 7. Stub for now so Task 5 compiles.
-  if (result.kind === "command") result.action.run();
-}
-
 interface EmptyStateGroupsProps {
   results: PaletteResult[];
   activeIndex: number;
   itemProps: (i: number) => React.HTMLAttributes<HTMLElement>;
-  onActivate: (r: PaletteResult) => void;
+  onActivate: (r: PaletteResult, newTab: boolean) => void;
 }
 
 function EmptyStateGroups({ results, activeIndex, itemProps, onActivate }: EmptyStateGroupsProps) {
@@ -386,7 +408,7 @@ function EmptyStateGroups({ results, activeIndex, itemProps, onActivate }: Empty
                   {...ip}
                   result={result}
                   active={active}
-                  onPointerUp={(e) => { if (e.button === 0) onActivate(result); }}
+                  onPointerUp={(e) => { if (e.button === 0) onActivate(result, e.metaKey || e.ctrlKey); }}
                 />
               );
             })}
@@ -414,7 +436,7 @@ interface TypedStateListProps {
   results: PaletteResult[];
   activeIndex: number;
   itemProps: (i: number) => React.HTMLAttributes<HTMLElement>;
-  onActivate: (r: PaletteResult) => void;
+  onActivate: (r: PaletteResult, newTab: boolean) => void;
 }
 function TypedStateList({ results, activeIndex, itemProps, onActivate }: TypedStateListProps) {
   if (results.length === 0) return null;
@@ -429,7 +451,7 @@ function TypedStateList({ results, activeIndex, itemProps, onActivate }: TypedSt
             {...ip}
             result={result}
             active={active}
-            onPointerUp={(e) => { if (e.button === 0) onActivate(result); }}
+            onPointerUp={(e) => { if (e.button === 0) onActivate(result, e.metaKey || e.ctrlKey); }}
           />
         );
       })}
