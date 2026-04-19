@@ -109,6 +109,17 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
   const reducedMotionRef = useRef(false);
   const cometsRef = useRef<{ edgeKey: string; source: string; target: string; startedAt: number }[]>([]);
   const prevHoveredRef = useRef<string | null>(null);
+  const cameraRef = useRef<{
+    from: { tx: number; ty: number; scale: number };
+    to: { tx: number; ty: number; scale: number };
+    startedAt: number;
+    duration: number;
+    direction: "enter" | "exit";
+  } | null>(null);
+  const focusLayoutRef = useRef<Map<string, { tx: number; ty: number }> | null>(null);
+  const simulationFrozenRef = useRef(false);
+  const preFocusViewRef = useRef<{ tx: number; ty: number; scale: number } | null>(null);
+  const rippleRef = useRef<{ x: number; y: number; startedAt: number } | null>(null);
 
   // Which nodes are "active" given filters. ids not in this set render faded.
   const activeIds = useMemo(() => {
@@ -273,6 +284,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
 
   // ── Force simulation step ────────────────────────────────────────
   const step = useCallback(() => {
+    if (simulationFrozenRef.current) return;
     const nodes = simNodesRef.current;
     const edges = simEdgesRef.current;
     const container = containerRef.current;
@@ -393,6 +405,108 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     }
   }, []);
 
+  const computeFocusLayout = useCallback((selectedId: string) => {
+    const nodes = simNodesRef.current;
+    const edges = simEdgesRef.current;
+    const container = containerRef.current;
+    if (!container) return null;
+    const byId = new Map<string, SimNode>();
+    for (const n of nodes) byId.set(n.id, n);
+    const selected = byId.get(selectedId);
+    if (!selected) return null;
+
+    const backlinks: SimNode[] = [];
+    const outlinks: SimNode[] = [];
+    for (const e of edges) {
+      if (e.target === selectedId) {
+        const n = byId.get(e.source);
+        if (n && !backlinks.includes(n)) backlinks.push(n);
+      } else if (e.source === selectedId) {
+        const n = byId.get(e.target);
+        if (n && !outlinks.includes(n)) outlinks.push(n);
+      }
+    }
+
+    const sortByDegree = (a: SimNode, b: SimNode) => (b.outlinks + b.backlinks) - (a.outlinks + a.backlinks);
+    backlinks.sort(sortByDegree);
+    outlinks.sort(sortByDegree);
+
+    const h = container.clientHeight;
+    const layout = new Map<string, { tx: number; ty: number }>();
+    layout.set(selectedId, { tx: selected.x, ty: selected.y });
+
+    const place = (list: SimNode[], xOffset: number) => {
+      const spacing = Math.max(36, h / (list.length + 1));
+      list.forEach((n, i) => {
+        const jitter = ((n.id.charCodeAt(0) % 17) - 8);
+        const ty = selected.y + (i - (list.length - 1) / 2) * spacing;
+        const tx = selected.x + xOffset + jitter;
+        layout.set(n.id, { tx, ty });
+      });
+    };
+    place(backlinks, -220);
+    place(outlinks, 220);
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const pos of layout.values()) {
+      minX = Math.min(minX, pos.tx);
+      minY = Math.min(minY, pos.ty);
+      maxX = Math.max(maxX, pos.tx);
+      maxY = Math.max(maxY, pos.ty);
+    }
+    const w = container.clientWidth;
+    const bw = Math.max(1, maxX - minX);
+    const bh = Math.max(1, maxY - minY);
+    const fitScale = Math.min((w * 0.7) / bw, (h * 0.7) / bh, 2.5);
+    const scale = Math.max(0.8, fitScale);
+    const tx = w / 2 - selected.x * scale;
+    const ty = h / 2 - selected.y * scale;
+
+    return { layout, camera: { tx, ty, scale } };
+  }, []);
+
+  const enterFocus = useCallback((id: string, clickX: number, clickY: number) => {
+    const result = computeFocusLayout(id);
+    if (!result) return;
+    const reduced = reducedMotionRef.current;
+    preFocusViewRef.current = { ...viewRef.current };
+    cameraRef.current = {
+      from: { ...viewRef.current },
+      to: result.camera,
+      startedAt: performance.now(),
+      duration: reduced ? 100 : 400,
+      direction: "enter",
+    };
+    focusLayoutRef.current = result.layout;
+    simulationFrozenRef.current = true;
+    setFocusId(id);
+    if (!reduced) {
+      rippleRef.current = { x: clickX, y: clickY, startedAt: performance.now() };
+    }
+  }, [computeFocusLayout]);
+
+  const exitFocus = useCallback((clickX?: number, clickY?: number) => {
+    const reduced = reducedMotionRef.current;
+    const back = preFocusViewRef.current ?? { tx: 0, ty: 0, scale: 1 };
+    cameraRef.current = {
+      from: { ...viewRef.current },
+      to: back,
+      startedAt: performance.now(),
+      duration: reduced ? 100 : 300,
+      direction: "exit",
+    };
+    setFocusId(null);
+    if (!reduced && clickX !== undefined && clickY !== undefined) {
+      rippleRef.current = { x: clickX, y: clickY, startedAt: performance.now() };
+    }
+    const dur = reduced ? 100 : 300;
+    setTimeout(() => {
+      focusLayoutRef.current = null;
+      simulationFrozenRef.current = false;
+      preFocusViewRef.current = null;
+    }, dur + 20);
+  }, []);
+
   // ── Render ───────────────────────────────────────────────────────
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -400,6 +514,20 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     if (!canvas || !container) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    // Advance camera glide, if active.
+    if (cameraRef.current) {
+      const cam = cameraRef.current;
+      const tRaw = Math.min(1, (performance.now() - cam.startedAt) / cam.duration);
+      const e = 1 - Math.pow(1 - tRaw, 3);
+      viewRef.current = {
+        tx: cam.from.tx + (cam.to.tx - cam.from.tx) * e,
+        ty: cam.from.ty + (cam.to.ty - cam.from.ty) * e,
+        scale: cam.from.scale + (cam.to.scale - cam.from.scale) * e,
+      };
+      if (tRaw >= 1) cameraRef.current = null;
+    }
+
     const w = container.clientWidth;
     const h = container.clientHeight;
     const { tx, ty, scale } = viewRef.current;
@@ -447,6 +575,20 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     const neighborSet = focusId ? getOneHopNeighbors(focusId, edges) : null;
 
     const nowPerf = performance.now();
+    const interpFocus = (node: SimNode): [number, number] => {
+      const layoutF = focusLayoutRef.current;
+      const tgt = layoutF?.get(node.id);
+      if (!tgt) return [node.x, node.y];
+      if (cameraRef.current) {
+        const tRaw = Math.min(1, (nowPerf - cameraRef.current.startedAt) / cameraRef.current.duration);
+        const eCurve = 1 - Math.pow(1 - tRaw, 3);
+        if (cameraRef.current.direction === "enter") {
+          return [node.x + (tgt.tx - node.x) * eCurve, node.y + (tgt.ty - node.y) * eCurve];
+        }
+        return [tgt.tx + (node.x - tgt.tx) * eCurve, tgt.ty + (node.y - tgt.ty) * eCurve];
+      }
+      return [tgt.tx, tgt.ty];
+    };
 
     ctx.lineWidth = 0.4 / scale;
     for (const e of edges) {
@@ -466,9 +608,11 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       ctx.strokeStyle = isConnected ? colRayHover : colRay;
       ctx.lineWidth = isConnected ? 0.6 / scale : 0.4 / scale;
       ctx.globalAlpha = alpha * inhaleAlpha * edgeFocusMul;
+      const [ax, ay] = interpFocus(a);
+      const [bx, by] = interpFocus(b);
       ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
@@ -482,11 +626,13 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         const a = byId.get(c.source);
         const b = byId.get(c.target);
         if (!a || !b) continue;
-        const headX = a.x + (b.x - a.x) * t;
-        const headY = a.y + (b.y - a.y) * t;
+        const [ax, ay] = interpFocus(a);
+        const [bx, by] = interpFocus(b);
+        const headX = ax + (bx - ax) * t;
+        const headY = ay + (by - ay) * t;
         const tailT = Math.max(0, t - 0.06);
-        const tailX = a.x + (b.x - a.x) * tailT;
-        const tailY = a.y + (b.y - a.y) * tailT;
+        const tailX = ax + (bx - ax) * tailT;
+        const tailY = ay + (by - ay) * tailT;
         const alpha = Math.sin(t * Math.PI);
         ctx.beginPath();
         ctx.moveTo(tailX, tailY);
@@ -520,7 +666,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       // Focus dimming — nodes outside the focused subgraph fade back.
       let focusAlpha = 1;
       if (focusId && neighborSet) {
-        if (n.id !== focusId && !neighborSet.has(n.id)) focusAlpha = 0.1;
+        if (n.id !== focusId && !neighborSet.has(n.id)) focusAlpha = 0.05;
       }
 
       // Breathing — per-node phased sine, zero amplitude under reduced motion.
@@ -530,8 +676,10 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       const breathe = 1 + Math.sin(nowPerf * 0.002 * Math.PI + n.phase) * breatheAmp;
       const displayR = n.radius * inhaleScale * breathe;
 
+      const [nx, ny] = interpFocus(n);
+
       ctx.beginPath();
-      ctx.arc(n.x, n.y, displayR, 0, Math.PI * 2);
+      ctx.arc(nx, ny, displayR, 0, Math.PI * 2);
 
       const isOrphan = n.degree === 0;
       const slot = FOLDER_SLOTS[n.slot];
@@ -560,7 +708,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       // Slot ring (skip for orphans, skip when selected — selected draws brand ring).
       if (!isOrphan && !selected) {
         ctx.beginPath();
-        ctx.arc(n.x, n.y, displayR + 0.8 / scale, 0, Math.PI * 2);
+        ctx.arc(nx, ny, displayR + 0.8 / scale, 0, Math.PI * 2);
         ctx.strokeStyle = hovered
           ? (isLight ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,1)")
           : slotColor;
@@ -571,7 +719,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
 
       if (selected) {
         ctx.beginPath();
-        ctx.arc(n.x, n.y, displayR + 4 / scale, 0, Math.PI * 2);
+        ctx.arc(nx, ny, displayR + 4 / scale, 0, Math.PI * 2);
         ctx.strokeStyle = colAccent;
         ctx.globalAlpha = 0.4 * inhaleAlpha;
         ctx.lineWidth = 2 / scale;
@@ -588,7 +736,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
           const r1 = displayR + 32 * t1;
           const a1 = 0.45 * (1 - t1);
           ctx.beginPath();
-          ctx.arc(n.x, n.y, r1, 0, Math.PI * 2);
+          ctx.arc(nx, ny, r1, 0, Math.PI * 2);
           ctx.strokeStyle = pulseColor;
           ctx.globalAlpha = a1 * inhaleAlpha;
           ctx.lineWidth = 1.2 / scale;
@@ -599,7 +747,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
           const r2 = displayR + 20 * t2;
           const a2 = 0.25 * (1 - t2);
           ctx.beginPath();
-          ctx.arc(n.x, n.y, r2, 0, Math.PI * 2);
+          ctx.arc(nx, ny, r2, 0, Math.PI * 2);
           ctx.strokeStyle = pulseColor;
           ctx.globalAlpha = a2 * inhaleAlpha;
           ctx.lineWidth = 1 / scale;
@@ -616,8 +764,13 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     if (hoveredId) {
       const n = byId.get(hoveredId);
       if (n) {
-        const sx = n.x * scale + tx;
-        const sy = n.y * scale + ty;
+        // Use focus-layout position when active, so the label tracks the animated node.
+        const layout = focusLayoutRef.current;
+        const target = layout?.get(n.id);
+        const liveX = target && !cameraRef.current ? target.tx : n.x;
+        const liveY = target && !cameraRef.current ? target.ty : n.y;
+        const sx = liveX * scale + tx;
+        const sy = liveY * scale + ty;
         const label = n.title;
         ctx.font = '500 13px Inter, system-ui, sans-serif';
         const metrics = ctx.measureText(label);
@@ -768,11 +921,24 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     draggingRef.current = null;
     (e.target as Element).releasePointerCapture(e.pointerId);
     if (drag && drag.kind === "node" && drag.id) {
-      // If pointer didn't move much, treat as a click.
       const moved = Math.hypot(x - drag.lastX, y - drag.lastY);
       if (moved < 4) {
         setSelectedId(drag.id);
-        onOpen(drag.id);
+        const clickedId = drag.id;
+
+        if (focusId === null) {
+          enterFocus(clickedId, x, y);
+        } else if (focusId === clickedId) {
+          exitFocus(x, y);
+        } else {
+          const connected = simEdgesRef.current.some(
+            (edge) => (edge.source === focusId && edge.target === clickedId)
+              || (edge.target === focusId && edge.source === clickedId),
+          );
+          if (connected) {
+            enterFocus(clickedId, x, y);
+          }
+        }
       }
     }
   };
@@ -826,7 +992,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       else if (e.key === "f" || e.key === "F") fitToView();
       else if (e.key === "Escape") {
         if (focusId) {
-          setFocusId(null);
+          exitFocus();
           e.preventDefault();
           return;
         }
@@ -836,8 +1002,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusId]);
+  }, [focusId, exitFocus]);
 
   const fitToView = useCallback(() => {
     const container = containerRef.current;
@@ -888,7 +1053,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
           if (!canvas) return;
           const rect = canvas.getBoundingClientRect();
           const hit = pickNode(e.clientX - rect.left, e.clientY - rect.top);
-          if (hit) setFocusId(hit.id);
+          if (hit) onOpen(hit.id);
         }}
         style={{ display: "block", touchAction: "none" }}
       />
