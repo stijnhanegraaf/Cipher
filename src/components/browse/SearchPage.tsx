@@ -66,12 +66,6 @@ export function SearchPage() {
 
   return (
     <PageShell
-      icon={
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="11" cy="11" r="7" />
-          <path d="M21 21l-4.3-4.3" />
-        </svg>
-      }
       title={q ? `Results for "${q}"` : "Search"}
       subtitle={data ? `${data.results.length} result${data.results.length === 1 ? "" : "s"}` : undefined}
     >

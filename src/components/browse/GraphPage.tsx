@@ -39,14 +39,6 @@ export function GraphPage() {
 
   return (
     <PageShell
-      icon={
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="6" cy="7" r="2" />
-          <circle cx="18" cy="7" r="2" />
-          <circle cx="12" cy="17" r="2" />
-          <path d="M8 8l3 7M16 8l-3 7" />
-        </svg>
-      }
       title="Graph"
       subtitle={graph ? `${graph.nodes.length} notes · ${graph.edges.length} links` : undefined}
     >
