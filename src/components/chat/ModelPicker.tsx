@@ -156,7 +156,14 @@ export function ModelPicker({ current, onChange }: Props) {
           transition: "background var(--motion-hover) var(--ease-default)",
         }}
       >
-        <span style={{ width: 6, height: 6, borderRadius: 999, background: health?.ok ? "var(--success, #34d399)" : "var(--text-quaternary)" }} />
+        <span style={{
+          width: 6,
+          height: 6,
+          borderRadius: 999,
+          background: health?.ok && !health.needsKey && health.models.length > 0
+            ? "var(--success, #34d399)"
+            : "var(--text-quaternary)",
+        }} />
         <span style={{ textTransform: "none" }}>{current}</span>
         <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.6 }}>
           <path d="M6 9l6 6 6-6" />
@@ -308,7 +315,7 @@ export function ModelPicker({ current, onChange }: Props) {
 
           {/* ── Model list ─────────────────────────────────────── */}
           <div className="mono-label" style={{ padding: "10px 10px 6px", color: "var(--text-quaternary)", letterSpacing: "0.08em", fontSize: 10 }}>
-            MODELS {health?.ok ? "· CONNECTED" : "· OFFLINE"}
+            MODELS {health?.ok && !health.needsKey && health.models.length > 0 ? "· CONNECTED" : "· OFFLINE"}
           </div>
 
           {!health && (
