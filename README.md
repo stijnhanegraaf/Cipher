@@ -1,158 +1,89 @@
-<h1 align="center">Cipher</h1>
+# cipher
 
-<p align="center">
-  <strong>An AI-native chat + dashboard frontend for your Obsidian vault.</strong>
-</p>
+A local AI frontend for your Markdown notes. Point it at an Obsidian-style vault and you get chat, a graph, a structure explorer, and a command palette that knows about every file.
 
-<p align="center">
-  Point it at <em>any</em> Obsidian vault — no restructuring, no plugins, no sync setup.<br/>
-  Get a Today dashboard, force-directed Graph, Timeline, System health, and AI chat that understands your notes.<br/>
-  Runs locally on your machine, or self-hosted on your own VPS behind Tailscale.
-</p>
+![chat](docs/images/chat.png)
+![graph](docs/images/graph.png)
 
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-5e6ad2?style=flat-square" alt="MIT"></a>
-  <img src="https://img.shields.io/badge/Next.js-16-000?style=flat-square&logo=next.js" alt="Next.js 16">
-  <img src="https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Obsidian-vault_native-7c3aed?style=flat-square" alt="Obsidian vault native">
-</p>
+It's a Next.js app I built for my own vault. Everything stays on your machine unless you opt into a cloud model. No plugins, no sync service, no account.
 
----
-
-## What Cipher is
-
-Cipher is a Next.js web app that reads your **Obsidian vault** (or any folder of markdown with wiki-links). Point it at the folder where your `.md` files live, ask questions in chat, and get bespoke pages — Today, System health, Timeline, a force-directed Graph, Entity / Topic detail — instead of wall-of-text answers.
-
-Run it **locally on your laptop**, or **self-host it on your own VPS** (with your vault on the same box) and reach it over [Tailscale](https://tailscale.com/) from any device — no reverse proxy, no exposed port, no third-party login in between. There is no managed cloud version; you're in charge of where it runs.
-
-### Load your Obsidian vault in 30 seconds
+## Quickstart
 
 ```bash
-git clone https://github.com/stijnhanegraaf/brain-frontend
-cd brain-frontend
-npm install
-echo "VAULT_PATH=/path/to/your/Obsidian" > .env.local
+git clone https://github.com/stijnhanegraaf/brain-frontend cipher
+cd cipher && npm install
+echo "VAULT_PATH=/path/to/your/vault" > .env.local
 npm run dev
-# open http://localhost:3000
 ```
 
-That's it. No plugin to install inside Obsidian, no sync configuration, no vault restructuring. Cipher opens the folder read-only, probes its structure (entities / journal / projects / research / work / system — whatever layout you use), and every page lights up.
+Open http://localhost:3000. If you don't set `VAULT_PATH`, cipher probes a few common spots (`~/Obsidian`, `~/Documents/Obsidian`, `~/Projects/Obsidian`, a sibling `../Obsidian`). No vault handy? The repo ships a 15-file sample vault you can point at with `VAULT_PATH=$(pwd)/public/sample-vault npm run dev`.
 
-> **Works with any Obsidian vault layout.** Cipher auto-detects folder roles by common names (`entities`/`people`/`contacts`, `journal`/`daily`, `projects`, `research`, `work`, `system`, …). Folders under a `wiki/` root work too. No folder renaming required.
+For chat, you'll also want [Ollama](https://ollama.com) running locally — see [LLM setup](#llm-setup) below.
 
-## Key features
+## What's in it
 
-- **Chat** with slash commands (`/today`, `/system`, `/graph`, …) and hover-action Copy / Regenerate
-- **Today dashboard** with optimistic task check-off + undo
-- **System health** — 30-day activity sparkline, 5-bucket connectivity chart, broken-link detection, stale-note detection, top hubs
-- **Graph** — force-directed vault map with hub-weighted physics, orphan ring, bloom halos
-- **Bespoke pages** for System, Timeline, Search, Entity, Topic — not chat chrome, real pages with breadcrumbs + deep links
-- **Custom pinned sidebar** — pin any folder with a label + icon; config lives in your vault so it syncs with it
-- **Linear-grade design system** — 4px grid, single token source in `globals.css`, dark + light, keyboard-first
-- **Local-only** — no auth, no remote server, no telemetry
+### Chat
 
-## Auto-detection + sample vault
+Ask a question, get a streamed answer with citations back to the notes it pulled from. A handful of common intents (`/today`, `/system`, `/graph`, timeline, entity / topic lookups) get rendered as structured view cards instead of prose, because a list of open tasks reads better as a list than as a paragraph. Everything else falls through to the LLM with hybrid retrieval over your vault.
 
-If you don't set `VAULT_PATH`, Cipher probes common locations on startup — `~/Obsidian`, `~/Documents/Obsidian`, `~/Projects/Obsidian`, sibling `../Obsidian`. First one it finds wins.
+The question you asked renders in Instrument Serif, the answer in Inter, sources as pills that stagger in when the stream completes. Hover any assistant message for copy / regenerate.
 
-### Don't have a vault yet?
+### Command palette (⌘K)
 
-The repo ships with a tiny sample vault (~15 markdown files covering every folder role) so you can run Cipher with zero setup:
+One key, one panel. Opens with your recent files + pins + commands already listed — no typing required for the common case. Type to get a merged ranked list across every file in the vault, entities, projects, and commands. Prefix scopes: `>` for commands, `@` for entities and projects, `#` for headings inside whichever file you have open in the sheet. Enter routes by result type: files open the detail sheet, pins open the scoped drawer, commands run, headings deep-link.
 
-```bash
-VAULT_PATH=$(pwd)/public/sample-vault npm run dev
-```
+This is the fastest way to get anywhere in cipher. I almost never click the sidebar.
 
-Every page will light up — Today shows tasks, System has checks + broken links, Timeline has activity, Graph renders a small cluster, Entity/Topic pages resolve.
+### Map — Graph + Structure
 
-## Point it at your vault
+`/browse/graph` has a `Graph | Structure` toggle.
 
-Cipher auto-detects folder roles in three tiers — you almost never have to configure anything.
+Graph is a force-directed map of your vault with hub-weighted physics, an orphan ring for disconnected notes, and a focus mode that isolates a node's subgraph. Structure is Miller columns — horizontally-scrolling folders with a 360px file-preview panel on the right, for when you want to drill down rather than zoom out.
 
-**1. By name.** First pass matches common folder names:
+![structure](docs/images/structure.png)
 
-| Role in Cipher | Your folder can be named… |
-|---|---|
-| Entities (people, companies, systems) | `entities`, `people`, `contacts`, `companies`, or `knowledge/entities` |
-| Journal (per-day notes) | `journal`, `daily`, `daily-notes`, `diary`, `days` |
-| Projects | `projects` or `knowledge/projects` |
-| Research | `research`, `literature`, or `knowledge/research` |
-| Work (open, waiting-for, logs, weeks) | `work`, `tasks`, `todo`, `todos` |
-| System (status, health, open-loops) | `system`, `meta`, `ops` |
-| Hub file | `dashboard.md`, `index.md`, `home.md`, or `README.md` at the vault root |
+### Detail sheet
 
-Folders under a `wiki/` root are auto-detected too.
+Click any file anywhere — sidebar, palette result, graph node, citation pill — and it slides in from the right as a sheet. Wiki-link previews, backlinks, frontmatter, the whole note. The sheet is additive; your previous view stays mounted behind it.
 
-**2. By content.** If a role still isn't found by name, Cipher scans every top-level folder and infers the role from what's inside — so a folder called `brain` or `company-kb` still gets classified correctly:
+### Vault index
 
-- Three or more `YYYY-MM-DD.md` files → **journal**
-- A sub-directory containing `executive-summary.md` → **research**
-- `open.md` / `waiting-for.md` / `now.md` / `today.md` at the top → **work**
-- `status.md` / `health.md` / `open-loops.md` at the top → **system**
-- Flat folder of `.md` files whose frontmatter has `type: entity|person|company` → **entities**
-- Flat folder of `.md` files whose frontmatter has `type: project|plan` or `status:` → **projects**
+cipher calls `getVaultLayout()` on the folder you pointed it at and figures out what role each top-level folder plays. Journal / entities / projects / research / work / system / hub-file get detected by common names first (`journal`, `daily`, `diary`, `days`…), then by what's inside the folder if the name doesn't match (three or more `YYYY-MM-DD.md` files → journal, `open.md` / `waiting-for.md` → work, and so on). Drop a `<vault>/.cipher/layout.json` to override anything the probe gets wrong. Fields you omit still auto-detect.
 
-**3. Explicit override.** If detection still gets it wrong (or you just want full control), drop a `<vault>/.cipher/layout.json`:
+No required folder names. No restructuring.
 
-```json
-{
-  "entitiesDir": "folks",
-  "journalDir": "diary",
-  "workDir": "org/tasks"
-}
-```
+## LLM setup
 
-Any field set here wins over the auto-probe; fields you omit still auto-detect. This is also the escape hatch when two of your folders could match the same role.
+Default is local Ollama. Install it, `ollama pull llama3.2` (or whatever you want to use), `ollama pull nomic-embed-text` for embeddings, and you're done — cipher talks to `localhost:11434` and nothing leaves your machine.
 
-Anything the probe doesn't find is simply ignored — the feature that depends on it just doesn't render a section.
+If you'd rather use a cloud model, the model picker in the composer has four providers:
 
-## Customising the sidebar
+- **ollama-local** — default, free, private.
+- **ollama-cloud** — paste an Ollama Cloud key.
+- **openai** — paste an OpenAI key.
+- **anthropic** — paste an Anthropic key.
 
-Two ways to pin a folder:
+Keys are stored locally in `<vault>/.cipher/llm.json`. Retrieval embeddings always run through local Ollama regardless of which chat provider is active (Anthropic has no embeddings API, and running `nomic-embed-text` locally is the cheap universal option). So even if you're chatting with GPT-5, you still want Ollama up.
 
-- **`+ Add` in the Pinned group** — type or pick a path, choose a label + icon, save.
-- **Hover-pin in the vault drawer** — hover any folder row and click the pin icon. Defaults to the folder name; edit later via double-click.
+Health endpoint: `GET /api/chat/health` tells you whether the active provider is reachable and whether Ollama-local is up for embeddings.
 
-Your pins are saved to `<vault>/.cipher/sidebar.json`. Whatever syncs your vault (Obsidian Sync, iCloud, Dropbox) syncs your pins.
+## Vault layout
 
-## Self-host on a VPS with Tailscale
+cipher probes `getVaultLayout()` on startup and works with a typical Obsidian vault out of the box. Three-tier detection:
 
-Cipher is a plain Next.js app — it runs anywhere Node runs. The easy pattern for a private, multi-device setup:
+1. **By name** — common folder names (`entities` / `people` / `contacts`, `journal` / `daily`, `projects`, `research`, `work`, `system`). Folders under a `wiki/` root work too.
+2. **By content** — if a role isn't found by name, cipher scans top-level folders and infers from what's inside.
+3. **Explicit override** — drop a `<vault>/.cipher/layout.json` with any fields you want to pin. Omitted fields still auto-detect.
 
-1. Keep your vault on the VPS (push changes over git, or use [`obsidian-livesync`](https://github.com/vrtmrz/obsidian-livesync)).
-2. `git clone` Cipher on the VPS, `npm install`, `npm run build`, `npm run start` (or hand off to `pm2` / systemd).
-3. Install [Tailscale](https://tailscale.com/) on the VPS and on every device you want to reach it from.
-4. Open `http://<vps-tailnet-name>:3000` from any of your devices.
+Anything the probe doesn't find is silently ignored; the feature that depends on it just doesn't render.
 
-No reverse proxy, no exposed port, no third-party auth layer. The VPS process stays on localhost; Tailscale handles the encrypted tunnel. Same convenience as a hosted app, your data never leaves hardware you control.
+Pins for the sidebar live in `<vault>/.cipher/sidebar.json` — whatever syncs your vault (Obsidian Sync, iCloud, Dropbox, git) syncs your pins.
 
-> Cipher has no built-in auth or user model. Treat every instance as single-user and gate access at the network layer (Tailscale, VPN, SSH tunnel, localhost).
+## Tech
 
-## Project layout
+Next.js 16 App Router, React 19, TypeScript strict. Tailwind v4, single-token design system in `src/app/globals.css`. Inter for UI, Instrument Serif for display surfaces (page titles, empty-state headings, asked questions, sheet titles). Vercel AI SDK for streaming, Ollama for embeddings, no database — the vault is the state.
 
-```
-src/
-  app/                 Next.js 16 App Router routes + API endpoints
-    api/               /api/query, /api/today, /api/settings/sidebar, /api/vault/*
-    browse/            /browse, /browse/system, /browse/timeline, /browse/graph, …
-    chat/              /chat surface
-    file/[...path]/    direct file view
-  components/          React components
-    browse/            TodayPage, SystemPage, TimelinePage, GraphPage, …
-    sidebar/           Sidebar extras (PinDialog)
-    ui/                Reusable primitives (PinIcon, StatusDot, Badge, HoverCard, …)
-    views/             Chat-summary renderers (ViewRenderer + per-view modes)
-  lib/
-    vault-reader.ts    Vault layout probe + schema-aware readers + search
-    vault-health.ts    Activity / broken-links / stale-notes / hubs scanner
-    vault-graph.ts     Nodes + edges builder (cached per vault)
-    view-builder.ts    Intent -> typed view model
-    intent-detector.ts NL -> intent classifier
-    settings.ts        <vault>/.cipher/sidebar.json read/write
-    today-builder.ts   Today page data aggregation
-```
-
-## Development
+Read-only on your filesystem; no auth, no telemetry, no server-side history.
 
 ```bash
 npm run dev          # dev server on :3000
@@ -161,23 +92,14 @@ npm run start        # serve production build
 npx tsc --noEmit     # type check
 ```
 
-No test framework yet. Verification is manual + `curl` for the API routes + `grep` for token/convention compliance.
+No test framework. Verification is tsc + build + a manual walk.
 
-## Architecture + concepts
+## Status
 
-For a deeper tour of how the pieces fit together, read:
+This is a personal tool. I open-sourced it because it works for me and a few people asked. I'll respond to issues and PRs on a whim, not on a schedule. If you fork it and take it somewhere weirder, I'd love to see it.
 
-- `docs/ARCHITECTURE.md` — request life-cycle, module map, vault-layout probe.
-- `docs/CONCEPTS.md` — glossary of recurring terms (intent, view model, hub, orphan, sheet, scoped drawer, …).
-
-## Design language
-
-Every colour, padding, radius, font size, and motion duration in Cipher comes from a CSS custom property defined in `src/app/globals.css`. Components reach for the tokens (`var(--accent-brand)`, `var(--row-h-cozy)`, `var(--motion-hover)`, `.app-row`, `.focus-ring`) instead of inventing their own values. This is what makes the app feel like one thing instead of assembled parts. Contributions that add new UI should stick to the existing tokens — add a new token only when no existing one fits.
-
-## Contributing
-
-PRs welcome. Read `CONTRIBUTING.md` for the code-style rules and PR checklist.
+Single-user by design — there's no auth layer. If you want to reach it from multiple devices, stick it on a VPS behind [Tailscale](https://tailscale.com/) and call it from `http://<tailnet-name>:3000`. Same convenience as a hosted app, your data never leaves hardware you control.
 
 ## License
 
-MIT — see `LICENSE`. Your data stays on your machine; the license on your modifications is yours.
+MIT. See `LICENSE`.
