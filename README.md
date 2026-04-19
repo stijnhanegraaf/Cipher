@@ -17,16 +17,6 @@
   <img src="https://img.shields.io/badge/Obsidian-vault_native-7c3aed?style=flat-square" alt="Obsidian vault native">
 </p>
 
-<p align="center">
-  <img src="docs/images/today.png" width="90%" alt="Today dashboard"/>
-</p>
-
-<p align="center">
-  <img src="docs/images/chat.png" width="45%" alt="Chat"/>
-  &nbsp;
-  <img src="docs/images/graph.png" width="45%" alt="Graph"/>
-</p>
-
 ---
 
 ## What Cipher is
