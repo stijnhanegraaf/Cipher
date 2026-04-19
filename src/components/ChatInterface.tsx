@@ -1,1072 +1,256 @@
 "use client";
 
 /**
- * /chat surface — message list + input + slash commands + hover actions.
+ * ChatInterface — shell that owns history state + /api/chat NDJSON
+ * consumption. Visual bits live in components/chat/*.
  *
- * Submits to /api/query, renders responses via ViewRenderer in
- * chat-summary variant. Slash commands open SlashCommandMenu above the
- * input; empty state uses ChatEmptyState.
+ * Persists turns to localStorage["cipher-chat-history-v1"] (cap 20).
+ * Supports /chat?q=<query> deep-link auto-fire.
  */
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ResponseEnvelope, CurrentWorkData, TaskItem } from "@/lib/view-models";
-import { USE_REAL_DATA, fetchRealData } from "@/lib/mock-data";
-import { getMockResponse } from "@/lib/mock-data";
-import { detectIntent, detectToggleIntent } from "@/lib/intent-detector";
-import { ViewRenderer } from "@/components/views/ViewRenderer";
-import { Avatar } from "@/components/ui";
-import { ChatEmptyState } from "@/components/ChatEmptyState";
-import { SlashCommandMenu } from "@/components/SlashCommandMenu";
-import { fadeSlideUp } from "@/lib/motion";
-import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
+import { PageShell, PageAction } from "@/components/PageShell";
+import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
+import { Composer, type ComposerHandle } from "@/components/chat/Composer";
+import { QACard, type QATurn, type QATurnCitation } from "@/components/chat/QACard";
+import { ModelPicker } from "@/components/chat/ModelPicker";
 import { log } from "@/lib/log";
-import { useUser } from "@/lib/hooks/useUser";
-import { useVault } from "@/lib/hooks/useVault";
 
-// ────────────────────────────────────────────────────────────────────
-// Types
-// ────────────────────────────────────────────────────────────────────
+const STORAGE_KEY = "cipher-chat-history-v1";
+const MODEL_KEY = "cipher-chat-model";
+const DEFAULT_MODEL = process.env.NEXT_PUBLIC_CIPHER_CHAT_MODEL || "llama3.2:3b";
+const HISTORY_CAP = 20;
 
-interface Message {
+interface StoredTurn {
   id: string;
-  role: "user" | "assistant";
-  content: string;
-  response?: ResponseEnvelope;
-  /** Track which messages have finished their word-by-word reveal */
-  textRevealed?: boolean;
+  query: string;
+  createdAt: number;
+  text: string;
+  citations: QATurnCitation[];
+  error?: { code: string; message: string };
+  /** Envelope intent match — stored but not serialized for simplicity when null. */
+  envelopeJson?: string;
 }
 
-// ────────────────────────────────────────────────────────────────────
-// Design tokens (from DESIGN.md — single source of truth)
-// ────────────────────────────────────────────────────────────────────
+type StreamEvent =
+  | { type: "envelope"; envelope: unknown }
+  | { type: "index-progress"; done: number; total: number }
+  | { type: "token"; text: string }
+  | { type: "citation"; id: number; path: string; heading?: string; snippet: string }
+  | { type: "done" }
+  | { type: "error"; code: string; message: string };
 
-// Theme-aware token indirection — values point to CSS custom properties
-// defined in globals.css, so light/dark mode switching is automatic.
-// Status/brand colors that are constant across themes stay as hex.
-const palette = {
-  bg: "var(--bg-marketing)",
-  panelDark: "var(--bg-panel)",
-  level3: "var(--bg-surface)",
-  secondarySurface: "var(--bg-elevated)",
-  primaryText: "var(--text-primary)",
-  secondaryText: "var(--text-secondary)",
-  tertiaryText: "var(--text-tertiary)",
-  quaternaryText: "var(--text-quaternary)",
-  brandIndigo: "var(--accent-brand)",
-  accentViolet: "var(--accent-violet)",
-  accentHover: "var(--accent-hover)",
-  successGreen: "var(--success)",
-  emerald: "var(--success-pill)",
-  borderSubtle: "var(--border-subtle)",
-  borderStandard: "var(--border-standard)",
-  pillBorder: "var(--border-solid-primary)",
-} as const;
-
-// ────────────────────────────────────────────────────────────────────
-// AnimatedText — single-shot fade
-// ────────────────────────────────────────────────────────────────────
-
-/**
- * Whole-message fade, 140ms. Linear doesn't do typewriter reveals.
- * The message appears — you read it. Reveal callback fires next tick
- * so view cards can animate in right after the copy lands.
- */
-function AnimatedText({ text, onComplete }: { text: string; onComplete?: () => void }) {
-  useEffect(() => {
-    const t = setTimeout(() => onComplete?.(), 140);
-    return () => clearTimeout(t);
-  }, [text]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <span
-      key={text}
-      style={{
-        display: "inline",
-        animation: "cipher-text-fade 140ms cubic-bezier(0.25, 0.1, 0.25, 1) both",
-      }}
-    >
-      {text}
-    </span>
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────
-// Component
-// ────────────────────────────────────────────────────────────────────
-
-/**
- * Primary chat surface.
- *
- * On mount, subscribes to vault state via `useVault()` and renders an
- * empty-state card when no vault is connected. Each submission POSTs to
- * `/api/query` (falling back to `/api/toggle` when the input is a
- * toggle-intent). Slash-prefixed inputs delegate to SlashCommandMenu.
- */
 export function ChatInterface() {
-  const user = useUser();
-  const vault = useVault();
-  const [vaultError, setVaultError] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [isAtBottom, setIsAtBottom] = useState(true);
-  const [revealedMessages, setRevealedMessages] = useState<Set<string>>(new Set());
-
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
-
-  useEffect(() => {
-    if (isAtBottom) scrollToBottom();
-  }, [messages, isAtBottom, scrollToBottom]);
-
-  // Track scroll to auto-follow
-  useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    const handleScroll = () => {
-      const threshold = 80;
-      setIsAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < threshold);
-    };
-    el.addEventListener("scroll", handleScroll, { passive: true });
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const handleToggle = async (itemId: string, checked: boolean) => {
-    // Find the item in messages, get sourceFile and lineIndex
-    for (const msg of messages) {
-      if (msg.role !== "assistant" || !msg.response) continue;
-      for (const view of msg.response.response.views) {
-        if (view.type !== "current_work") continue;
-        const data = view.data as CurrentWorkData;
-        for (const group of data.groups) {
-          for (const item of group.items) {
-            if (item.id !== itemId) continue;
-            if (item.lineIndex === undefined || !view.sourceFile) return;
-
-            // Optimistic update
-            const newStatus = checked ? "done" as const : "open" as const;
-            setMessages((prev) =>
-              prev.map((m) => {
-                if (m.id !== msg.id || !m.response) return m;
-                const newResponse = { ...m.response };
-                const newViews = newResponse.response.views.map((v) => {
-                  if (v.viewId !== view.viewId) return v;
-                  const vData = { ...(v.data as CurrentWorkData) };
-                  vData.groups = vData.groups.map((g) => ({
-                    ...g,
-                    items: g.items.map((it) =>
-                      it.id === itemId ? { ...it, status: newStatus } : it
-                    ),
-                  }));
-                  return { ...v, data: vData };
-                });
-                newResponse.response = { ...newResponse.response, views: newViews };
-                return { ...m, response: newResponse };
-              })
-            );
-
-            // Server request
-            try {
-              const res = await fetch("/api/toggle", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ path: view.sourceFile, lineIndex: item.lineIndex, checked }),
-              });
-              if (!res.ok) {
-                // Revert on failure
-                const revertStatus = !checked ? "done" as const : "open" as const;
-                setMessages((prev) =>
-                  prev.map((m) => {
-                    if (m.id !== msg.id || !m.response) return m;
-                    const newResponse = { ...m.response };
-                    const newViews = newResponse.response.views.map((v) => {
-                      if (v.viewId !== view.viewId) return v;
-                      const vData = { ...(v.data as CurrentWorkData) };
-                      vData.groups = vData.groups.map((g) => ({
-                        ...g,
-                        items: g.items.map((it) =>
-                          it.id === itemId ? { ...it, status: revertStatus } : it
-                        ),
-                      }));
-                      return { ...v, data: vData };
-                    });
-                    newResponse.response = { ...newResponse.response, views: newViews };
-                    return { ...m, response: newResponse };
-                  })
-                );
-              }
-            } catch {
-              // Revert on error
-              const revertStatus = !checked ? "done" as const : "open" as const;
-              setMessages((prev) =>
-                prev.map((m) => {
-                  if (m.id !== msg.id || !m.response) return m;
-                  const newResponse = { ...m.response };
-                  const newViews = newResponse.response.views.map((v) => {
-                    if (v.viewId !== view.viewId) return v;
-                    const vData = { ...(v.data as CurrentWorkData) };
-                    vData.groups = vData.groups.map((g) => ({
-                      ...g,
-                      items: g.items.map((it) =>
-                        it.id === itemId ? { ...it, status: revertStatus } : it
-                      ),
-                    }));
-                    return { ...v, data: vData };
-                  });
-                  newResponse.response = { ...newResponse.response, views: newViews };
-                  return { ...m, response: newResponse };
-                })
-              );
-            }
-            return;
-          }
-        }
-      }
-    }
-  };
-
-  // ── A3: Natural language todo toggling ──────────────────────────────
-
-  const findTaskInView = (taskName: string): { msgId: string; viewId: string; itemId: string; sourceFile: string; lineIndex: number; itemText: string } | null => {
-    const lower = taskName.toLowerCase();
-    for (const msg of messages) {
-      if (msg.role !== "assistant" || !msg.response) continue;
-      for (const view of msg.response.response.views) {
-        if (view.type !== "current_work") continue;
-        const data = view.data as CurrentWorkData;
-        for (const group of data.groups) {
-          for (const item of group.items) {
-            if (item.status === "done" && lower.includes("done")) continue; // skip already done
-            const itemText = item.text.toLowerCase();
-            // Exact or substring match
-            if (itemText === lower || itemText.includes(lower) || lower.includes(itemText)) {
-              if (item.lineIndex !== undefined && view.sourceFile) {
-                return { msgId: msg.id, viewId: view.viewId, itemId: item.id, sourceFile: view.sourceFile, lineIndex: item.lineIndex, itemText: item.text };
-              }
-            }
-          }
-        }
-      }
-    }
-    return null;
-  };
-
-  const handleSubmit = useCallback(async (query?: string) => {
-    const userMessage = query || input.trim();
-    if (!userMessage || isProcessing) return;
-
-    // ── A3: Check for toggle intent before sending to AI ──
-    const toggleIntent = detectToggleIntent(userMessage);
-    if (toggleIntent) {
-      const match = findTaskInView(toggleIntent.taskName);
-      if (match) {
-        // Add user message
-        const userMsg: Message = {
-          id: `msg_${Date.now()}_user`,
-          role: "user",
-          content: userMessage,
-        };
-        setMessages((prev) => [...prev, userMsg]);
-
-        // Optimistic toggle
-        const checked = toggleIntent.checked;
-        const newStatus = checked ? "done" as const : "open" as const;
-        setMessages((prev) =>
-          prev.map((m) => {
-            if (m.id !== match.msgId || !m.response) return m;
-            const newResponse = { ...m.response };
-            const newViews = newResponse.response.views.map((v) => {
-              if (v.viewId !== match.viewId) return v;
-              const vData = { ...(v.data as CurrentWorkData) };
-              vData.groups = vData.groups.map((g) => ({
-                ...g,
-                items: g.items.map((it) =>
-                  it.id === match.itemId ? { ...it, status: newStatus } : it
-                ),
-              }));
-              return { ...v, data: vData };
-            });
-            newResponse.response = { ...newResponse.response, views: newViews };
-            return { ...m, response: newResponse };
-          })
-        );
-
-        // Server request
-        fetch("/api/toggle", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path: match.sourceFile, lineIndex: match.lineIndex, checked }),
-        }).catch(() => {});
-
-        // Add confirmation message
-        const confirmMsg: Message = {
-          id: `msg_${Date.now()}_assistant`,
-          role: "assistant",
-          content: checked ? `✓ Marked "${match.itemText}" as done` : `✓ Reopened "${match.itemText}"`,
-        };
-        setMessages((prev) => [...prev, confirmMsg]);
-        return;
-      }
-      // If no match found, fall through to normal AI query
-    }
-
-    setShowWelcome(false);
-
-    // Store recent query
-    try {
-      const stored = localStorage.getItem("cipher-recent");
-      const recent: string[] = stored ? JSON.parse(stored) : [];
-      const updated = [userMessage, ...recent.filter((q: string) => q !== userMessage)].slice(0, 5);
-      localStorage.setItem("cipher-recent", JSON.stringify(updated));
-    } catch {}
-    const userMsg: Message = {
-      id: `msg_${Date.now()}_user`,
-      role: "user",
-      content: userMessage,
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setIsProcessing(true);
-
-    if (inputRef.current) inputRef.current.value = "";
-
-    let response: ResponseEnvelope;
-
-    try {
-      if (USE_REAL_DATA) {
-        // Try the real API first
-        const realData = await fetchRealData(userMessage);
-        if (realData) {
-          response = realData;
-        } else {
-          // Fallback to mock data on failure
-          const intent = await detectIntent(userMessage);
-          response = getMockResponse(intent.viewType);
-        }
-      } else {
-        // Use mock data
-        await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 700));
-        const intent = await detectIntent(userMessage);
-        response = getMockResponse(intent.viewType);
-      }
-    } catch (err) {
-      log.error("chat", "handleSubmit fetch failed", err);
-      // Fallback to mock on error
-      try {
-        const intent = await detectIntent(userMessage);
-        response = getMockResponse(intent.viewType);
-      } catch {
-        response = getMockResponse("search_results");
-      }
-    }
-
-    const assistantMsg: Message = {
-      id: `msg_${Date.now()}_assistant`,
-      role: "assistant",
-      content: response.response.text || response.response.summary,
-      response,
-      textRevealed: false,
-    };
-
-    setMessages((prev) => [...prev, assistantMsg]);
-    setIsProcessing(false);
-
-    // Scroll to the start of the AI response
-    requestAnimationFrame(() => {
-      const msgElements = document.querySelectorAll('[data-msg-role="assistant"]');
-      const last = msgElements[msgElements.length - 1];
-      if (last && scrollContainerRef.current) {
-        last.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, isProcessing, messages]);
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Slash menu owns Enter/Arrows/Esc while a command is being composed.
-    if (input.startsWith("/")) return;
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
-
-  const handleClear = useCallback(() => {
-    setMessages([]);
-    setShowWelcome(true);
-    setInput("");
-    setIsProcessing(false);
-  }, []);
-
-  // Auto-fire query from ?q= URL param on mount (deep-link /chat?q=<encoded>).
+  const [turns, setTurns] = useState<QATurn[]>([]);
+  const [streaming, setStreaming] = useState(false);
+  const [model, setModel] = useState<string>(DEFAULT_MODEL);
+  const composerRef = useRef<ComposerHandle>(null);
   const searchParams = useSearchParams();
   const autoFiredRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(MODEL_KEY);
+      if (saved) setModel(saved);
+    } catch { /* ignore */ }
+  }, []);
+
+  const selectModel = useCallback((m: string) => {
+    setModel(m);
+    try { localStorage.setItem(MODEL_KEY, m); } catch { /* ignore */ }
+  }, []);
+
+  // ── Hydrate history from localStorage on mount. ─────────────────────
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const stored = JSON.parse(raw) as StoredTurn[];
+      const hydrated: QATurn[] = stored.map((s) => ({
+        id: s.id,
+        query: s.query,
+        createdAt: s.createdAt,
+        text: s.text,
+        citations: s.citations,
+        status: s.error ? "error" : "done",
+        error: s.error,
+        envelope: s.envelopeJson ? (JSON.parse(s.envelopeJson) as QATurn["envelope"]) : undefined,
+      }));
+      setTurns(hydrated);
+    } catch (err) {
+      log.warn("chat", "history hydrate failed", err);
+    }
+  }, []);
+
+  // ── Persist on every turn-list change. ──────────────────────────────
+  useEffect(() => {
+    try {
+      const toStore: StoredTurn[] = turns
+        .filter((t) => t.status !== "streaming")
+        .slice(-HISTORY_CAP)
+        .map((t) => ({
+          id: t.id,
+          query: t.query,
+          createdAt: t.createdAt,
+          text: t.text,
+          citations: t.citations,
+          error: t.error,
+          envelopeJson: t.envelope ? JSON.stringify(t.envelope) : undefined,
+        }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+    } catch (err) {
+      log.warn("chat", "history persist failed", err);
+    }
+  }, [turns]);
+
+  // ── Submit handler: POST /api/chat and consume NDJSON stream. ───────
+  const submit = useCallback(async (query: string) => {
+    if (!query.trim() || streaming) return;
+    const id = `t_${Date.now()}`;
+    const turn: QATurn = {
+      id,
+      query,
+      createdAt: Date.now(),
+      text: "",
+      citations: [],
+      status: "streaming",
+    };
+    const priorHistory = turns
+      .filter((t) => t.status === "done")
+      .slice(-4)
+      .flatMap((t) => [
+        { role: "user" as const, content: t.query },
+        { role: "assistant" as const, content: t.text || "" },
+      ]);
+
+    setTurns((prev) => [...prev, turn]);
+    setStreaming(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query, history: priorHistory, model }),
+      });
+      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buf.indexOf("\n")) !== -1) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line) continue;
+          let ev: StreamEvent;
+          try { ev = JSON.parse(line) as StreamEvent; } catch { continue; }
+          applyEvent(id, ev);
+        }
+      }
+    } catch (err) {
+      log.error("chat", "stream failed", err);
+      setTurns((prev) => prev.map((t) => (t.id === id ? {
+        ...t,
+        status: "error",
+        error: { code: "unknown", message: "Something went wrong. Check the server logs." },
+      } : t)));
+    } finally {
+      setStreaming(false);
+    }
+  }, [turns, streaming, model]);
+
+  const applyEvent = (id: string, ev: StreamEvent) => {
+    setTurns((prev) => prev.map((t) => {
+      if (t.id !== id) return t;
+      switch (ev.type) {
+        case "envelope":
+          return { ...t, envelope: ev.envelope as QATurn["envelope"], status: "done" };
+        case "index-progress":
+          return { ...t, indexProgress: { done: ev.done, total: ev.total } };
+        case "token":
+          return { ...t, text: t.text + ev.text };
+        case "citation":
+          return { ...t, citations: [...t.citations, { id: ev.id, path: ev.path, heading: ev.heading, snippet: ev.snippet }] };
+        case "done":
+          return { ...t, status: t.error ? "error" : "done" };
+        case "error":
+          return { ...t, status: "error", error: { code: ev.code, message: ev.message } };
+        default:
+          return t;
+      }
+    }));
+  };
+
+  // ── Deep-link auto-fire: /chat?q=<encoded>. ─────────────────────────
   useEffect(() => {
     if (autoFiredRef.current) return;
     const q = searchParams.get("q");
     if (q && q.trim()) {
       autoFiredRef.current = true;
-      handleSubmit(q);
+      submit(q);
     }
-  }, [searchParams, handleSubmit]);
+  }, [searchParams, submit]);
 
-  // Global keyboard shortcuts — Linear-style.
-  // `/` focuses the chat input (unless already typing).
-  // `Esc` clears the current conversation and returns to the welcome screen.
-  // Memoized so the hook doesn't re-register every render.
-  const shortcuts = useMemo(
-    () => [
-      {
-        key: "/",
-        handler: () => {
-          inputRef.current?.focus();
-        },
-        description: "Focus chat",
-      },
-      {
-        key: "Escape",
-        // Allow Esc even from inside the textarea — it's the universal "get me out" key.
-        when: () => true,
-        handler: () => {
-          // If user is typing, prefer clearing the input first over resetting everything.
-          if (input.length > 0) {
-            setInput("");
-            return;
-          }
-          // If we're on the welcome screen with an empty input, blur to release focus.
-          if (showWelcome && messages.length === 0) {
-            inputRef.current?.blur();
-            return;
-          }
-          handleClear();
-        },
-        description: "Return home",
-      },
-    ],
-    // handleClear is referentially stable enough for the hook's effect-dep comparison.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [input, showWelcome, messages.length]
-  );
-  useKeyboardShortcuts(shortcuts);
-
-  const handleTextRevealComplete = (msgId: string) => {
-    setRevealedMessages((prev) => {
-      const next = new Set(prev);
-      next.add(msgId);
-      return next;
-    });
-  };
-
-  // ────────────────────────────────────────────────────────────────
-  // Render
-  // ────────────────────────────────────────────────────────────────
+  const clearChat = useCallback(() => {
+    setTurns([]);
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+  }, []);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100dvh",
-        minHeight: 0,
-        background: palette.bg,
-        color: palette.primaryText,
-      }}
-    >
-      {/* ── Top bar — empty on desktop, placeholder for mobile actions ─── */}
-      <div
-        style={{
-          flexShrink: 0,
-          height: 48,
-          borderBottom: "1px solid var(--border-subtle)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 16px",
-          position: "sticky",
-          top: 0,
-          zIndex: 20,
-          background: "color-mix(in srgb, var(--bg-marketing) 85%, transparent)",
-          backdropFilter: "blur(20px) saturate(180%)",
-          WebkitBackdropFilter: "blur(20px) saturate(180%)",
-        }}
-      >
-        <div />
-        <div />
-      </div>
-
-      {/* ── Messages area ────────────────────────────────────────── */}
-      <div
-        ref={scrollContainerRef}
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          overflowX: "hidden",
-          scrollbarWidth: "thin",
-          scrollbarColor: `${palette.quaternaryText} transparent`,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 880,
-            margin: "0 auto",
-            padding: "0 32px 120px",
-            minHeight: showWelcome ? "calc(100vh - 88px)" : undefined,
-            display: showWelcome ? "flex" : undefined,
-            flexDirection: showWelcome ? "column" : undefined,
-            justifyContent: showWelcome ? "center" : undefined,
-          }}
-        >
-          {/* ── Empty state ───────────────────────────────────────── */}
-          {showWelcome && messages.length === 0 && vault.connected && (
-            <ChatEmptyState onSubmit={(q) => handleSubmit(q)} />
+    <PageShell
+      title="Chat"
+      actions={
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <ModelPicker current={model} onChange={selectModel} />
+          {turns.length > 0 && (
+            <PageAction label="Clear chat" onClick={clearChat}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" />
+              </svg>
+            </PageAction>
           )}
-
-          {showWelcome && messages.length === 0 && !vault.loading && !vault.connected && (
-            /* ────────────────────────────────────────────────
-               No vault: centered takeover wizard.
-               Single task, single focal point. Nothing else renders.
-               ──────────────────────────────────────────────── */
+        </div>
+      }
+    >
+      {turns.length === 0 ? (
+        <ChatEmptyState onSubmit={submit} />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+          <div style={{ flex: 1, overflowY: "auto" }}>
             <div
               style={{
-                flex: 1,
+                maxWidth: 720,
+                margin: "0 auto",
+                padding: "24px 32px 120px",
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                paddingTop: 80,
-                paddingBottom: 80,
                 gap: 24,
               }}
             >
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 11,
-                  background: palette.brandIndigo,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 8px 24px color-mix(in srgb, var(--accent-brand) 25%, transparent), 0 0 0 1px var(--border-standard) inset",
-                }}
-              >
-                <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0110 0v4" />
-                </svg>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
-                style={{ textAlign: "center", maxWidth: 420 }}
-              >
-                <h1
-                  style={{
-                    fontSize: 32,
-                    fontWeight: 560,
-                    letterSpacing: -0.8,
-                    lineHeight: 1.1,
-                    color: palette.primaryText,
-                    margin: 0,
-                    marginBottom: 8,
-                  }}
-                >
-                  Connect your vault
-                </h1>
-                <p
-                  style={{
-                    fontSize: 14,
-                    lineHeight: 1.55,
-                    color: palette.tertiaryText,
-                    margin: 0,
-                  }}
-                >
-                  Point Cipher at a folder of markdown notes. Your Obsidian vault, research notes, anything.
-                </p>
-              </motion.div>
-              <motion.form
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const form = e.currentTarget;
-                  const pathInput = (form.elements[0] as HTMLInputElement).value.trim();
-                  if (!pathInput) return;
-                  setVaultError(null);
-                  const result = await vault.connect(pathInput);
-                  if (!result.ok) {
-                    setVaultError(result.error ?? "Could not connect");
-                  }
-                }}
-                style={{ width: "100%", maxWidth: 420, display: "flex", flexDirection: "column", gap: 10 }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: 6,
-                    borderRadius: 8,
-                    background: palette.level3,
-                    border: `1px solid ${palette.borderStandard}`,
-                    boxShadow: "var(--shadow-micro)",
-                  }}
-                >
-                  <input
-                    type="text"
-                    autoFocus
-                    placeholder="~/Documents/Obsidian"
-                    style={{
-                      flex: 1,
-                      padding: "8px 10px",
-                      borderRadius: 6,
-                      border: "none",
-                      background: "transparent",
-                      color: palette.primaryText,
-                      fontSize: 13,
-                      fontFamily: "var(--font-mono)",
-                      outline: "none",
-                    }}
-                  />
-                  <button
-                    type="submit"
-                    style={{
-                      padding: "8px 14px",
-                      borderRadius: 6,
-                      border: "none",
-                      background: palette.brandIndigo,
-                      color: "var(--text-on-brand)",
-                      fontSize: 13,
-                      fontWeight: 510,
-                      letterSpacing: -0.1,
-                      cursor: "pointer",
-                      transition: "background-color var(--motion-hover) var(--ease-default)",
-                    }}
-                  >
-                    Connect
-                  </button>
-                </div>
-                {vaultError && (
-                  <p style={{ fontSize: 12, color: "var(--status-blocked)", margin: 0, textAlign: "center" }}>
-                    {vaultError}
-                  </p>
-                )}
-              </motion.form>
+              {turns.map((t) => (
+                <QACard key={t.id} turn={t} />
+              ))}
             </div>
-          )}
-
-          {/* ── Message list ────────────────────────────────────────── */}
-          {messages.length > 0 && (
-            <div style={{ paddingTop: 32, paddingBottom: 32 }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                {messages.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    variants={fadeSlideUp}
-                    initial="hidden"
-                    animate="show"
-                  >
-                    {msg.role === "user" ? (
-                      /* ── User message ──────────────────────────────────── */
-                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, alignItems: "flex-start" }}>
-                        <div
-                          style={{
-                            maxWidth: "75%",
-                            backgroundColor: palette.brandIndigo,
-                            borderRadius: 12,
-                            borderBottomRightRadius: 4,
-                            padding: "10px 16px",
-                            boxShadow: "var(--shadow-ring)",
-                          }}
-                        >
-                          <p
-                            style={{
-                              fontSize: 15,
-                              fontWeight: 400,
-                              lineHeight: 1.5,
-                              color: "var(--text-on-brand)",
-                              margin: 0,
-                            }}
-                          >
-                            {msg.content}
-                          </p>
-                        </div>
-                        {/* User avatar — neutral tone, paired with AI's brand tone */}
-                        <div style={{ marginTop: 2 }}>
-                          <Avatar initial={user.initial} tone="neutral" label={`${user.name} avatar`} />
-                        </div>
-                      </div>
-                    ) : (
-                      /* ── AI response ─────────────────────────────────────── */
-                      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }} data-msg-role="assistant">
-                        {/* Cipher avatar — brand tone, initial-based (Linear "AI as peer" treatment) */}
-                        <div style={{ marginTop: 2 }}>
-                          <Avatar initial="C" tone="brand" label="Cipher" />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          {/* A1: Conversational AI text with A2: word-by-word animation */}
-                          {msg.content && (
-                            <div style={{ marginBottom: 16 }}>
-                              <p
-                                style={{
-                                  fontSize: 15,
-                                  fontWeight: 400,
-                                  lineHeight: 1.6,
-                                  color: palette.secondaryText,
-                                  margin: 0,
-                                }}
-                              >
-                                <AnimatedText
-                                  text={msg.content}
-                                  onComplete={() => handleTextRevealComplete(msg.id)}
-                                />
-                              </p>
-                            </div>
-                          )}
-                          {/* View cards — animate in after text reveal */}
-                          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                            {msg.response?.response.views.map((view, viewIndex) => {
-                              const isRevealed = revealedMessages.has(msg.id);
-                              return (
-                                <motion.div
-                                  key={view.viewId}
-                                  initial={{ opacity: 0, y: 4 }}
-                                  animate={isRevealed ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
-                                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                                >
-                                  <ViewRenderer
-                                    view={view}
-                                    index={viewIndex}
-                                    onToggle={handleToggle}
-                                    onAsk={handleSubmit}
-                                    variant="chat-summary"
-                                  />
-                                </motion.div>
-                              );
-                            })}
-                          </div>
-                          {/* Hover actions — appear on row hover, 120ms fade. */}
-                          <MessageActions
-                            msg={msg}
-                            onRegenerate={() => {
-                              // Re-submit the nearest preceding user message.
-                              const idx = messages.findIndex((m) => m.id === msg.id);
-                              for (let i = idx - 1; i >= 0; i--) {
-                                if (messages[i].role === "user") {
-                                  handleSubmit(messages[i].content);
-                                  return;
-                                }
-                              }
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
-
-                {/* ── Typing indicator ─────────────────────────────────────── */}
-                <AnimatePresence>
-                  {isProcessing && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0, transition: { duration: 0.12 } }}
-                      transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
-                      style={{ display: "flex", alignItems: "center", gap: 8 }}
-                    >
-                      <div
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 8,
-                          background: palette.brandIndigo,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <svg
-                          width={14}
-                          height={14}
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="white"
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                        </svg>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5, height: 12 }}>
-                        {/* Opacity-only breathe, 800ms cycle, staggered. Single dimension of motion. */}
-                        {[0, 200, 400].map((delay) => (
-                          <span
-                            key={delay}
-                            style={{
-                              width: 4,
-                              height: 4,
-                              borderRadius: "50%",
-                              backgroundColor: palette.quaternaryText,
-                              animation: "wave-pulse 1.2s ease-in-out infinite",
-                              animationDelay: `${delay}ms`,
-                            }}
-                          />
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <div ref={messagesEndRef} />
-              </div>
+          </div>
+          <div
+            style={{
+              flexShrink: 0,
+              borderTop: "1px solid var(--border-subtle)",
+              background: "var(--bg-glass, var(--bg-marketing))",
+              backdropFilter: "blur(20px) saturate(180%)",
+              WebkitBackdropFilter: "blur(20px) saturate(180%)",
+            }}
+          >
+            <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px 32px 20px" }}>
+              <Composer ref={composerRef} onSubmit={submit} disabled={streaming} />
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Chat input ─────────────────────────────────────────────── */}
-      {/* Only show the persistent input once the conversation has started.
-          On the empty state ChatEmptyState owns the input. */}
-      {messages.length > 0 && (
-        <div
-          style={{
-            flexShrink: 0,
-            backgroundColor: "var(--bg-glass)",
-            backdropFilter: "blur(24px) saturate(180%)",
-            WebkitBackdropFilter: "blur(24px) saturate(180%)",
-            borderTop: `1px solid ${palette.borderSubtle}`,
-          }}
-        >
-          <div style={{ maxWidth: 880, margin: "0 auto", padding: "20px 32px 24px" }}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSubmit();
-              }}
-            >
-              <div
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "flex-end",
-                  backgroundColor: palette.level3,
-                  border: `1px solid ${palette.borderStandard}`,
-                  borderRadius: 12,
-                  transition: "border-color var(--motion-hover) var(--ease-default), box-shadow var(--motion-hover) var(--ease-default)",
-                  boxShadow: "var(--shadow-elevated)",
-                }}
-              >
-                <SlashCommandMenu value={input} onSelect={() => setInput("")} onAsk={(q) => handleSubmit(q)} />
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask anything — or /"
-                  rows={1}
-                  disabled={isProcessing}
-                  style={{
-                    flex: 1,
-                    resize: "none",
-                    background: "transparent",
-                    border: "none",
-                    padding: "12px 52px 12px 16px",
-                    fontSize: 15,
-                    fontWeight: 400,
-                    lineHeight: 1.5,
-                    color: palette.primaryText,
-                    height: 48,
-                    overflowY: "auto",
-                  }}
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isProcessing}
-                  style={{
-                    position: "absolute",
-                    right: 8,
-                    bottom: 8,
-                    width: 32,
-                    height: 32,
-                    borderRadius: 6,
-                    backgroundColor: input.trim() && !isProcessing ? palette.brandIndigo : "var(--bg-surface-alpha-5)",
-                    border: "none",
-                    cursor: input.trim() && !isProcessing ? "pointer" : "default",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "background-color var(--motion-hover) var(--ease-default)",
-                    opacity: input.trim() && !isProcessing ? 1 : 0.3,
-                  }}
-                >
-                  <svg
-                    width={16}
-                    height={16}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke={input.trim() && !isProcessing ? "var(--text-on-brand)" : palette.tertiaryText}
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
-                  </svg>
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
-
-      {/* ── Global overrides ─────────────────────────────────────── */}
-      <style>{`
-        /* Typing indicator — opacity-only breathe, single axis.
-           Linear doesn't bounce. */
-        @keyframes wave-pulse {
-          0%, 100% { opacity: 0.3; }
-          50%      { opacity: 1; }
-        }
-        @keyframes skeleton-pulse {
-          0%, 100% { opacity: 0.15; }
-          50% { opacity: 0.35; }
-        }
-        /* AI reply fade — single pass, 140ms. No typewriter. */
-        @keyframes cipher-text-fade {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        textarea::placeholder {
-          color: var(--text-tertiary);
-          opacity: 1;
-        }
-        textarea::-webkit-input-placeholder {
-          color: var(--text-tertiary);
-          opacity: 1;
-        }
-        textarea::-moz-placeholder {
-          color: var(--text-tertiary);
-          opacity: 1;
-        }
-        textarea:focus::placeholder {
-          color: var(--text-quaternary);
-        }
-        /* Hover actions on AI messages — reveal on parent-row hover. */
-        [data-msg-role="assistant"] .msg-actions {
-          opacity: 0;
-          transition: opacity 120ms cubic-bezier(0.25, 0.1, 0.25, 1);
-        }
-        [data-msg-role="assistant"]:hover .msg-actions,
-        [data-msg-role="assistant"] .msg-actions:focus-within {
-          opacity: 1;
-        }
-      `}</style>
-    </div>
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────
-// MessageActions — hover-revealed copy + regenerate row under AI messages.
-// ────────────────────────────────────────────────────────────────────
-
-function MessageActions({ msg, onRegenerate }: { msg: Message; onRegenerate: () => void }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    const textToCopy = [
-      msg.content,
-      ...(msg.response?.response.views.flatMap((v) => {
-        // Include the primary view summary if present.
-        const data = v.data as unknown as { summary?: string };
-        return data?.summary ? [data.summary] : [];
-      }) ?? []),
-    ]
-      .filter(Boolean)
-      .join("\n\n");
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    } catch {
-      /* clipboard blocked; silently fail */
-    }
-  };
-
-  return (
-    <div
-      className="msg-actions"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 2,
-        marginTop: 12,
-      }}
-    >
-      <ActionIconButton label={copied ? "Copied" : "Copy"} onClick={handleCopy}>
-        {copied ? (
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="var(--status-done)" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
-        ) : (
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <rect x="9" y="9" width="13" height="13" rx="2" />
-            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-          </svg>
-        )}
-      </ActionIconButton>
-      <ActionIconButton label="Regenerate" onClick={onRegenerate}>
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M1 4v6h6M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-        </svg>
-      </ActionIconButton>
-    </div>
-  );
-}
-
-function ActionIconButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={onClick}
-      className="focus-ring"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 28,
-        height: 28,
-        borderRadius: 6,
-        background: "transparent",
-        border: "none",
-        color: "var(--text-tertiary)",
-        cursor: "pointer",
-        transition: "background 120ms var(--ease-default), color 120ms var(--ease-default)",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "var(--hover-control)";
-        e.currentTarget.style.color = "var(--text-primary)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = "var(--text-tertiary)";
-      }}
-    >
-      {children}
-    </button>
+    </PageShell>
   );
 }
