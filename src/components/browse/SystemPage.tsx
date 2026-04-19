@@ -211,19 +211,46 @@ export function SystemPage() {
           {/* ── Needs attention (curated list) ─────────────── */}
           {data.attention && data.attention.length > 0 && (
             <Section label="Needs attention" count={data.attention.length}>
-              <div
+              <ul
                 style={{
-                  margin: "12px 32px",
-                  padding: "14px 16px",
-                  borderRadius: "var(--radius-card)",
-                  background: "color-mix(in srgb, var(--status-warning) 6%, transparent)",
-                  borderLeft: "2px solid var(--status-warning)",
+                  margin: "12px 32px 8px",
+                  padding: 0,
+                  listStyle: "none",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
                 }}
               >
-                <div className="small" style={{ color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                  <MarkdownRenderer content={data.attention.join(". ") + "."} onNavigate={sheet.open} />
-                </div>
-              </div>
+                {data.attention.map((item, i) => (
+                  <li
+                    key={i}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 12,
+                      padding: "8px 12px",
+                      borderRadius: "var(--radius-row)",
+                      color: "var(--text-secondary)",
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        flexShrink: 0,
+                        marginTop: 8,
+                        width: 4,
+                        height: 4,
+                        borderRadius: "50%",
+                        background: "var(--text-quaternary)",
+                      }}
+                    />
+                    <div className="small" style={{ flex: 1, minWidth: 0 }}>
+                      <MarkdownRenderer content={item} onNavigate={sheet.open} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </Section>
           )}
         </div>
