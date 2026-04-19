@@ -11,7 +11,7 @@
  */
 
 import "server-only";
-import type { OllamaMessage } from "./ollama";
+import type { ChatMessage as OllamaMessage } from "./providers";
 import type { RetrievedChunk } from "./retrieval";
 
 export const SYSTEM_PROMPT = `You are Cipher, a research assistant grounded in the user's personal vault.

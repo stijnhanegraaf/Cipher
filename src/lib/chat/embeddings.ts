@@ -16,7 +16,7 @@ import "server-only";
 import { readFile, writeFile, mkdir, rename, readdir, stat } from "fs/promises";
 import { join, dirname } from "path";
 import { getVaultPath } from "@/lib/vault-reader";
-import { embed } from "./ollama";
+import { embedWithOllamaLocal as embed } from "./providers";
 import { log } from "@/lib/log";
 
 export const EMBED_MODEL = "nomic-embed-text";

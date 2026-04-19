@@ -13,7 +13,7 @@
 import "server-only";
 import { fuzzyScore } from "@/lib/fuzzy";
 import { cosine, ensureIndex, EMBED_MODEL, type IndexChunk, type IndexProgress } from "./embeddings";
-import { embed } from "./ollama";
+import { embedWithOllamaLocal as embed } from "./providers";
 
 export interface RetrievedChunk {
   id: string;
