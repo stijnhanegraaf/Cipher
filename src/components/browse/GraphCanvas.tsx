@@ -1146,8 +1146,8 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
                 top: 12,
                 right: 12,
                 width: 260,
-                background: "var(--bg-elevated)",
-                border: "1px solid var(--border-subtle)",
+                background: "var(--surface-raised)",
+                border: "1px solid var(--accent-soft)",
                 borderRadius: 10,
                 boxShadow: "var(--shadow-dialog)",
                 padding: 12,
@@ -1160,7 +1160,15 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
               </div>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <div
+                    className="hud-title-serif"
+                    style={{
+                      color: "var(--text-primary)",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
                     {focusLinks.node.title}
                   </div>
                   <div className="caption-large" style={{ color: "var(--text-quaternary)", marginTop: 2 }}>
