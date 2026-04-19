@@ -55,6 +55,7 @@ export function ChatEmptyState({ onSubmit, banner }: Props) {
 
   return (
     <div
+      className="editorial-glow"
       style={{
         flex: 1,
         minHeight: 0,
@@ -67,12 +68,11 @@ export function ChatEmptyState({ onSubmit, banner }: Props) {
       }}
     >
       <h1
+        className="heading-2-serif"
         style={{
-          fontSize: 20,
-          fontWeight: 500,
-          letterSpacing: "-0.01em",
           color: "var(--text-secondary)",
           margin: 0,
+          textAlign: "center",
         }}
       >
         Ask about your vault
