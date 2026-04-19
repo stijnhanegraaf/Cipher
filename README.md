@@ -39,6 +39,18 @@ Cipher is a Next.js app I built for my own vault. Everything stays on your machi
 
 ---
 
+## Why I built this
+
+For a while now I've been running my whole second brain through [OpenClaw](https://openclaw.com) — an AI agent in Telegram that reads and writes to an Obsidian vault. Chat is great for capture: "add to journal", "what's Alice up to", "what do I owe Jake".
+
+But after a few hundred messages I noticed I kept asking for the same things — open tasks, what's waiting, what's on today — and chat was always the bottleneck. You can't *scan* a conversation. You can't pin it. You can't glance at it while you make coffee.
+
+I wanted a visual surface for the same vault. Tasks just *there*. A graph you can look at. A palette for the keyboard. Chat still available when I actually need it — not the only way in.
+
+Cipher is that. Same Obsidian vault — rendered as a dashboard, a graph, a ⌘K palette, and a chat. One keystroke between them.
+
+---
+
 ## Quickstart
 
 ```bash
