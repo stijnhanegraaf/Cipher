@@ -194,8 +194,8 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
                 style={{
                   fontFamily: "var(--font-serif)",
                   fontSize: 18,
-                  fontWeight: 400,
-                  letterSpacing: "-0.01em",
+                  fontWeight: 600,
+                  letterSpacing: "-0.015em",
                   lineHeight: 1,
                 }}
               >
