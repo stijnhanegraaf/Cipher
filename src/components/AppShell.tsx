@@ -13,6 +13,7 @@ import { VaultDrawer } from "@/components/VaultDrawer";
 import { HintChip } from "@/components/HintChip";
 import { Sidebar } from "@/components/Sidebar";
 import { CommandPalette, type PaletteAction } from "@/components/CommandPalette";
+import { VaultConnectDialog } from "@/components/VaultConnectDialog";
 import { useSheet } from "@/lib/hooks/useSheet";
 import { useVault } from "@/lib/hooks/useVault";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
@@ -50,7 +51,16 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const [vaultDrawerOpen, setVaultDrawerOpen] = useState(false);
   const [drawerScopedPath, setDrawerScopedPath] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
+
+  // Nudge the user to connect a vault on first run when none is active.
+  useEffect(() => {
+    if (!vault.loading && !vault.connected && !connectOpen) {
+      const dismissed = sessionStorage.getItem("cipher-vault-nudge-dismissed");
+      if (!dismissed) setConnectOpen(true);
+    }
+  }, [vault.loading, vault.connected, connectOpen]);
 
   // Load recent queries from localStorage on mount.
   useEffect(() => {
@@ -132,16 +142,22 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       { id: "nav-drawer", group: "Navigation", label: "Open vault drawer", icon: navIcon, run: () => setVaultDrawerOpen(true) },
       { id: "action-theme", group: "Actions", label: "Toggle theme", run: handleToggleTheme },
       {
-        id: "action-disconnect-vault",
+        id: "action-connect-vault",
         group: "Actions",
+        label: vault.connected ? "Switch vault" : "Connect vault",
+        run: () => setConnectOpen(true),
+      },
+      ...(vault.connected ? [{
+        id: "action-disconnect-vault",
+        group: "Actions" as const,
         label: "Disconnect vault",
         run: () => {
           vault.disconnect?.();
           router.push("/browse");
         },
-      },
+      }] : []),
     ];
-  }, [router, handleToggleTheme, vault.disconnect]);
+  }, [router, handleToggleTheme, vault.connected, vault.disconnect]);
 
   // Active-state hint for sidebar — route-driven only, no view kind.
   const activeKind = null;
@@ -232,6 +248,13 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         actions={paletteActions}
+      />
+      <VaultConnectDialog
+        open={connectOpen}
+        onClose={() => {
+          setConnectOpen(false);
+          try { sessionStorage.setItem("cipher-vault-nudge-dismissed", "1"); } catch { /* ignore */ }
+        }}
       />
     </div>
   );
