@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Kbd } from "@/components/ui";
 import { useListNavigation } from "@/lib/hooks/useListNavigation";
+import { fuzzyScore } from "@/lib/fuzzy";
 
 export interface PaletteAction {
   id: string;
@@ -31,28 +32,6 @@ interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
   actions: PaletteAction[];
-}
-
-/**
- * Simple fuzzy match — every query char must appear in order in the haystack.
- * Returns a score (lower is better) for ranking; Infinity means no match.
- */
-function fuzzyScore(query: string, target: string): number {
-  if (!query) return 0;
-  const q = query.toLowerCase();
-  const t = target.toLowerCase();
-  let qi = 0;
-  let score = 0;
-  let lastMatch = -1;
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) {
-      // Reward adjacent matches; penalize gaps.
-      score += lastMatch === -1 ? ti : ti - lastMatch;
-      lastMatch = ti;
-      qi++;
-    }
-  }
-  return qi === q.length ? score : Infinity;
 }
 
 /**
