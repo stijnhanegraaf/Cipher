@@ -1,18 +1,13 @@
 /**
- * Thin HTTP wrapper around a locally running Ollama instance.
+ * Thin HTTP wrapper around either a local Ollama instance or Ollama Cloud.
  *
- * Exposes three async primitives used by the /api/chat pipeline:
- *   - listTags()   — GET /api/tags, used for health / model detection.
- *   - embed()      — POST /api/embeddings, single-prompt embedding.
- *   - streamChat() — POST /api/chat with stream:true, yields text deltas.
- *
- * Base URL is hard-coded for v1 (see spec § Model & config). Model names
- * are passed in by the caller — this module stays model-agnostic.
+ * The base URL + Bearer header come from `<vault>/.cipher/ollama.json`
+ * via `readOllamaSettings()`. Both modes speak the same API surface
+ * (/api/tags, /api/embeddings, /api/chat).
  */
 
 import "server-only";
-
-const OLLAMA_BASE = "http://localhost:11434";
+import { readOllamaSettings, resolveBase, resolveHeaders } from "@/lib/ollama-settings";
 
 export interface OllamaTag {
   name: string;
@@ -41,36 +36,41 @@ interface OllamaEmbeddingsResponse {
 }
 
 export class OllamaDownError extends Error {
-  constructor() { super("Ollama is not reachable at " + OLLAMA_BASE); this.name = "OllamaDownError"; }
+  constructor(base: string) { super("Ollama is not reachable at " + base); this.name = "OllamaDownError"; }
 }
 
 export class OllamaModelMissingError extends Error {
   constructor(public model: string) { super(`Model "${model}" is not pulled`); this.name = "OllamaModelMissingError"; }
 }
 
-/** GET /api/tags — returns the list of locally pulled models. Throws OllamaDownError on connection failure. */
+async function resolveEndpoint() {
+  const s = await readOllamaSettings();
+  return { base: resolveBase(s), headers: resolveHeaders(s), mode: s.mode };
+}
+
 export async function listTags(): Promise<OllamaTagsResponse> {
+  const { base, headers } = await resolveEndpoint();
   let res: Response;
   try {
-    res = await fetch(`${OLLAMA_BASE}/api/tags`, { cache: "no-store" });
+    res = await fetch(`${base}/api/tags`, { cache: "no-store", headers });
   } catch {
-    throw new OllamaDownError();
+    throw new OllamaDownError(base);
   }
-  if (!res.ok) throw new OllamaDownError();
+  if (!res.ok) throw new OllamaDownError(base);
   return (await res.json()) as OllamaTagsResponse;
 }
 
-/** POST /api/embeddings — one prompt, one vector. Throws OllamaDownError / OllamaModelMissingError. */
 export async function embed(model: string, prompt: string): Promise<number[]> {
+  const { base, headers } = await resolveEndpoint();
   let res: Response;
   try {
-    res = await fetch(`${OLLAMA_BASE}/api/embeddings`, {
+    res = await fetch(`${base}/api/embeddings`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers,
       body: JSON.stringify({ model, prompt }),
     });
   } catch {
-    throw new OllamaDownError();
+    throw new OllamaDownError(base);
   }
   if (res.status === 404) throw new OllamaModelMissingError(model);
   if (!res.ok) throw new Error(`Ollama /api/embeddings failed: ${res.status}`);
@@ -79,21 +79,17 @@ export async function embed(model: string, prompt: string): Promise<number[]> {
   return json.embedding;
 }
 
-/**
- * POST /api/chat with stream:true. Returns an AsyncIterable<string> that
- * yields incremental content deltas from `message.content`. Throws
- * OllamaDownError on connection failure and OllamaModelMissingError on 404.
- */
 export async function* streamChat(model: string, messages: OllamaMessage[]): AsyncIterable<string> {
+  const { base, headers } = await resolveEndpoint();
   let res: Response;
   try {
-    res = await fetch(`${OLLAMA_BASE}/api/chat`, {
+    res = await fetch(`${base}/api/chat`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers,
       body: JSON.stringify({ model, messages, stream: true }),
     });
   } catch {
-    throw new OllamaDownError();
+    throw new OllamaDownError(base);
   }
   if (res.status === 404) throw new OllamaModelMissingError(model);
   if (!res.ok || !res.body) throw new Error(`Ollama /api/chat failed: ${res.status}`);
