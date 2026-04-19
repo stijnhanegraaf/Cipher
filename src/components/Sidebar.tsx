@@ -401,96 +401,34 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           gap: 2,
         }}
       >
-        <div
-          className="app-row flex items-center rounded-[8px]"
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          aria-label="Toggle appearance"
+          title="Toggle appearance"
+          className="focus-ring app-row flex items-center gap-2.5 rounded-[8px] cursor-pointer"
           style={{
             height: 32,
-            padding: "0 8px 0 12px",
-            gap: 10,
+            padding: "0 12px",
+            background: "transparent",
+            border: "none",
             color: "var(--text-tertiary)",
             fontSize: 13,
             fontWeight: 500,
             letterSpacing: -0.1,
+            textAlign: "left",
+            transition: "background-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-surface-alpha-2)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--text-tertiary)"; }}
         >
-          <button
-            type="button"
-            onClick={onPalette}
-            aria-label="Command palette (⌘K)"
-            title="Command palette"
-            className="focus-ring flex items-center"
-            style={{
-              gap: 10,
-              height: "100%",
-              padding: 0,
-              border: "none",
-              background: "transparent",
-              color: "inherit",
-              cursor: "pointer",
-              fontSize: "inherit",
-              fontWeight: "inherit",
-              letterSpacing: "inherit",
-              flex: 1,
-              minWidth: 0,
-              textAlign: "left",
-              transition: "color var(--motion-hover) var(--ease-default)",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; }}
-          >
-            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14 }}>
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="3" />
-                <path d="M9 3v18M3 9h18" />
-              </svg>
-            </span>
-            <span>Commands</span>
-          </button>
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            aria-label="Toggle theme"
-            title="Toggle theme"
-            className="focus-ring"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 24,
-              height: 24,
-              padding: 0,
-              border: "none",
-              background: "transparent",
-              color: "var(--text-tertiary)",
-              cursor: "pointer",
-              borderRadius: 6,
-              flexShrink: 0,
-              transition: "background var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; e.currentTarget.style.color = "var(--text-primary)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-tertiary)"; }}
-          >
+          <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 14, color: "var(--text-tertiary)" }}>
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M20.354 15.354A9 9 0 018.646 3.646 9 9 0 0012 21a9 9 0 008.354-5.646z" />
             </svg>
-          </button>
-          <kbd
-            aria-hidden="true"
-            className="micro"
-            style={{
-              padding: "2px 6px",
-              borderRadius: "var(--radius-small)",
-              border: "1px solid var(--border-standard)",
-              background: "var(--bg-surface-alpha-2)",
-              color: "var(--text-quaternary)",
-              letterSpacing: "0.04em",
-              flexShrink: 0,
-              pointerEvents: "none",
-            }}
-          >
-            ⌘K
-          </kbd>
-        </div>
+          </span>
+          Appearance
+        </button>
         <a
           href="https://github.com/stijnhanegraaf"
           target="_blank"
