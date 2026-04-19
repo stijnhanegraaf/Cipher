@@ -100,10 +100,11 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
   const draggingRef = useRef<{ kind: "pan" | "node"; id?: string; lastX: number; lastY: number } | null>(null);
   const mouseRef = useRef<{ x: number; y: number } | null>(null);
   const inhaleRef = useRef(0); // 0 → 1 over 300ms on mount
-  const pulseRef = useRef<{ id: string; startedAt: number } | null>(null);
+  const pulseRef = useRef<{ id: string; startedAt: number; echoStartedAt: number } | null>(null);
   const mountTimeRef = useRef<number>(0);
   // Holds the latest `draw` so the rAF loop doesn't call a stale closure.
   const drawRef = useRef<() => void>(() => {});
+  const reducedMotionRef = useRef(false);
 
   // Which nodes are "active" given filters. ids not in this set render faded.
   const activeIds = useMemo(() => {
@@ -187,7 +188,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
                 const candidates = simNodesRef.current.filter((n) => n.backlinks >= 3);
                 if (candidates.length > 0) {
                   const pick = candidates[Math.floor(Math.random() * candidates.length)];
-                  pulseRef.current = { id: pick.id, startedAt: now2 };
+                  pulseRef.current = { id: pick.id, startedAt: now2, echoStartedAt: now2 + 200 };
                 }
               }
             } else {
@@ -474,8 +475,15 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         if (n.id !== focusId && !neighborSet.has(n.id)) focusAlpha = 0.1;
       }
 
+      // Breathing — per-node phased sine, zero amplitude under reduced motion.
+      const breatheAmp = reducedMotionRef.current
+        ? 0
+        : Math.min(0.18, 0.02 + Math.log(n.backlinks + 1) * 0.04);
+      const breathe = 1 + Math.sin(nowPerf * 0.002 * Math.PI + n.phase) * breatheAmp;
+      const displayR = n.radius * inhaleScale * breathe;
+
       ctx.beginPath();
-      ctx.arc(n.x, n.y, n.radius * inhaleScale, 0, Math.PI * 2);
+      ctx.arc(n.x, n.y, displayR, 0, Math.PI * 2);
 
       const isOrphan = n.degree === 0;
       const slot = FOLDER_SLOTS[n.slot];
@@ -502,7 +510,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       // Slot ring (skip for orphans, skip when selected — selected draws brand ring).
       if (!isOrphan && !selected) {
         ctx.beginPath();
-        ctx.arc(n.x, n.y, n.radius * inhaleScale + 0.8 / scale, 0, Math.PI * 2);
+        ctx.arc(n.x, n.y, displayR + 0.8 / scale, 0, Math.PI * 2);
         ctx.strokeStyle = hovered
           ? (isLight ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,1)")
           : slotColor;
@@ -513,7 +521,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
 
       if (selected) {
         ctx.beginPath();
-        ctx.arc(n.x, n.y, n.radius * inhaleScale + 4 / scale, 0, Math.PI * 2);
+        ctx.arc(n.x, n.y, displayR + 4 / scale, 0, Math.PI * 2);
         ctx.strokeStyle = colAccent;
         ctx.globalAlpha = 0.4 * inhaleAlpha;
         ctx.lineWidth = 2 / scale;
@@ -692,6 +700,17 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     canvas.addEventListener("wheel", handleWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", handleWheel);
   }, [handleWheel]);
+
+  // Reduced-motion gate. Re-read live so toggling the OS preference
+  // updates every motion channel on the next frame.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => { reducedMotionRef.current = mq.matches; };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   // Keyboard: + / - zoom, arrows pan, f fit, Esc reset.
   useEffect(() => {
