@@ -1,8 +1,8 @@
 /**
- * /browse/graph route — mounts GraphPage.
+ * /browse/graph route — mounts MapPage (Graph ↔ Structure).
  */
-import { GraphPage } from "@/components/browse/GraphPage";
+import { MapPage } from "@/components/browse/MapPage";
 
 export default function GraphRoute() {
-  return <GraphPage />;
+  return <MapPage />;
 }
