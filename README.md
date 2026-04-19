@@ -42,10 +42,12 @@ Cipher is a Next.js app I built for my own vault. Everything stays on your machi
 ## Quickstart
 
 ```bash
-npx create-cipher my-vault
+npx github:stijnhanegraaf/Cipher my-vault
 ```
 
-Not wired yet — until it is, the manual path is four commands:
+Clones the repo, installs dependencies, asks for your `VAULT_PATH`, writes `.env.local`. Then `cd my-vault && npm run dev`.
+
+Prefer the manual path?
 
 ```bash
 git clone https://github.com/stijnhanegraaf/Cipher
