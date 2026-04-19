@@ -237,7 +237,7 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <h2
-            className="heading-3"
+            className="heading-2-serif"
             style={{
               flex: 1,
               color: "var(--text-primary)",
