@@ -316,11 +316,23 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       }
     }
 
-    // 4. Integrate with damping.
+    // 4. Integrate with damping. Cap |v| per step — high-degree hubs
+    //    (26+ edges) accumulate spring forces that are individually stable
+    //    but together exceed the Euler-integration stability threshold,
+    //    making positions explode to NaN within a few hundred ticks of
+    //    the pre-settle pass. Clamping velocity keeps the visual motion
+    //    identical at rest while guaranteeing bounded integration.
     const DAMPING = 0.82;
+    const MAX_V = 40;
     for (const n of nodes) {
       n.vx *= DAMPING;
       n.vy *= DAMPING;
+      const speed = Math.hypot(n.vx, n.vy);
+      if (speed > MAX_V) {
+        const k = MAX_V / speed;
+        n.vx *= k;
+        n.vy *= k;
+      }
       n.x += n.vx;
       n.y += n.vy;
     }
