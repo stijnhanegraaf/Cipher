@@ -93,11 +93,8 @@ export function PageShell({ title, subtitle, icon, actions, toolbar, contentMaxW
               </span>
             )}
             <h1
+              className="heading-3-serif"
               style={{
-                fontSize: 13,
-                fontWeight: 510,
-                letterSpacing: -0.1,
-                lineHeight: 1,
                 color: "var(--text-primary)",
                 margin: 0,
                 overflow: "hidden",
