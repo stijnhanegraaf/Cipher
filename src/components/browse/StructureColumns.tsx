@@ -388,6 +388,9 @@ export function StructureColumns({ graph, onOpen }: Props) {
                         if (!showRail) e.currentTarget.style.background = "transparent";
                       }}
                       onClick={() => {
+                        // Files have no depth — collapse any deeper columns,
+                        // matching macOS Finder behaviour.
+                        setTrail((prev) => prev.slice(0, colIdx + 1));
                         setSelectedFile(row.node.id);
                         setFocus({ col: colIdx, row: rowIdx });
                       }}
