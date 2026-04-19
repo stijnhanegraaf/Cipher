@@ -1,7 +1,35 @@
 {
   "name": "cipher",
   "version": "0.1.0",
+  "description": "Open-source frontend for your Obsidian vault — chat, graph, structure, ⌘K.",
+  "license": "MIT",
   "private": true,
+  "author": {
+    "name": "Stijn Hanegraaf",
+    "url": "https://github.com/stijnhanegraaf"
+  },
+  "homepage": "https://github.com/stijnhanegraaf/Cipher#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stijnhanegraaf/Cipher.git"
+  },
+  "bugs": {
+    "url": "https://github.com/stijnhanegraaf/Cipher/issues"
+  },
+  "keywords": [
+    "obsidian",
+    "markdown",
+    "vault",
+    "knowledge-graph",
+    "ollama",
+    "local-first",
+    "ai",
+    "chat",
+    "nextjs"
+  ],
+  "bin": {
+    "create-cipher": "./bin/create-cipher.mjs"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
