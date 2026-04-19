@@ -62,6 +62,13 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     }
   }, [vault.loading, vault.connected, connectOpen]);
 
+  // Any component can request the connect dialog by firing this event.
+  useEffect(() => {
+    const handler = () => setConnectOpen(true);
+    window.addEventListener("cipher:open-vault-connect", handler);
+    return () => window.removeEventListener("cipher:open-vault-connect", handler);
+  }, []);
+
   // Load recent queries from localStorage on mount.
   useEffect(() => {
     try {

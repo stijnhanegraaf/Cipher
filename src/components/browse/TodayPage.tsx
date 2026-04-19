@@ -199,7 +199,26 @@ export function TodayPage() {
           <p className="caption-large" style={{ color: "var(--status-blocked)", marginBottom: 8 }}>
             Couldn't load today
           </p>
-          <p className="small" style={{ color: "var(--text-tertiary)" }}>{error}</p>
+          <p className="small" style={{ color: "var(--text-tertiary)", marginBottom: 16 }}>{error}</p>
+          {error.toLowerCase().includes("no vault") && (
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("cipher:open-vault-connect"))}
+              className="focus-ring"
+              style={{
+                padding: "8px 16px",
+                border: "none",
+                background: "var(--accent-brand)",
+                color: "var(--text-on-brand, #fff)",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 500,
+                borderRadius: "var(--radius-row)",
+              }}
+            >
+              Connect a vault
+            </button>
+          )}
         </div>
       )}
 
