@@ -31,8 +31,14 @@ export function createOllamaProvider(
     id,
     label,
     async status(): Promise<ProviderStatus> {
+      if (id === "ollama-cloud" && !cfg.apiKey) {
+        return { ok: false, models: [], defaultModel: "llama3.2:3b", needsKey: true };
+      }
       try {
         const res = await fetch(`${base}/api/tags`, { cache: "no-store", headers });
+        if (res.status === 401 || res.status === 403) {
+          return { ok: false, models: [], defaultModel: "llama3.2:3b", needsKey: id === "ollama-cloud" };
+        }
         if (!res.ok) return { ok: false, models: [], defaultModel: "llama3.2:3b" };
         const json = (await res.json()) as OllamaTagsResponse;
         const models = json.models.map((m) => m.name).filter((n) => !n.startsWith("nomic-embed-text"));
@@ -40,7 +46,6 @@ export function createOllamaProvider(
           ok: true,
           models,
           defaultModel: models[0] ?? "llama3.2:3b",
-          needsKey: id === "ollama-cloud" && !cfg.apiKey,
         };
       } catch {
         return { ok: false, models: [], defaultModel: "llama3.2:3b" };
