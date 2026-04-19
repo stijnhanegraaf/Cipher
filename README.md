@@ -1,28 +1,42 @@
 <h1 align="center">Cipher</h1>
 
 <p align="center">
-  An AI-native chat + dashboard interface over your Obsidian-style markdown vault.
+  <strong>An AI-native chat + dashboard frontend for your Obsidian vault.</strong>
+</p>
+
+<p align="center">
+  Point it at <em>any</em> Obsidian vault — no restructuring, no plugins, no sync setup.<br/>
+  Get a Today dashboard, force-directed Graph, Timeline, System health, and AI chat that understands your notes.<br/>
+  Everything runs locally. Your data stays on your machine.
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-5e6ad2?style=flat-square" alt="MIT"></a>
   <img src="https://img.shields.io/badge/Next.js-16-000?style=flat-square&logo=next.js" alt="Next.js 16">
   <img src="https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript" alt="TypeScript">
-</p>
-
-<p align="center">
-  <img src="docs/images/chat.png" width="32%" alt="Chat"/>
-  <img src="docs/images/today.png" width="32%" alt="Today"/>
-  <img src="docs/images/graph.png" width="32%" alt="Graph"/>
+  <img src="https://img.shields.io/badge/Obsidian-vault_native-7c3aed?style=flat-square" alt="Obsidian vault native">
 </p>
 
 ---
 
 ## What Cipher is
 
-Point Cipher at a folder of markdown notes. Ask it things in chat. Get bespoke pages — Today, System health, Timeline, a force-directed Graph, Entity/Topic detail — instead of wall-of-text answers. Everything reads from the files in your vault. Nothing leaves your machine.
+Cipher is a local web app that reads your **Obsidian vault** (or any folder of markdown with wiki-links). Point it at the folder where your `.md` files live, ask questions in chat, and get bespoke pages — Today, System health, Timeline, a force-directed Graph, Entity / Topic detail — instead of wall-of-text answers. Nothing leaves your machine.
 
-> **Works with any Obsidian vault layout.** Cipher probes your vault's folder names (`entities`/`people`/`contacts`, `journal`/`daily`, `projects`, `research`, `work`, `system`, …) and adapts. No folder renaming required.
+### Load your Obsidian vault in 30 seconds
+
+```bash
+git clone https://github.com/stijnhanegraaf/brain-frontend
+cd brain-frontend
+npm install
+echo "VAULT_PATH=/path/to/your/Obsidian" > .env.local
+npm run dev
+# open http://localhost:3000
+```
+
+That's it. No plugin to install inside Obsidian, no sync configuration, no vault restructuring. Cipher opens the folder read-only, probes its structure (entities / journal / projects / research / work / system — whatever layout you use), and every page lights up.
+
+> **Works with any Obsidian vault layout.** Cipher auto-detects folder roles by common names (`entities`/`people`/`contacts`, `journal`/`daily`, `projects`, `research`, `work`, `system`, …). Folders under a `wiki/` root work too. No folder renaming required.
 
 ## Key features
 
@@ -35,22 +49,13 @@ Point Cipher at a folder of markdown notes. Ask it things in chat. Get bespoke p
 - **Linear-grade design system** — 4px grid, single token source in `globals.css`, dark + light, keyboard-first
 - **Local-only** — no auth, no remote server, no telemetry
 
-## Quick start
+## Auto-detection + sample vault
 
-```bash
-git clone https://github.com/stijnhanegraaf/brain-frontend
-cd brain-frontend
-npm install
-cp .env.example .env.local    # set VAULT_PATH to your vault directory
-npm run dev
-# open http://localhost:3000
-```
-
-If you don't set `VAULT_PATH`, Cipher probes common locations — `~/Obsidian`, `~/Documents/Obsidian`, `~/Projects/Obsidian`, sibling `../Obsidian`. First one it finds wins.
+If you don't set `VAULT_PATH`, Cipher probes common locations on startup — `~/Obsidian`, `~/Documents/Obsidian`, `~/Projects/Obsidian`, sibling `../Obsidian`. First one it finds wins.
 
 ### Don't have a vault yet?
 
-Run against the included sample vault in `public/sample-vault/` (~15 toy markdown files that exercise every surface):
+The repo ships with a tiny sample vault (~15 markdown files covering every folder role) so you can run Cipher with zero setup:
 
 ```bash
 VAULT_PATH=$(pwd)/public/sample-vault npm run dev
