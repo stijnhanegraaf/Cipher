@@ -93,7 +93,7 @@ function TableOfContents({
     <nav
       style={{
         position: "sticky",
-        top: 80,
+        top: 64,
         maxHeight: "calc(100vh - 96px)",
         overflowY: "auto",
         width: 180,
@@ -126,7 +126,7 @@ function TableOfContents({
                 display: "block",
                 width: "100%",
                 textAlign: "left",
-                padding: `4px ${8 + paddingLeft}px`,
+                padding: `4px ${12 + paddingLeft}px`,
                 fontSize: 12,
                 fontWeight: isActive ? 510 : 400,
                 lineHeight: 1.5,
@@ -134,7 +134,7 @@ function TableOfContents({
                 background: "transparent",
                 border: "none",
                 cursor: "pointer",
-                borderRadius: 4,
+                borderRadius: 8,
                 transition: "color var(--motion-hover) var(--ease-default), background var(--motion-hover) var(--ease-default)",
                 textOverflow: "ellipsis",
                 overflow: "hidden",
@@ -191,7 +191,7 @@ function Toast({ message, type, onDismiss }: { message: string; type: "success" 
         bottom: 96,
         left: "50%",
         transform: "translateX(-50%)",
-        padding: "8px 14px",
+        padding: "8px 16px",
         borderRadius: 8,
         display: "inline-flex",
         alignItems: "center",
@@ -577,8 +577,8 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
                     color: theme.text.primary,
                     background: "var(--bg-surface-alpha-4)",
                     border: "1px solid var(--border-standard)",
-                    borderRadius: 4,
-                    padding: "4px 12px",
+                    borderRadius: 6,
+                    padding: "8px 16px",
                     cursor: "pointer",
                   }}
                 >
@@ -652,7 +652,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
             margin: "0 auto",
             padding: "0 24px 80px",
             display: showToc ? "flex" : "block",
-            gap: 48,
+            gap: 24,
           }}
         >
           {/* ── Main content column ──────────────────────────────────────── */}

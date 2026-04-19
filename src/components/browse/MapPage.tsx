@@ -87,7 +87,7 @@ export function MapPage() {
           </div>
         )}
         {!loading && error && (
-          <div style={{ flex: 1, padding: 32, color: "var(--status-blocked)" }}>{error}</div>
+          <div style={{ flex: 1, maxWidth: 720, margin: "0 auto", padding: "16px 0", color: "var(--status-blocked)" }}>{error}</div>
         )}
         {!loading && !error && graph && mode === "graph" && (
           <GraphCanvas graph={graph} onOpen={sheet.open} />

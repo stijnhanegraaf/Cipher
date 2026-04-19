@@ -155,7 +155,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
         style={{
           height: 48,
           flexShrink: 0,
-          padding: "0 12px 0 16px",
+          padding: "0 12px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -179,7 +179,6 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
                 display: "inline-flex",
                 alignItems: "baseline",
                 padding: "4px 6px",
-                margin: "0 -6px",
                 borderRadius: 6,
                 background: "transparent",
                 border: "none",
@@ -207,7 +206,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
                 aria-hidden="true"
                 style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: 510,
                   marginLeft: 2,
                   lineHeight: 1,
@@ -293,7 +292,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 4,
+            marginBottom: 8,
           }}
         >
           <span className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.04em" }}>
@@ -303,13 +302,13 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
             type="button"
             onClick={() => { setEditingPin(null); setDialogOpen(true); }}
             className="focus-ring"
-            title="Add pinned section"
+            title="Add pin"
             style={{
               background: "transparent",
               border: "none",
               color: "var(--text-quaternary)",
               cursor: "pointer",
-              padding: "2px 6px",
+              padding: "4px 8px",
               borderRadius: "var(--radius-small)",
               transition: "color var(--motion-hover) var(--ease-default)",
             }}
@@ -370,7 +369,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
             style={{
               color: "var(--text-quaternary)",
               letterSpacing: "0.04em",
-              marginBottom: 4,
+              marginBottom: 8,
             }}
           >
             Recent
@@ -529,7 +528,7 @@ function RecentRow({ query, onOpen, onRemove }: { query: string; onOpen: () => v
         alignItems: "center",
         gap: 6,
         height: "var(--row-h-dense)",
-        padding: "0 4px 0 12px",
+        padding: "0 6px 0 12px",
         color: "var(--text-tertiary)",
         textAlign: "left",
         transition: "background-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
@@ -603,7 +602,7 @@ function PinnedRow({
         alignItems: "center",
         gap: 10,
         height: "var(--row-h-dense)",
-        padding: "0 4px 0 12px",
+        padding: "0 6px 0 12px",
         color: "var(--text-tertiary)",
         textAlign: "left",
       }}

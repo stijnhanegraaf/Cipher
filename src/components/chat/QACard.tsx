@@ -151,8 +151,8 @@ function ErrorRow({ message }: { message: string }) {
     <div
       role="alert"
       style={{
-        padding: "10px 12px",
-        borderLeft: "2px solid var(--text-warning, #c37a00)",
+        padding: "8px 12px",
+        borderLeft: "2px solid var(--status-warning)",
         background: "var(--bg-surface-alpha-2)",
         color: "var(--text-secondary)",
         fontSize: 13,

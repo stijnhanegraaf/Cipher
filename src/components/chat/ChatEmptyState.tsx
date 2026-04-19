@@ -55,7 +55,6 @@ export function ChatEmptyState({ onSubmit, banner }: Props) {
 
   return (
     <div
-      className="editorial-glow"
       style={{
         flex: 1,
         minHeight: 0,
@@ -78,7 +77,7 @@ export function ChatEmptyState({ onSubmit, banner }: Props) {
         Ask about your vault
       </h1>
       {banner}
-      <div style={{ width: "100%", maxWidth: 560 }}>
+      <div className="editorial-glow" style={{ width: "100%", maxWidth: 560, position: "relative" }}>
         <Composer onSubmit={onSubmit} autoFocus />
       </div>
       <div
@@ -100,7 +99,7 @@ export function ChatEmptyState({ onSubmit, banner }: Props) {
             style={{
               background: "var(--bg-surface-alpha-2)",
               border: "1px solid var(--border-subtle)",
-              padding: "5px 10px",
+              padding: "4px 10px",
               borderRadius: 999,
               color: "var(--text-tertiary)",
               cursor: "pointer",
