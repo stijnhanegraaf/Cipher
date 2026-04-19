@@ -89,6 +89,8 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [legendFilter, setLegendFilter] = useState<number | null>(null);
+  const [legendHover, setLegendHover] = useState<number | null>(null);
 
   // View transform (pan + zoom). stored in a ref so the animation loop
   // can read it without triggering re-renders.
@@ -120,6 +122,18 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     }
     return set;
   }, [graph.nodes, visibleFolders, orphansOnly, searchTerm]);
+
+  // Map each slot to the human-readable folder names that landed in it.
+  const slotLabels = useMemo(() => {
+    const map = new Map<number, Set<string>>();
+    for (const n of graph.nodes) {
+      const s = folderSlot(n.folder);
+      const label = n.folder.split("/")[0] || "root";
+      if (!map.has(s)) map.set(s, new Set());
+      map.get(s)!.add(label);
+    }
+    return map;
+  }, [graph.nodes]);
 
   // ── Initialize simulation on graph change ────────────────────────
   // Gated on a non-zero container rect via ResizeObserver, because on mount
@@ -503,7 +517,9 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         ctx.shadowBlur = isHub ? 14 : isBright ? 6 : 0;
       }
 
-      ctx.globalAlpha = (active ? 1 : 0.15) * inhaleAlpha * pulseMul * focusAlpha * 0.85;
+      const effectiveSlotFilter = legendHover ?? legendFilter;
+      const slotMul = effectiveSlotFilter === null ? 1 : (n.slot === effectiveSlotFilter ? 1 : 0.15);
+      ctx.globalAlpha = (active ? 1 : 0.15) * inhaleAlpha * pulseMul * focusAlpha * slotMul * 0.85;
       ctx.fill();
       ctx.shadowBlur = 0;
 
@@ -515,7 +531,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
           ? (isLight ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,1)")
           : slotColor;
         ctx.lineWidth = 1 / scale;
-        ctx.globalAlpha = (active ? 1 : 0.15) * inhaleAlpha * focusAlpha;
+        ctx.globalAlpha = (active ? 1 : 0.15) * inhaleAlpha * focusAlpha * slotMul;
         ctx.stroke();
       }
 
@@ -571,7 +587,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         ctx.fillText(label, boxX + padX, boxY + boxH / 2 + 0.5);
       }
     }
-  }, [hoveredId, selectedId, activeIds, focusId]);
+  }, [hoveredId, selectedId, activeIds, focusId, legendFilter, legendHover]);
 
   // Keep drawRef pointing at the latest draw so the rAF loop (which is
   // created once per `graph` change) always renders with current state.
@@ -792,13 +808,56 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         }}
         style={{ display: "block", touchAction: "none" }}
       />
+      {/* Legend chip — 8 folder-slot dots */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 12,
+          left: 16,
+          display: "flex",
+          gap: 2,
+          alignItems: "center",
+          zIndex: 3,
+        }}
+      >
+        {FOLDER_SLOTS.map((slot, i) => {
+          const color = typeof document !== "undefined" && document.documentElement.classList.contains("light") ? slot.light : slot.dark;
+          const folders = Array.from(slotLabels.get(i) ?? []).join(" · ") || "(empty)";
+          const pressed = legendFilter === i;
+          return (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Filter to ${folders}`}
+              aria-pressed={pressed}
+              title={folders}
+              onPointerEnter={() => setLegendHover(i)}
+              onPointerLeave={() => setLegendHover(null)}
+              onClick={() => setLegendFilter((prev) => (prev === i ? null : i))}
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: color,
+                border: "none",
+                padding: 0,
+                margin: 0,
+                cursor: "pointer",
+                outline: pressed ? `1.5px solid var(--accent-brand)` : "none",
+                outlineOffset: 2,
+                opacity: legendFilter === null || pressed ? 1 : 0.4,
+              }}
+            />
+          );
+        })}
+      </div>
       {/* Keyboard hint */}
       <div
         className="mono-label"
         style={{
           position: "absolute",
           bottom: 12,
-          left: 16,
+          left: 120,
           color: "var(--text-quaternary)",
           letterSpacing: "0.04em",
           pointerEvents: "none",
