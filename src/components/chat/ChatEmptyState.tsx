@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * ChatEmptyState — single heading + centered Composer + three hint chips.
+ * ChatEmptyState — heading + centered Composer + inline hint chips.
  *
- * When a vault is connected, two of the hint chips use real entity /
- * project names pulled from the vault index. Fallback strings render
- * when the vault isn't connected or no entities/projects are indexed.
+ * When a vault is connected, two of the hint chips pull real entity /
+ * project names from the vault index. Fallback strings render when the
+ * vault isn't connected or no entities/projects are indexed.
  */
 
 import { useEffect, useState } from "react";
@@ -40,14 +40,12 @@ export function ChatEmptyState({ onSubmit, banner }: Props) {
         if (!res.ok) return;
         const data = (await res.json()) as { entities?: string[]; projects?: string[] };
         if (cancelled) return;
-        const hints: string[] = ["summarise this week's notes"];
+        const next: string[] = ["summarise this week's notes"];
         const firstEntity = data.entities?.[0];
         const firstProject = data.projects?.[0];
-        if (firstEntity) hints.push(`what is ${firstEntity} working on`);
-        else hints.push(FALLBACK_HINTS[1]);
-        if (firstProject) hints.push(`find notes related to ${firstProject}`);
-        else hints.push(FALLBACK_HINTS[2]);
-        setHints(hints);
+        next.push(firstEntity ? `what is ${firstEntity} working on` : FALLBACK_HINTS[1]);
+        next.push(firstProject ? `find notes related to ${firstProject}` : FALLBACK_HINTS[2]);
+        setHints(next);
       } catch {
         /* keep fallbacks */
       }
@@ -61,47 +59,66 @@ export function ChatEmptyState({ onSubmit, banner }: Props) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 20,
-        paddingTop: "30dvh",
+        gap: 24,
+        paddingTop: "22dvh",
       }}
     >
       <h1
-        className="heading-3"
-        style={{ color: "var(--text-tertiary)", margin: 0, fontWeight: 500 }}
+        style={{
+          fontSize: 20,
+          fontWeight: 500,
+          letterSpacing: "-0.01em",
+          color: "var(--text-secondary)",
+          margin: 0,
+        }}
       >
-        Ask about your vault.
+        Ask about your vault
       </h1>
       {banner}
-      <div style={{ width: "100%", maxWidth: 520 }}>
-        <Composer onSubmit={onSubmit} hideKbd={false} autoFocus />
+      <div style={{ width: "100%", maxWidth: 560 }}>
+        <Composer onSubmit={onSubmit} autoFocus />
       </div>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginTop: 8 }}>
-        <span className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.08em" }}>
-          TRY
-        </span>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {hints.map((h) => (
-            <button
-              key={h}
-              type="button"
-              onClick={() => onSubmit(h)}
-              className="caption-large focus-ring"
-              style={{
-                background: "transparent",
-                border: "none",
-                padding: "4px 8px",
-                borderRadius: 6,
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-                textAlign: "center",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-surface-alpha-2)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              • {h}
-            </button>
-          ))}
-        </div>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          gap: 6,
+          maxWidth: 560,
+          marginTop: 4,
+        }}
+      >
+        {hints.map((h) => (
+          <button
+            key={h}
+            type="button"
+            onClick={() => onSubmit(h)}
+            className="caption focus-ring"
+            style={{
+              background: "var(--bg-surface-alpha-2)",
+              border: "1px solid var(--border-subtle)",
+              padding: "5px 10px",
+              borderRadius: 999,
+              color: "var(--text-tertiary)",
+              cursor: "pointer",
+              fontSize: 12,
+              lineHeight: 1.4,
+              transition: "background var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default), border-color var(--motion-hover) var(--ease-default)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--bg-surface-alpha-4)";
+              e.currentTarget.style.color = "var(--text-primary)";
+              e.currentTarget.style.borderColor = "var(--border-standard)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "var(--bg-surface-alpha-2)";
+              e.currentTarget.style.color = "var(--text-tertiary)";
+              e.currentTarget.style.borderColor = "var(--border-subtle)";
+            }}
+          >
+            {h}
+          </button>
+        ))}
       </div>
     </div>
   );
