@@ -159,7 +159,6 @@ export function PageShell({ title, subtitle, icon, actions, toolbar, contentMaxW
             minHeight: 0,
             display: "flex",
             flexDirection: "column",
-            ...(contentMaxWidth ? {} : { padding: "0 32px" }),
           }}
         >
           {children}
