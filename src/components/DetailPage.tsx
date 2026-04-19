@@ -807,38 +807,37 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  <ScrollRevealSection delay={0}>
-                    {/* ── File path breadcrumb ──────────────────────────────── */}
-                    <p
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 510,
-                        color: theme.text.quaternary,
-                        fontFamily: "var(--font-mono)",
-                        letterSpacing: "0.02em",
-                        margin: "32px 0 0",
-                      }}
-                    >
-                      {data.path}
-                    </p>
-                  </ScrollRevealSection>
+                  <div className="editorial-glow" style={{ margin: "0 -16px 0 -16px", padding: "8px 16px 0" }}>
+                    <ScrollRevealSection delay={0}>
+                      {/* ── File path breadcrumb ──────────────────────────────── */}
+                      <p
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 510,
+                          color: theme.text.quaternary,
+                          fontFamily: "var(--font-mono)",
+                          letterSpacing: "0.02em",
+                          margin: "32px 0 0",
+                        }}
+                      >
+                        {data.path}
+                      </p>
+                    </ScrollRevealSection>
 
-                  <ScrollRevealSection delay={0.08}>
-                    {/* ── Title ─────────────────────────────────────────────── */}
-                    <motion.h1
-                      layoutId={layoutId}
-                      style={{
-                        fontSize: 32,
-                        fontWeight: 400,
-                        lineHeight: 1.13,
-                        letterSpacing: "-0.704px",
-                        color: theme.text.primary,
-                        margin: "16px 0 0",
-                      }}
-                    >
-                      {data.title}
-                    </motion.h1>
-                  </ScrollRevealSection>
+                    <ScrollRevealSection delay={0.08}>
+                      {/* ── Title ─────────────────────────────────────────────── */}
+                      <motion.h1
+                        layoutId={layoutId}
+                        className="heading-2-serif"
+                        style={{
+                          color: theme.text.primary,
+                          margin: "16px 0 0",
+                        }}
+                      >
+                        {data.title}
+                      </motion.h1>
+                    </ScrollRevealSection>
+                  </div>
 
                   <ScrollRevealSection delay={0.16}>
                     {/* ── Frontmatter badges ────────────────────────────────── */}
