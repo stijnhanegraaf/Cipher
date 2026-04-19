@@ -70,6 +70,7 @@ export function FileFullPage({ path }: { path: string }) {
     <PageShell
       title={title}
       subtitle={subtitle}
+      contentMaxWidth={880}
       actions={
         <PageAction label="Open in Obsidian" onClick={openObsidian}>
           <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -87,7 +88,7 @@ export function FileFullPage({ path }: { path: string }) {
         </div>
       }
     >
-      <div style={{ maxWidth: 880, margin: "0 auto", padding: "32px 32px 120px" }}>
+      <div style={{ padding: "32px 32px 120px" }}>
         {loading && <p className="caption-large" style={{ color: "var(--text-quaternary)" }}>Loading…</p>}
         {error && (
           <div>

@@ -320,7 +320,7 @@ function SectionHeader({ label, count }: { label: string; count: number }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "12px 16px 8px",
+        padding: "12px 32px 8px",
         color: "var(--text-tertiary)",
         letterSpacing: "0.04em",
         borderBottom: "1px solid var(--border-subtle)",
@@ -352,7 +352,7 @@ function TopicLabel({ topic }: { topic: string }) {
     <div
       className="mono-label"
       style={{
-        padding: "16px 16px 8px",
+        padding: "16px 32px 8px",
         color: "var(--text-quaternary)",
         letterSpacing: "0.04em",
         textTransform: "uppercase",
