@@ -88,10 +88,6 @@ Two ways to pin a folder:
 
 Your pins are saved to `<vault>/.cipher/sidebar.json`. Whatever syncs your vault (Obsidian Sync, iCloud, Dropbox) syncs your pins.
 
-<p align="center">
-  <img src="docs/images/sidebar-pins.png" width="60%" alt="Sidebar pins"/>
-</p>
-
 ## Project layout
 
 ```
