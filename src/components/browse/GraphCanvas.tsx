@@ -197,17 +197,20 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
           inhaleRef.current = 1;
           const idle = () => {
             const now2 = performance.now();
-            if (!pulseRef.current) {
-              if (Math.random() < 0.012) {
+            const reduced = reducedMotionRef.current;
+            if (!pulseRef.current && !reduced) {
+              // At 60fps, 0.0014 ≈ one hit per 12s.
+              if (Math.random() < 0.0014) {
                 const candidates = simNodesRef.current.filter((n) => n.backlinks >= 3);
                 if (candidates.length > 0) {
                   const pick = candidates[Math.floor(Math.random() * candidates.length)];
                   pulseRef.current = { id: pick.id, startedAt: now2, echoStartedAt: now2 + 200 };
                 }
               }
-            } else {
+            } else if (pulseRef.current) {
               const age = now2 - pulseRef.current.startedAt;
-              if (age > 600) pulseRef.current = null;
+              // Primary 600ms + echo offset 200ms + echo 600ms = 800ms total.
+              if (age > 900) pulseRef.current = null;
             }
             drawRef.current();
             rafRef.current = requestAnimationFrame(idle);
@@ -476,11 +479,11 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       const isHub = n.backlinks >= 8;
       const isBright = !isHub && n.backlinks >= 3;
 
-      // Idle pulse — if this node is pulsing, multiply opacity by a sine bump.
+      // Idle pulse — subtle opacity bump on the node itself.
       let pulseMul = 1;
       if (pulse && pulse.id === n.id) {
         const age = (nowPerf - pulse.startedAt) / 600;
-        pulseMul = 0.8 + 0.2 * Math.sin(age * Math.PI);
+        if (age >= 0 && age <= 1) pulseMul = 0.85 + 0.15 * Math.sin(age * Math.PI);
       }
 
       // Focus dimming — nodes outside the focused subgraph fade back.
@@ -543,6 +546,36 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         ctx.lineWidth = 2 / scale;
         ctx.stroke();
       }
+
+      // Dual-ring hub pulse expansion (folder-tinted).
+      if (pulse && pulse.id === n.id) {
+        const slotBase = FOLDER_SLOTS[n.slot];
+        const pulseColor = isLight ? slotBase.light : slotBase.dark;
+
+        const t1 = (nowPerf - pulse.startedAt) / 600;
+        if (t1 >= 0 && t1 <= 1) {
+          const r1 = displayR + 32 * t1;
+          const a1 = 0.45 * (1 - t1);
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, r1, 0, Math.PI * 2);
+          ctx.strokeStyle = pulseColor;
+          ctx.globalAlpha = a1 * inhaleAlpha;
+          ctx.lineWidth = 1.2 / scale;
+          ctx.stroke();
+        }
+        const t2 = (nowPerf - pulse.echoStartedAt) / 600;
+        if (t2 >= 0 && t2 <= 1) {
+          const r2 = displayR + 20 * t2;
+          const a2 = 0.25 * (1 - t2);
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, r2, 0, Math.PI * 2);
+          ctx.strokeStyle = pulseColor;
+          ctx.globalAlpha = a2 * inhaleAlpha;
+          ctx.lineWidth = 1 / scale;
+          ctx.stroke();
+        }
+      }
+
       ctx.globalAlpha = 1;
     }
 
