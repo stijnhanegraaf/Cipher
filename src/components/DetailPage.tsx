@@ -55,10 +55,13 @@ interface DetailPageProps {
   anchor?: string;
   onBack: () => void;
   onNavigate: (path: string) => void;
-  /** Runs a chat query — used by breadcrumb section links to scope the view. */
+  /** Runs a chat query — used by the "Search for X" fallback on 404. */
   onAsk?: (query: string) => void;
-  /** Called when the user clicks the breadcrumb's Home link. Typically clears chat. */
+  /** Called when the user clicks the breadcrumb's Home link. Typically routes to /browse. */
   onHome?: () => void;
+  /** Called when the user clicks the breadcrumb's section. Navigates to that
+   *  folder's page (or opens a scoped drawer) — does NOT run a chat query. */
+  onOpenSection?: (section: string, folderPath: string) => void;
   layoutId?: string;
 }
 
@@ -226,7 +229,7 @@ function Toast({ message, type, onDismiss }: { message: string; type: "success" 
  * auto-save via PUT `/api/file`; status + toast feedback surface save
  * failures. Breadcrumbs + onBack/onHome route back out of the sheet.
  */
-export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, layoutId }: DetailPageProps) {
+export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, onOpenSection, layoutId }: DetailPageProps) {
   const [data, setData] = useState<FileData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -524,7 +527,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, la
 
             {/* Breadcrumbs: Home / section / filename. Section is clickable
                 and scopes the chat to that area of the vault. */}
-            <Breadcrumbs path={path} onHome={onHome} onSection={onAsk} />
+            <Breadcrumbs path={path} onHome={onHome} onSection={onOpenSection} />
 
             {/* Edit / Save / Cancel buttons */}
             {data && !editMode && (
