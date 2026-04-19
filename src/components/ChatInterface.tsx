@@ -17,7 +17,7 @@ import { getMockResponse } from "@/lib/mock-data";
 import { detectIntent, detectToggleIntent } from "@/lib/intent-detector";
 import { ViewRenderer } from "@/components/views/ViewRenderer";
 import { Avatar } from "@/components/ui";
-import { ChatEmptyState } from "@/components/ChatEmptyState";
+import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
 import { SlashCommandMenu } from "@/components/SlashCommandMenu";
 import { fadeSlideUp } from "@/lib/motion";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
