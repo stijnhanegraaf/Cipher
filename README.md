@@ -7,7 +7,7 @@
 <p align="center">
   Point it at <em>any</em> Obsidian vault — no restructuring, no plugins, no sync setup.<br/>
   Get a Today dashboard, force-directed Graph, Timeline, System health, and AI chat that understands your notes.<br/>
-  Everything runs locally. Your data stays on your machine.
+  Runs locally on your machine, or self-hosted on your own VPS behind Tailscale.
 </p>
 
 <p align="center">
@@ -21,7 +21,9 @@
 
 ## What Cipher is
 
-Cipher is a local web app that reads your **Obsidian vault** (or any folder of markdown with wiki-links). Point it at the folder where your `.md` files live, ask questions in chat, and get bespoke pages — Today, System health, Timeline, a force-directed Graph, Entity / Topic detail — instead of wall-of-text answers. Nothing leaves your machine.
+Cipher is a Next.js web app that reads your **Obsidian vault** (or any folder of markdown with wiki-links). Point it at the folder where your `.md` files live, ask questions in chat, and get bespoke pages — Today, System health, Timeline, a force-directed Graph, Entity / Topic detail — instead of wall-of-text answers.
+
+Run it **locally on your laptop**, or **self-host it on your own VPS** (with your vault on the same box) and reach it over [Tailscale](https://tailscale.com/) from any device — no reverse proxy, no exposed port, no third-party login in between. There is no managed cloud version; you're in charge of where it runs.
 
 ### Load your Obsidian vault in 30 seconds
 
@@ -87,6 +89,19 @@ Two ways to pin a folder:
 - **Hover-pin in the vault drawer** — hover any folder row and click the pin icon. Defaults to the folder name; edit later via double-click.
 
 Your pins are saved to `<vault>/.cipher/sidebar.json`. Whatever syncs your vault (Obsidian Sync, iCloud, Dropbox) syncs your pins.
+
+## Self-host on a VPS with Tailscale
+
+Cipher is a plain Next.js app — it runs anywhere Node runs. The easy pattern for a private, multi-device setup:
+
+1. Keep your vault on the VPS (push changes over git, or use [`obsidian-livesync`](https://github.com/vrtmrz/obsidian-livesync)).
+2. `git clone` Cipher on the VPS, `npm install`, `npm run build`, `npm run start` (or hand off to `pm2` / systemd).
+3. Install [Tailscale](https://tailscale.com/) on the VPS and on every device you want to reach it from.
+4. Open `http://<vps-tailnet-name>:3000` from any of your devices.
+
+No reverse proxy, no exposed port, no third-party auth layer. The VPS process stays on localhost; Tailscale handles the encrypted tunnel. Same convenience as a hosted app, your data never leaves hardware you control.
+
+> Cipher has no built-in auth or user model. Treat every instance as single-user and gate access at the network layer (Tailscale, VPN, SSH tunnel, localhost).
 
 ## Project layout
 
