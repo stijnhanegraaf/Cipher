@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Kbd } from "@/components/ui";
 import { useListNavigation } from "@/lib/hooks/useListNavigation";
-import { fuzzyScore, rankScore } from "@/lib/fuzzy";
+import { rankScore } from "@/lib/fuzzy";
 import { useVaultIndex } from "@/lib/hooks/useVaultIndex";
 import { useRecentFiles, type RecentEntry } from "@/lib/hooks/useRecentFiles";
 import { useSidebarPins } from "@/lib/hooks/useSidebarPins";
@@ -66,8 +66,6 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
   const { index } = useVaultIndex();
   const { entries: recentEntries, push: pushRecent } = useRecentFiles();
   const { pins } = useSidebarPins();
-  // Used by the consumer for the one-line 'DetailPage push-on-open' in Task 9.
-  void fuzzyScore;
 
   const activateResult = useCallback((result: PaletteResult, newTab: boolean) => {
     switch (result.kind) {
