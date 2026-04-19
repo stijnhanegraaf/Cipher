@@ -359,7 +359,7 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
             <div
               className="flex items-center justify-between px-4"
               style={{
-                height: 36,
+                height: 40,
                 borderTop: "1px solid var(--border-subtle)",
                 background: "var(--bg-surface-alpha-2)",
               }}
@@ -510,21 +510,21 @@ interface PaletteRowProps extends React.HTMLAttributes<HTMLButtonElement> {
 function PaletteRow({ result, active, animIndex, ...rest }: PaletteRowProps) {
   const label = rowLabel(result);
   const secondary = rowSecondary(result);
-  const delay = typeof animIndex === "number" ? `${120 + animIndex * 60}ms` : "0ms";
+  const delay = typeof animIndex === "number" ? `${animIndex * 40}ms` : "0ms";
   return (
     <button
       type="button"
       tabIndex={-1}
       {...rest}
-      className="palette-row-rail w-full flex items-center gap-3 px-4 py-2 text-left transition-colors duration-75"
+      data-active={active ? "true" : undefined}
+      className="palette-row-rail app-row w-full flex items-center gap-3 px-4 py-2 text-left transition-colors duration-75"
       style={{
         background: active ? "var(--bg-surface-alpha-4)" : "transparent",
-        borderLeft: active ? "2px solid var(--accent-brand)" : "2px solid transparent",
         cursor: "pointer",
         animationDelay: delay,
       }}
     >
-      <span className="shrink-0 text-text-tertiary flex items-center justify-center" style={{ width: 16, height: 16 }}>
+      <span className="shrink-0 text-text-tertiary flex items-center justify-center" style={{ width: 14, height: 14 }}>
         {rowIcon(result)}
       </span>
       <div className="min-w-0 flex-1">

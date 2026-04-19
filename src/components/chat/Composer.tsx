@@ -75,7 +75,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         display: "flex",
         alignItems: "flex-start",
         gap: 10,
-        padding: "11px 12px 11px 14px",
+        padding: "12px 12px 12px 14px",
         background: "var(--surface-recessed)",
         border: `1px solid ${focused ? "var(--accent-brand)" : "var(--border-standard)"}`,
         borderRadius: 12,
