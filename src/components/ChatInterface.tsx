@@ -203,7 +203,6 @@ export function ChatInterface() {
   return (
     <PageShell
       title="Chat"
-      contentMaxWidth={720}
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <ModelPicker current={model} onChange={selectModel} />
@@ -221,19 +220,21 @@ export function ChatInterface() {
         <ChatEmptyState onSubmit={submit} />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-          <div
-            style={{
-              flex: 1,
-              overflowY: "auto",
-              padding: "24px 32px 120px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 24,
-            }}
-          >
-            {turns.map((t) => (
-              <QACard key={t.id} turn={t} />
-            ))}
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            <div
+              style={{
+                maxWidth: 720,
+                margin: "0 auto",
+                padding: "24px 32px 120px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 24,
+              }}
+            >
+              {turns.map((t) => (
+                <QACard key={t.id} turn={t} />
+              ))}
+            </div>
           </div>
           <div
             style={{
@@ -242,10 +243,11 @@ export function ChatInterface() {
               background: "var(--bg-glass, var(--bg-marketing))",
               backdropFilter: "blur(20px) saturate(180%)",
               WebkitBackdropFilter: "blur(20px) saturate(180%)",
-              padding: "16px 32px 20px",
             }}
           >
-            <Composer ref={composerRef} onSubmit={submit} disabled={streaming} />
+            <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px 32px 20px" }}>
+              <Composer ref={composerRef} onSubmit={submit} disabled={streaming} />
+            </div>
           </div>
         </div>
       )}
