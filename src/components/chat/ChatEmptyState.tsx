@@ -56,11 +56,14 @@ export function ChatEmptyState({ onSubmit, banner }: Props) {
   return (
     <div
       style={{
+        flex: 1,
+        minHeight: 0,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        justifyContent: "center",
         gap: 24,
-        paddingTop: "22dvh",
+        padding: "24px",
       }}
     >
       <h1
