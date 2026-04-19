@@ -19,9 +19,9 @@ interface Props {
 }
 
 const FALLBACK_HINTS = [
-  "summarise this week's notes",
-  "what is Alice working on",
-  "find notes related to Q3 plan",
+  "summarise this week",
+  "what's Alice up to",
+  "notes on Q3 plan",
 ];
 
 export function ChatEmptyState({ onSubmit, banner }: Props) {
@@ -40,11 +40,11 @@ export function ChatEmptyState({ onSubmit, banner }: Props) {
         if (!res.ok) return;
         const data = (await res.json()) as { entities?: string[]; projects?: string[] };
         if (cancelled) return;
-        const next: string[] = ["summarise this week's notes"];
+        const next: string[] = ["summarise this week"];
         const firstEntity = data.entities?.[0];
         const firstProject = data.projects?.[0];
-        next.push(firstEntity ? `what is ${firstEntity} working on` : FALLBACK_HINTS[1]);
-        next.push(firstProject ? `find notes related to ${firstProject}` : FALLBACK_HINTS[2]);
+        next.push(firstEntity ? `what's ${firstEntity} up to` : FALLBACK_HINTS[1]);
+        next.push(firstProject ? `notes on ${firstProject}` : FALLBACK_HINTS[2]);
         setHints(next);
       } catch {
         /* keep fallbacks */
@@ -74,7 +74,7 @@ export function ChatEmptyState({ onSubmit, banner }: Props) {
           textAlign: "center",
         }}
       >
-        Ask about your vault
+        Ask anything
       </h1>
       {banner}
       <div className="editorial-glow" style={{ width: "100%", maxWidth: 560, position: "relative" }}>

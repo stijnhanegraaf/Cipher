@@ -123,16 +123,16 @@ export async function POST(req: Request) {
         controller.close();
       } catch (err) {
         if (err instanceof ProviderDownError) {
-          emit({ type: "error", code: "ollama-down", message: `${err.providerId} isn't reachable. Check your connection or API key.` });
+          emit({ type: "error", code: "ollama-down", message: `Can't reach ${err.providerId}. Check your network, or update the key in the model picker.` });
         } else if (err instanceof ProviderAuthError) {
-          emit({ type: "error", code: "model-missing", message: `${err.providerId} auth failed — update the API key in the model picker.` });
+          emit({ type: "error", code: "model-missing", message: `${err.providerId} rejected the API key. Paste a new one in the model picker.` });
         } else if (err instanceof ProviderModelMissingError) {
           emit({ type: "error", code: "model-missing", message: `Model \`${err.model}\` not available on ${err.providerId}.` });
         } else if (err instanceof EmptyVaultError) {
           emit({ type: "error", code: "empty-vault", message: "No notes in the vault yet — add a `.md` file first." });
         } else {
           log.error("api/chat", "unknown failure", err);
-          emit({ type: "error", code: "unknown", message: "Something went wrong. Check the server logs." });
+          emit({ type: "error", code: "unknown", message: "Chat failed unexpectedly. Try again — if it keeps happening, restart the app." });
         }
         emit({ type: "done" });
         controller.close();

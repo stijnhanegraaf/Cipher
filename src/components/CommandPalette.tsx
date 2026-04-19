@@ -44,7 +44,8 @@ export type PaletteResult =
   | { kind: "project"; path: string; name: string }
   | { kind: "heading"; slug: string; label: string; filePath: string }
   | { kind: "command"; action: PaletteAction }
-  | { kind: "fallback-chat"; query: string };
+  | { kind: "fallback-chat"; query: string }
+  | { kind: "info"; text: string };
 
 interface CommandPaletteProps {
   open: boolean;
@@ -100,8 +101,10 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
       case "fallback-chat":
         router.push(`/chat?q=${encodeURIComponent(result.query)}`);
         return;
+      case "info":
+        return;
     }
-  }, [router, sheet, pushRecent]);
+  }, [router, sheet, pushRecent, index.files]);
 
   useEffect(() => {
     setMounted(true);
@@ -193,7 +196,7 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
     } else if (prefix === "#") {
       // Headings inside the currently-open sheet only. If no sheet, return an info row.
       if (!openFilePath) {
-        candidates.push({ result: { kind: "fallback-chat", query: "Open a file first to jump to headings" }, searchText: "" });
+        candidates.push({ result: { kind: "info", text: "Open a file first to jump to headings" }, searchText: "" });
       } else if (sheetHeadings?.path === openFilePath) {
         for (const h of sheetHeadings.headings) {
           candidates.push({
@@ -453,6 +456,7 @@ function resultKey(r: PaletteResult): string {
     case "heading": return `heading:${r.filePath}#${r.slug}`;
     case "command": return `command:${r.action.id}`;
     case "fallback-chat": return "fallback-chat";
+    case "info": return `info:${r.text}`;
   }
 }
 
@@ -497,7 +501,7 @@ function prefixPlaceholder(prefix: ">" | "@" | "#" | null): string {
   switch (prefix) {
     case ">": return "Run a command…";
     case "@": return "Find an entity or project…";
-    case "#": return "Jump to a heading in the open file…";
+    case "#": return "Jump to heading…";
     default: return "Search files, pins, commands…";
   }
 }
@@ -542,7 +546,8 @@ function rowLabel(r: PaletteResult): string {
     case "entity": case "project": return r.name;
     case "heading": return r.label;
     case "command": return r.action.label;
-    case "fallback-chat": return `Ask chat: "${r.query}"`;
+    case "fallback-chat": return `"${r.query}"`;
+    case "info": return r.text;
   }
 }
 
@@ -554,7 +559,8 @@ function rowSecondary(r: PaletteResult): string | null {
     case "project": return "project";
     case "heading": return r.filePath;
     case "command": return r.action.description ?? null;
-    case "fallback-chat": return "open /chat";
+    case "fallback-chat": return "Send to chat";
+    case "info": return null;
   }
 }
 
@@ -574,5 +580,7 @@ function rowIcon(r: PaletteResult): React.ReactNode {
       return r.action.icon ?? <span>→</span>;
     case "fallback-chat":
       return <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
+    case "info":
+      return <span className="mono-label">i</span>;
   }
 }

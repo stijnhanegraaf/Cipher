@@ -596,7 +596,7 @@ function ErrorBlock({ body }: { body: string }) {
   return (
     <div style={{ padding: 32 }}>
       <p className="caption-large" style={{ color: "var(--status-blocked)", marginBottom: 8 }}>
-        Couldn't load
+        Couldn't load system
       </p>
       <p className="small" style={{ color: "var(--text-tertiary)" }}>{body}</p>
     </div>
