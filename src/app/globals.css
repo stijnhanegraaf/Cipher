@@ -1428,3 +1428,24 @@ button:active, [role="button"]:active {
     animation-timing-function: linear;
   }
 }
+
+/* ─────────────────────────────────────────────
+   CRAFT PASS — icon stack crossfade
+   ───────────────────────────────────────────── */
+.icon-stack {
+  position: relative;
+  display: inline-block;
+}
+.icon-stack > span {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--motion-slow) var(--ease-spring-soft);
+}
+.icon-stack > .swap-out { opacity: 0; }
+.icon-stack > .swap-in  { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .icon-stack > span { transition: none; }
+}

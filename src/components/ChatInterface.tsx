@@ -15,6 +15,7 @@ import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
 import { Composer, type ComposerHandle } from "@/components/chat/Composer";
 import { QACard, type QATurn, type QATurnCitation } from "@/components/chat/QACard";
 import { ModelPicker } from "@/components/chat/ModelPicker";
+import { IconStack } from "@/components/ui/IconStack";
 import { log } from "@/lib/log";
 
 const STORAGE_KEY = "cipher-chat-history-v1";
@@ -200,6 +201,13 @@ export function ChatInterface() {
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   }, []);
 
+  const [clearFired, setClearFired] = useState(false);
+  const handleClearChat = useCallback(() => {
+    clearChat();
+    setClearFired(true);
+    window.setTimeout(() => setClearFired(false), 400);
+  }, [clearChat]);
+
   return (
     <PageShell
       title="Chat"
@@ -207,10 +215,20 @@ export function ChatInterface() {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <ModelPicker current={model} onChange={selectModel} />
           {turns.length > 0 && (
-            <PageAction label="Clear chat" onClick={clearChat}>
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" />
-              </svg>
+            <PageAction label="Clear chat" onClick={handleClearChat}>
+              <IconStack
+                fired={clearFired}
+                idle={
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" />
+                  </svg>
+                }
+                success={
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                }
+              />
             </PageAction>
           )}
         </div>
