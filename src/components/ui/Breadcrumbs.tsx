@@ -3,30 +3,42 @@
 /**
  * Breadcrumbs — `Home / {section} / {filename}`.
  *
- * Derives the section from the first path segment (e.g. `wiki/knowledge/foo.md`
- * → "knowledge"). Home clears the chat; section runs a natural-language query
- * scoped to the section ("show me my <section>"); filename is non-interactive.
+ * Derives the section from the first non-`wiki` path segment. Home closes
+ * the sheet and goes to /browse. Section navigates to the section's
+ * dedicated page (System / Timeline / Today) when one exists, otherwise
+ * to the default browse landing. Filename is non-interactive.
  */
 export interface BreadcrumbsProps {
   path: string;
   onHome?: () => void;
-  onSection?: (query: string) => void;
+  /**
+   * Fires when the user clicks the section crumb. Receives:
+   *   section    — the raw folder name (e.g. "projects", "journal").
+   *   folderPath — the full vault-relative folder path (e.g.
+   *                "wiki/projects" or "journal"), useful when the
+   *                consumer wants to open a drawer scoped to that dir.
+   */
+  onSection?: (section: string, folderPath: string) => void;
 }
 
-function deriveParts(path: string): { section: string | null; fileName: string } {
+function deriveParts(path: string): { section: string | null; folderPath: string | null; fileName: string } {
   const clean = path.replace(/^\/+/, "").replace(/\\/g, "/");
   const segments = clean.split("/").filter(Boolean);
   const last = segments[segments.length - 1] || path;
   const fileName = last.replace(/\.md$/i, "");
-  if (segments.length < 2) return { section: null, fileName };
+  if (segments.length < 2) return { section: null, folderPath: null, fileName };
   // Prefer the first non-`wiki` segment as the section label.
   let section: string | null = null;
+  const parents: string[] = [];
   for (const seg of segments.slice(0, -1)) {
+    parents.push(seg);
     if (seg.toLowerCase() === "wiki") continue;
     section = seg;
+    // Stop at the first real (non-wiki) folder so folderPath matches.
     break;
   }
-  return { section, fileName };
+  const folderPath = section ? parents.join("/") : null;
+  return { section, folderPath, fileName };
 }
 
 function humanizeSection(section: string): string {
@@ -35,19 +47,8 @@ function humanizeSection(section: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function queryForSection(section: string): string {
-  const lower = section.toLowerCase();
-  if (lower === "entities" || lower === "people" || lower === "contacts") return "show me my entities";
-  if (lower === "projects") return "show me my projects";
-  if (lower === "research") return "show me my research";
-  if (lower === "journal" || lower === "daily") return "show me journal entries";
-  if (lower === "work" || lower === "tasks") return "what matters now";
-  if (lower === "system") return "system health";
-  return `show me ${lower}`;
-}
-
 export function Breadcrumbs({ path, onHome, onSection }: BreadcrumbsProps) {
-  const { section, fileName } = deriveParts(path);
+  const { section, folderPath, fileName } = deriveParts(path);
 
   return (
     <nav
@@ -70,10 +71,10 @@ export function Breadcrumbs({ path, onHome, onSection }: BreadcrumbsProps) {
       {section && (
         <>
           <span style={{ opacity: 0.5 }}>/</span>
-          {onSection ? (
+          {onSection && folderPath ? (
             <button
               type="button"
-              onClick={() => onSection(queryForSection(section))}
+              onClick={() => onSection(section, folderPath)}
               className="hover:text-text-secondary transition-colors duration-150 cursor-pointer"
               style={{ background: "none", border: "none", padding: 0 }}
             >

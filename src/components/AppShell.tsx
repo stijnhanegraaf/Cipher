@@ -192,7 +192,29 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
               sheet.close();
               handleAsk(query);
             }}
-            onHome={() => router.push("/browse")}
+            onHome={() => {
+              sheet.close();
+              router.push("/browse");
+            }}
+            onOpenSection={(section, folderPath) => {
+              // Close the sheet, then route to the most relevant page for
+              // this section. Unrecognised sections open the VaultDrawer
+              // scoped to the folder so the user still sees its contents.
+              sheet.close();
+              const s = section.toLowerCase();
+              if (s === "system" || s === "meta" || s === "ops") {
+                router.push("/browse/system");
+              } else if (s === "journal" || s === "daily" || s === "daily-notes" || s === "diary" || s === "days") {
+                router.push("/browse/timeline");
+              } else if (s === "work" || s === "tasks" || s === "todo" || s === "todos") {
+                router.push("/browse");
+              } else {
+                // Fallback: dashboard + open the drawer scoped to that folder.
+                router.push("/browse");
+                setDrawerScopedPath(folderPath);
+                setVaultDrawerOpen(true);
+              }
+            }}
           />
         )}
       </AnimatePresence>
