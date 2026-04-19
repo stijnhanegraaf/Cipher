@@ -659,6 +659,23 @@
     background: var(--accent-brand);
   }
 
+  /* ── Craft pass — row hover lift ───────── */
+  .app-row {
+    transition:
+      background-color var(--motion-micro) var(--ease-spring-soft),
+      transform       var(--motion-micro) var(--ease-spring-soft);
+  }
+  .app-row:hover {
+    background-color: var(--bg-surface-alpha-2);
+    transform: translateY(-1px);
+  }
+  .app-row[data-active="true"]:hover {
+    transform: translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-row:hover { transform: none; }
+  }
+
   /* ── .filter-chip ─────────────────────────
      Shared pill style for starter chips, filter chips on current_work,
      search_results, timeline. Ghost by default, fills on active/hover. */
@@ -1350,4 +1367,23 @@ body[data-grain="enabled"] .grain::after {
     border: none;
     box-shadow: none;
   }
+}
+
+/* ─────────────────────────────────────────────
+   CRAFT PASS — button press scale (global)
+   ───────────────────────────────────────────── */
+button, [role="button"] {
+  transition:
+    background-color var(--duration-fast) var(--ease-default),
+    border-color     var(--duration-fast) var(--ease-default),
+    color            var(--duration-fast) var(--ease-default),
+    opacity          var(--duration-fast) var(--ease-default),
+    box-shadow       var(--duration-fast) var(--ease-default),
+    transform        var(--motion-quick)  var(--ease-spring-snap);
+}
+button:active, [role="button"]:active {
+  transform: scale(0.97);
+}
+@media (prefers-reduced-motion: reduce) {
+  button:active, [role="button"]:active { transform: none; }
 }
