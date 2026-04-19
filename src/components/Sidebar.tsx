@@ -244,7 +244,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
       </div>
 
       {/* ── Primary nav ──────────────────────────── */}
-      <nav className="flex flex-col px-3 gap-0.5" style={{ flexShrink: 0 }}>
+      <nav className="flex flex-col px-3 gap-0.5" style={{ flexShrink: 0, paddingTop: 8 }}>
         {navItems.map((item) => {
           const active = item.activeWhen
             ? item.activeWhen()
