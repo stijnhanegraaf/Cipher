@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/chat.png" alt="cipher chat" width="720" />
+  <img src="docs/images/hero.jpg" alt="cipher dashboard" width="860" />
 </p>
 
 <h1 align="center">cipher</h1>
@@ -37,6 +37,8 @@
 
 Cipher is a Next.js app I built for my own vault. Everything stays on your machine unless you opt into a cloud model. No plugins, no sync service, no account.
 
+---
+
 ## Quickstart
 
 ```bash
@@ -56,9 +58,23 @@ Open http://localhost:3000. If you don't set `VAULT_PATH`, cipher probes a few c
 
 For chat, you'll also want [Ollama](https://ollama.com) running locally — see [LLM setup](#llm-setup) below.
 
+---
+
 ## What's in it
 
+### Dashboard
+
+<p align="center">
+  <img src="docs/images/dashboard.png" alt="dashboard — today" width="860" />
+</p>
+
+Your open tasks, waiting-fors, and blocked items pulled from the journal and work areas of the vault. Quiet when there's nothing to do. Click any row to open the source note and strike it through from here.
+
 ### Chat
+
+<p align="center">
+  <img src="docs/images/chat.png" alt="chat empty state" width="860" />
+</p>
 
 Ask a question, get a streamed answer with citations back to the notes it pulled from. A handful of common intents (`/today`, `/system`, `/graph`, timeline, entity / topic lookups) get rendered as structured view cards instead of prose, because a list of open tasks reads better as a list than as a paragraph. Everything else falls through to the LLM with hybrid retrieval over your vault.
 
@@ -66,17 +82,41 @@ The question you asked renders in Instrument Serif, the answer in Inter, sources
 
 ### Command palette (⌘K)
 
+<p align="center">
+  <img src="docs/images/palette.png" alt="command palette" width="860" />
+</p>
+
 One key, one panel. Opens with your recent files + pins + commands already listed — no typing required for the common case. Type to get a merged ranked list across every file in the vault, entities, projects, and commands. Prefix scopes: `>` for commands, `@` for entities and projects, `#` for headings inside whichever file you have open in the sheet. Enter routes by result type: files open the detail sheet, pins open the scoped drawer, commands run, headings deep-link.
 
 This is the fastest way to get anywhere in cipher. I almost never click the sidebar.
 
 ### Map — Graph + Structure
 
+<p align="center">
+  <img src="docs/images/graph.png" alt="force-directed graph" width="860" />
+</p>
+
 `/browse/graph` has a `Graph | Structure` toggle.
 
-Graph is a force-directed map of your vault with hub-weighted physics, an orphan ring for disconnected notes, and a focus mode that isolates a node's subgraph. Structure is Miller columns — horizontally-scrolling folders with a 360px file-preview panel on the right, for when you want to drill down rather than zoom out.
+**Graph** is a force-directed map of your vault with hub-weighted physics, an orphan ring for disconnected notes, and a **focus mode** that isolates a node's 1-hop subgraph with a camera glide and a HUD card listing backlinks + outlinks.
 
-![structure](docs/images/structure.png)
+**Structure** is the other side of the toggle — Miller columns, horizontally-scrolling folders with a 360px file-preview panel on the right. For when you want to drill down rather than zoom out.
+
+### Timeline
+
+<p align="center">
+  <img src="docs/images/timeline.png" alt="timeline" width="860" />
+</p>
+
+A monthly synthesis of journal entries grouped by theme.
+
+### System
+
+<p align="center">
+  <img src="docs/images/system.png" alt="system health" width="860" />
+</p>
+
+Vault-health: broken links, stale notes, orphaned files, the entities that show up most often.
 
 ### Detail sheet
 
@@ -88,20 +128,28 @@ cipher calls `getVaultLayout()` on the folder you pointed it at and figures out 
 
 No required folder names. No restructuring.
 
+---
+
 ## LLM setup
+
+<p align="center">
+  <img src="docs/images/model-picker.png" alt="model picker" width="860" />
+</p>
 
 Default is local Ollama. Install it, `ollama pull llama3.2` (or whatever you want to use), `ollama pull nomic-embed-text` for embeddings, and you're done — cipher talks to `localhost:11434` and nothing leaves your machine.
 
-If you'd rather use a cloud model, the model picker in the composer has four providers:
+If you'd rather use a cloud model, the model picker in the top-right has four providers:
 
-- **ollama-local** — default, free, private.
-- **ollama-cloud** — paste an Ollama Cloud key.
-- **openai** — paste an OpenAI key.
-- **anthropic** — paste an Anthropic key.
+- **Local** — Ollama on `localhost:11434`. Free, private, offline-capable.
+- **Cloud** — Ollama Cloud. Paste an Ollama API key.
+- **OpenAI** — paste an OpenAI key, pick a GPT model.
+- **Claude** — paste an Anthropic key, pick a Claude model.
 
-Keys are stored locally in `<vault>/.cipher/llm.json`. Retrieval embeddings always run through local Ollama regardless of which chat provider is active (Anthropic has no embeddings API, and running `nomic-embed-text` locally is the cheap universal option). So even if you're chatting with GPT-5, you still want Ollama up.
+Keys are stored locally in `<vault>/.cipher/llm.json`. Retrieval embeddings always run through local Ollama regardless of which chat provider is active (Anthropic has no embeddings API, and running `nomic-embed-text` locally is the cheap universal option). So even if you're chatting with GPT or Claude, you still want Ollama up.
 
 Health endpoint: `GET /api/chat/health` tells you whether the active provider is reachable and whether Ollama-local is up for embeddings.
+
+---
 
 ## Vault layout
 
@@ -114,6 +162,8 @@ cipher probes `getVaultLayout()` on startup and works with a typical Obsidian va
 Anything the probe doesn't find is silently ignored; the feature that depends on it just doesn't render.
 
 Pins for the sidebar live in `<vault>/.cipher/sidebar.json` — whatever syncs your vault (Obsidian Sync, iCloud, Dropbox, git) syncs your pins.
+
+---
 
 ## Tech
 
@@ -130,11 +180,15 @@ npx tsc --noEmit     # type check
 
 No test framework. Verification is tsc + build + a manual walk.
 
+---
+
 ## Status
 
 This is a personal tool. I open-sourced it because it works for me and a few people asked. I'll respond to issues and PRs on a whim, not on a schedule. If you fork it and take it somewhere weirder, I'd love to see it.
 
 Single-user by design — there's no auth layer. If you want to reach it from multiple devices, stick it on a VPS behind [Tailscale](https://tailscale.com/) and call it from `http://<tailnet-name>:3000`. Same convenience as a hosted app, your data never leaves hardware you control.
+
+---
 
 ## License
 
