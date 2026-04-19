@@ -120,25 +120,38 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         }}
       />
       {!hideKbd && (
-        <span
-          className="mono-label"
+        <button
+          type="button"
+          aria-label="Send"
+          disabled={disabled || !value.trim()}
+          onClick={() => {
+            const trimmed = value.trim();
+            if (!trimmed || disabled) return;
+            onSubmit(trimmed);
+            setValue("");
+            taRef.current?.focus();
+          }}
+          className="focus-ring"
           style={{
             display: "inline-flex",
             alignItems: "center",
-            height: LINE_H,
-            padding: "0 6px",
-            borderRadius: 4,
-            border: "1px solid var(--border-subtle)",
-            background: "var(--bg-surface-alpha-2)",
-            color: "var(--text-quaternary)",
-            letterSpacing: "0.02em",
-            fontSize: 11,
-            pointerEvents: "none",
+            justifyContent: "center",
+            height: 28,
+            width: 28,
+            borderRadius: 8,
+            border: "none",
+            background: value.trim() && !disabled ? "var(--accent-brand)" : "var(--bg-surface-alpha-2)",
+            color: value.trim() && !disabled ? "var(--text-on-brand, #fff)" : "var(--text-quaternary)",
+            cursor: value.trim() && !disabled ? "pointer" : "default",
             flexShrink: 0,
+            transition: "background var(--motion-micro) var(--ease-spring-soft), color var(--motion-micro) var(--ease-spring-soft)",
           }}
         >
-          ⌘↵
-        </span>
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14" />
+            <path d="M13 6l6 6-6 6" />
+          </svg>
+        </button>
       )}
     </div>
   );
