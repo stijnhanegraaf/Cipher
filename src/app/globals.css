@@ -864,6 +864,29 @@
   margin: 0 -6px;
 }
 
+/* CIPHER_ sidebar wordmark cursor. The trailing underscore blinks while
+   a vault is connected, dims-static when disconnected, hides when no
+   vault is set. State set via data-state on the <span>. */
+@keyframes cipher-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.2; }
+}
+.cipher-cursor {
+  display: inline-block;
+  width: 0.6em;
+  font-feature-settings: "zero" 1;
+}
+.cipher-cursor[data-state="connected"] {
+  animation: cipher-cursor-blink 1200ms ease-in-out infinite;
+  color: var(--text-primary);
+}
+.cipher-cursor[data-state="disconnected"] {
+  color: var(--text-quaternary);
+}
+.cipher-cursor[data-state="hidden"] {
+  visibility: hidden;
+}
+
 /* Hover-revealed remove button on recent-query rows.
    Default opacity lives on the class itself (not inline) so the :hover
    selector below can override it without losing the specificity war. */
