@@ -72,11 +72,15 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
     {
       id: "dashboard",
       label: "Dashboard",
-      // Icon intentionally blank — the 4-grid glyph now lives exclusively
-      // on the top-right Browse button. Dashboard stands out as the only
-      // icon-less row (renders with an empty 24px icon slot so its label
-      // still aligns with the other rows' labels).
-      icon: null,
+      // Home glyph — distinct from the top-right 4-grid Browse button.
+      // Keeps Dashboard visually balanced with the other primary rows
+      // while leaving the 4-square grid unique to the Browse affordance.
+      icon: (
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 12l9-8 9 8" />
+          <path d="M5 10v10h14V10" />
+        </svg>
+      ),
       onClick: () => {
         if (isBrowse) onHome();
         else router.push("/browse");
@@ -194,6 +198,22 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
             >
               CIPHER<span className="cipher-cursor" data-state={cursorState} aria-hidden="true">_</span>
+              {cursorState !== "hidden" && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: "50%",
+                    marginLeft: 8,
+                    background: cursorState === "connected" ? "var(--status-done)" : "var(--text-quaternary)",
+                    boxShadow: cursorState === "connected"
+                      ? "0 0 6px color-mix(in srgb, var(--status-done) 55%, transparent)"
+                      : "none",
+                    flexShrink: 0,
+                  }}
+                />
+              )}
             </button>
           );
         })()}
