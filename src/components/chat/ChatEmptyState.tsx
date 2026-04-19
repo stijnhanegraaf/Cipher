@@ -67,8 +67,12 @@ export function ChatEmptyState({ onSubmit, banner }: Props) {
       }}
     >
       <h1
-        className="heading-2-serif"
         style={{
+          fontFamily: "var(--font-serif)",
+          fontSize: 28,
+          lineHeight: "34px",
+          letterSpacing: "-0.02em",
+          fontWeight: 400,
           color: "var(--text-secondary)",
           margin: 0,
           textAlign: "center",
