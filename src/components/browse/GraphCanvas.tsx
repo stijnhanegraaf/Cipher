@@ -798,6 +798,24 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
 
     ctx.restore();
 
+    // Click ripple (screen-space).
+    if (rippleRef.current && !reducedMotionRef.current) {
+      const r = rippleRef.current;
+      const t = (performance.now() - r.startedAt) / 500;
+      if (t >= 1) {
+        rippleRef.current = null;
+      } else {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, t * 400, 0, Math.PI * 2);
+        ctx.strokeStyle = colAccent;
+        ctx.globalAlpha = 1 - t;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     // Label overlay for hovered node (screen-space, stays crisp at any zoom).
     if (hoveredId) {
       const n = byId.get(hoveredId);
