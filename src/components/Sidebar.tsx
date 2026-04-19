@@ -401,6 +401,40 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           gap: 2,
         }}
       >
+        {!vault.connected && !vault.loading && (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("cipher:open-vault-connect"))}
+            className="focus-ring app-row flex items-center gap-2.5 rounded-[8px] cursor-pointer"
+            style={{
+              height: 32,
+              padding: "0 12px",
+              background: "transparent",
+              border: "none",
+              color: "var(--text-secondary)",
+              fontSize: 13,
+              fontWeight: 500,
+              letterSpacing: -0.1,
+              textAlign: "left",
+              transition: "background-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-surface-alpha-2)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--text-secondary)"; }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 999,
+                background: "var(--accent-brand)",
+                boxShadow: "0 0 8px color-mix(in srgb, var(--accent-brand) 45%, transparent)",
+                flexShrink: 0,
+              }}
+            />
+            Connect a vault
+          </button>
+        )}
         <div
           className="flex items-center"
           style={{ height: 32, padding: "0 12px", gap: 10 }}

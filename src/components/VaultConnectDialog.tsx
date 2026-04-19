@@ -361,38 +361,77 @@ function BrowseView({
           </div>
         )}
         {fs?.dirs.map((d) => (
-          <button
+          <div
             key={d.path}
-            type="button"
-            onClick={() => onNavigate(d.path)}
-            onDoubleClick={() => onPick(d.path)}
-            className="focus-ring"
+            className="vault-fs-row"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 10,
               width: "100%",
               height: 32,
-              padding: "0 10px",
-              border: "none",
-              background: "transparent",
-              color: "var(--text-secondary)",
-              cursor: "pointer",
+              padding: "0 6px 0 10px",
               borderRadius: "var(--radius-row)",
+              color: "var(--text-secondary)",
               fontSize: 13,
-              textAlign: "left",
+              transition: "background var(--motion-micro) var(--ease-default), color var(--motion-micro) var(--ease-default)",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; e.currentTarget.style.color = "var(--text-primary)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-secondary)"; }}
           >
-            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-quaternary)", flexShrink: 0 }}>
-              <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-            </svg>
-            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {d.name}
-            </span>
-            <span style={{ color: "var(--text-quaternary)", fontSize: 10 }}>›</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => onNavigate(d.path)}
+              className="focus-ring"
+              aria-label={`Open ${d.name}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                flex: 1,
+                minWidth: 0,
+                height: "100%",
+                padding: 0,
+                border: "none",
+                background: "transparent",
+                color: "inherit",
+                cursor: "pointer",
+                fontSize: "inherit",
+                textAlign: "left",
+              }}
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-quaternary)", flexShrink: 0 }}>
+                <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+              </svg>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {d.name}
+              </span>
+              <span style={{ color: "var(--text-quaternary)", fontSize: 10 }}>›</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onConnect(d.path)}
+              className="focus-ring"
+              aria-label={`Use ${d.name} as vault`}
+              title={`Use as vault`}
+              style={{
+                flexShrink: 0,
+                padding: "4px 10px",
+                border: "1px solid var(--border-subtle)",
+                background: "transparent",
+                color: "var(--text-tertiary)",
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 500,
+                borderRadius: "var(--radius-small)",
+                transition: "background var(--motion-micro) var(--ease-default), color var(--motion-micro) var(--ease-default), border-color var(--motion-micro) var(--ease-default)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-brand)"; e.currentTarget.style.color = "var(--text-on-brand, #fff)"; e.currentTarget.style.borderColor = "var(--accent-brand)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-tertiary)"; e.currentTarget.style.borderColor = "var(--border-subtle)"; }}
+            >
+              Use
+            </button>
+          </div>
         ))}
       </div>
 
