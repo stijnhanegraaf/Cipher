@@ -467,6 +467,24 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           </span>
           Theme
         </button>
+        <a
+          href="https://github.com/stijnhanegraaf"
+          target="_blank"
+          rel="noreferrer"
+          className="focus-ring"
+          style={{
+            display: "block",
+            padding: "8px 10px 0",
+            fontSize: 10,
+            letterSpacing: "0.04em",
+            color: "var(--text-quaternary)",
+            textDecoration: "none",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-quaternary)"; }}
+        >
+          by stijn hanegraaf
+        </a>
       </div>
     </aside>
   );
