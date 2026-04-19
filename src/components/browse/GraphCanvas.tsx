@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Graph, GraphEdge, GraphNode } from "@/lib/vault-graph";
 
 // ─── GraphCanvas ──────────────────────────────────────────────────────
@@ -147,6 +148,43 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     }
     return map;
   }, [graph.nodes]);
+
+  const focusLinks = useMemo(() => {
+    if (!focusId) return null;
+    const backlinks: string[] = [];
+    const outlinks: string[] = [];
+    for (const e of graph.edges) {
+      if (e.target === focusId) backlinks.push(e.source);
+      else if (e.source === focusId) outlinks.push(e.target);
+    }
+    const node = graph.nodes.find((n) => n.id === focusId) ?? null;
+    return { backlinks, outlinks, node };
+  }, [focusId, graph.edges, graph.nodes]);
+
+  const [expandedBacklinks, setExpandedBacklinks] = useState(false);
+  const [expandedOutlinks, setExpandedOutlinks] = useState(false);
+
+  // Reset expansion when focus changes.
+  useEffect(() => {
+    setExpandedBacklinks(false);
+    setExpandedOutlinks(false);
+  }, [focusId]);
+
+  // Inject the HUD entry animation keyframes once.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const id = "graph-hud-keyframes";
+    if (document.getElementById(id)) return;
+    const style = document.createElement("style");
+    style.id = id;
+    style.textContent = `
+      @keyframes graph-hud-in {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+    `;
+    document.head.appendChild(style);
+  }, []);
 
   // ── Initialize simulation on graph change ────────────────────────
   // Gated on a non-zero container rect via ResizeObserver, because on mount
@@ -1115,6 +1153,126 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       >
         drag · scroll to zoom · ↑↓←→ pan · f fit · esc reset
       </div>
+      {focusLinks && focusLinks.node && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              role="region"
+              aria-live="polite"
+              style={{
+                position: "fixed",
+                top: 12,
+                right: 12,
+                width: 260,
+                background: "var(--bg-elevated)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: 10,
+                boxShadow: "var(--shadow-dialog)",
+                padding: 12,
+                zIndex: 5,
+                animation: "graph-hud-in 180ms ease-out",
+              }}
+            >
+              <div className="mono-label" style={{ color: "var(--text-quaternary)", marginBottom: 8 }}>
+                FOCUSED · {focusLinks.backlinks.length} backlinks · {focusLinks.outlinks.length} outlinks
+              </div>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {focusLinks.node.title}
+                  </div>
+                  <div className="caption-large" style={{ color: "var(--text-quaternary)", marginTop: 2 }}>
+                    {focusLinks.node.folder || "root"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Open in sheet"
+                  onClick={() => onOpen(focusLinks.node!.id)}
+                  style={{
+                    border: "1px solid var(--border-subtle)",
+                    background: "transparent",
+                    color: "var(--text-secondary)",
+                    borderRadius: 6,
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  ↗
+                </button>
+              </div>
+
+              <div style={{ borderTop: "1px solid var(--border-subtle)", margin: "10px 0" }} />
+
+              {(["backlinks", "outlinks"] as const).map((kind) => {
+                const list = kind === "backlinks" ? focusLinks.backlinks : focusLinks.outlinks;
+                const expanded = kind === "backlinks" ? expandedBacklinks : expandedOutlinks;
+                const setExpanded = kind === "backlinks" ? setExpandedBacklinks : setExpandedOutlinks;
+                if (list.length === 0) return null;
+                const shown = expanded ? list : list.slice(0, 4);
+                return (
+                  <div key={kind} style={{ marginBottom: kind === "backlinks" ? 10 : 0 }}>
+                    <div className="mono-label" style={{ color: "var(--text-quaternary)", marginBottom: 4 }}>
+                      {kind === "backlinks" ? "LINKED FROM" : "LINKS TO"}
+                    </div>
+                    {shown.map((id) => {
+                      const basename = id.split("/").pop()?.replace(/\.md$/i, "") ?? id;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          className="app-row"
+                          aria-label={`Focus on ${basename}`}
+                          onClick={() => {
+                            const rect = containerRef.current?.getBoundingClientRect();
+                            const cx = rect ? rect.width / 2 : 0;
+                            const cy = rect ? rect.height / 2 : 0;
+                            enterFocus(id, cx, cy);
+                          }}
+                          onDoubleClick={() => onOpen(id)}
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            textAlign: "left",
+                            border: "none",
+                            background: "transparent",
+                            color: "var(--text-secondary)",
+                            padding: "4px 6px",
+                            borderRadius: 4,
+                            cursor: "pointer",
+                            fontSize: 13,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          · {basename}
+                        </button>
+                      );
+                    })}
+                    {list.length > 4 && !expanded ? (
+                      <button
+                        type="button"
+                        onClick={() => setExpanded(true)}
+                        style={{
+                          border: "none",
+                          background: "transparent",
+                          color: "var(--text-quaternary)",
+                          cursor: "pointer",
+                          padding: "2px 6px",
+                          fontSize: 12,
+                        }}
+                      >
+                        (+{list.length - 4} more ↓)
+                      </button>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
