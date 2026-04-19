@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Kbd } from "@/components/ui";
 import { useListNavigation } from "@/lib/hooks/useListNavigation";
-import { fuzzyScore } from "@/lib/fuzzy";
+import { fuzzyScore, rankScore } from "@/lib/fuzzy";
 import { useVaultIndex } from "@/lib/hooks/useVaultIndex";
 import { useRecentFiles, type RecentEntry } from "@/lib/hooks/useRecentFiles";
 import { useSidebarPins } from "@/lib/hooks/useSidebarPins";
@@ -69,7 +69,6 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
   // Used by the consumer for the one-line 'DetailPage push-on-open' in Task 9.
   void pushRecent;
   void router;
-  void sheet;
   void fuzzyScore;
 
   useEffect(() => {
@@ -102,7 +101,98 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
     return out;
   }, [recentEntries, index.files, pins, actions]);
 
-  const listItems: PaletteResult[] = query.trim() === "" ? emptyResults : [];  // Task 6 fills the else.
+  // ── Typed state (query.length > 0) ─────────────────────────────────
+  const { prefix, body } = useMemo(() => {
+    const q = query;
+    if (q.startsWith(">")) return { prefix: ">" as const, body: q.slice(1) };
+    if (q.startsWith("@")) return { prefix: "@" as const, body: q.slice(1) };
+    if (q.startsWith("#")) return { prefix: "#" as const, body: q.slice(1) };
+    return { prefix: null as null, body: q };
+  }, [query]);
+
+  const openFilePath = sheet.path;
+
+  // Cache of headings for the currently-open sheet file — fetched once per path.
+  const [sheetHeadings, setSheetHeadings] = useState<{ path: string; headings: { slug: string; label: string }[] } | null>(null);
+  useEffect(() => {
+    if (prefix !== "#" || !openFilePath) return;
+    if (sheetHeadings?.path === openFilePath) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/file?path=${encodeURIComponent(openFilePath)}`);
+        if (!res.ok) return;
+        const body = await res.json();
+        const sections: { heading: string }[] = body?.sections ?? [];
+        const headings = sections.map((s) => ({
+          slug: s.heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
+          label: s.heading,
+        }));
+        if (!cancelled) setSheetHeadings({ path: openFilePath, headings });
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [prefix, openFilePath, sheetHeadings?.path]);
+
+  // Build candidate rows per prefix, then rank by rankScore.
+  const typedResults: PaletteResult[] = useMemo(() => {
+    if (query.trim() === "") return [];
+    const bodyTrim = body.trim();
+    const candidates: { result: PaletteResult; searchText: string; bonus?: { recent: boolean; frequent: boolean } }[] = [];
+
+    const DAY = 24 * 60 * 60 * 1000;
+    const WEEK = 7 * DAY;
+    const now = Date.now();
+    const recentMap = new Map(recentEntries.map((e) => [e.path, e]));
+
+    const fileBonus = (path: string) => {
+      const e = recentMap.get(path);
+      if (!e) return { recent: false, frequent: false };
+      const recent = now - e.openedAt < DAY;
+      const frequent = e.count >= 3 && now - e.openedAt < WEEK;
+      return { recent, frequent };
+    };
+
+    if (prefix === ">") {
+      for (const action of actions) candidates.push({ result: { kind: "command", action }, searchText: action.label });
+    } else if (prefix === "@") {
+      for (const e of index.entities) candidates.push({ result: { kind: "entity", path: e.path, name: e.name }, searchText: e.name });
+      for (const p of index.projects) candidates.push({ result: { kind: "project", path: p.path, name: p.name }, searchText: p.name });
+    } else if (prefix === "#") {
+      // Headings inside the currently-open sheet only. If no sheet, return an info row.
+      if (!openFilePath) {
+        candidates.push({ result: { kind: "fallback-chat", query: "Open a file first to jump to headings" }, searchText: "" });
+      } else if (sheetHeadings?.path === openFilePath) {
+        for (const h of sheetHeadings.headings) {
+          candidates.push({
+            result: { kind: "heading", slug: h.slug, label: h.label, filePath: openFilePath },
+            searchText: h.label,
+          });
+        }
+      }
+    } else {
+      // Default merged scope.
+      for (const f of index.files) candidates.push({ result: { kind: "file", path: f.path, name: f.name, folder: f.folder, bonus: fileBonus(f.path) }, searchText: f.name, bonus: fileBonus(f.path) });
+      for (const p of pins) candidates.push({ result: { kind: "pin", pin: p }, searchText: p.label });
+      for (const e of index.entities) candidates.push({ result: { kind: "entity", path: e.path, name: e.name }, searchText: e.name });
+      for (const p of index.projects) candidates.push({ result: { kind: "project", path: p.path, name: p.name }, searchText: p.name });
+      for (const action of actions) candidates.push({ result: { kind: "command", action }, searchText: action.label });
+    }
+
+    // Rank.
+    const ranked = candidates
+      .map((c) => ({ ...c, score: rankScore(bodyTrim, c.searchText, c.bonus) }))
+      .filter((c) => c.score !== null)
+      .sort((a, b) => (b.score! - a.score!));
+
+    const results = ranked.slice(0, 50).map((r) => r.result);
+    if (results.length === 0 && bodyTrim.length > 0 && prefix !== "#") {
+      results.push({ kind: "fallback-chat", query: bodyTrim });
+    }
+    return results;
+  }, [query, body, prefix, actions, index.entities, index.projects, index.files, pins, recentEntries, openFilePath, sheetHeadings]);
+
+  const listItems: PaletteResult[] = query.trim() === "" ? emptyResults : typedResults;
   const { activeIndex, setActiveIndex, listProps, itemProps } = useListNavigation({
     items: listItems,
     enabled: open,
@@ -182,7 +272,7 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
                   setQuery(e.target.value);
                   setActiveIndex(0);
                 }}
-                placeholder="Search commands, queries, actions…"
+                placeholder={prefixPlaceholder(prefix)}
                 className="flex-1 body text-text-primary bg-transparent border-0"
                 autoComplete="off"
                 spellCheck={false}
@@ -207,10 +297,15 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
                   }}
                 />
               ) : (
-                // Task 6 fills this branch.
-                <div className="px-4 py-8 text-center caption-large text-text-quaternary">
-                  Task 6 — typed state not implemented yet
-                </div>
+                <TypedStateList
+                  results={typedResults}
+                  activeIndex={activeIndex}
+                  itemProps={itemProps}
+                  onActivate={(r) => {
+                    activateResult(r, false);
+                    onClose();
+                  }}
+                />
               )}
             </div>
 
@@ -312,6 +407,42 @@ function resultKey(r: PaletteResult): string {
     case "heading": return `heading:${r.filePath}#${r.slug}`;
     case "command": return `command:${r.action.id}`;
     case "fallback-chat": return "fallback-chat";
+  }
+}
+
+interface TypedStateListProps {
+  results: PaletteResult[];
+  activeIndex: number;
+  itemProps: (i: number) => React.HTMLAttributes<HTMLElement>;
+  onActivate: (r: PaletteResult) => void;
+}
+function TypedStateList({ results, activeIndex, itemProps, onActivate }: TypedStateListProps) {
+  if (results.length === 0) return null;
+  return (
+    <>
+      {results.map((result, idx) => {
+        const ip = itemProps(idx);
+        const active = idx === activeIndex;
+        return (
+          <PaletteRow
+            key={resultKey(result)}
+            {...ip}
+            result={result}
+            active={active}
+            onPointerUp={(e) => { if (e.button === 0) onActivate(result); }}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+function prefixPlaceholder(prefix: ">" | "@" | "#" | null): string {
+  switch (prefix) {
+    case ">": return "Run a command…";
+    case "@": return "Find an entity or project…";
+    case "#": return "Jump to a heading in the open file…";
+    default: return "Search files, pins, commands…";
   }
 }
 
