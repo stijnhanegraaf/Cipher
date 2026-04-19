@@ -213,22 +213,6 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
                   lineHeight: 1,
                 }}
               >_</span>
-              {cursorState !== "hidden" && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: "50%",
-                    marginLeft: 8,
-                    background: cursorState === "connected" ? "var(--status-done)" : "var(--text-quaternary)",
-                    boxShadow: cursorState === "connected"
-                      ? "0 0 6px color-mix(in srgb, var(--status-done) 55%, transparent)"
-                      : "none",
-                    flexShrink: 0,
-                  }}
-                />
-              )}
             </button>
           );
         })()}
