@@ -48,6 +48,16 @@ npm run dev
 
 If you don't set `VAULT_PATH`, Cipher probes common locations — `~/Obsidian`, `~/Documents/Obsidian`, `~/Projects/Obsidian`, sibling `../Obsidian`. First one it finds wins.
 
+### Don't have a vault yet?
+
+Run against the included sample vault in `public/sample-vault/` (~15 toy markdown files that exercise every surface):
+
+```bash
+VAULT_PATH=$(pwd)/public/sample-vault npm run dev
+```
+
+Every page will light up — Today shows tasks, System has checks + broken links, Timeline has activity, Graph renders a small cluster, Entity/Topic pages resolve.
+
 ## Point it at your vault
 
 Cipher auto-detects folder roles by name. This table shows what it looks for:
@@ -111,6 +121,13 @@ npx tsc --noEmit     # type check
 ```
 
 No test framework yet. Verification is manual + `curl` for the API routes + `grep` for token/convention compliance.
+
+## Architecture + concepts
+
+For a deeper tour of how the pieces fit together, read:
+
+- `docs/ARCHITECTURE.md` — request life-cycle, module map, vault-layout probe.
+- `docs/CONCEPTS.md` — glossary of recurring terms (intent, view model, hub, orphan, sheet, scoped drawer, …).
 
 ## Design language
 
