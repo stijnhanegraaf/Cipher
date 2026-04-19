@@ -100,6 +100,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
   const simEdgesRef = useRef<GraphEdge[]>([]);
   const tickCountRef = useRef(0);
   const rafRef = useRef<number | null>(null);
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draggingRef = useRef<{ kind: "pan" | "node"; id?: string; lastX: number; lastY: number } | null>(null);
   const mouseRef = useRef<{ x: number; y: number } | null>(null);
   const inhaleRef = useRef(0); // 0 → 1 over 300ms on mount
@@ -195,6 +196,12 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
+
+    // Cancel any in-flight rAF from a previous graph payload before we swap sims.
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
 
     let inited = false;
 
@@ -316,6 +323,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       cancelAnimationFrame(raf);
       ro.disconnect();
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (exitTimerRef.current) { clearTimeout(exitTimerRef.current); exitTimerRef.current = null; }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph]);
@@ -560,10 +568,12 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       rippleRef.current = { x: clickX, y: clickY, startedAt: performance.now() };
     }
     const dur = reduced ? 100 : 300;
-    setTimeout(() => {
+    if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    exitTimerRef.current = setTimeout(() => {
       focusLayoutRef.current = null;
       simulationFrozenRef.current = false;
       preFocusViewRef.current = null;
+      exitTimerRef.current = null;
     }, dur + 20);
   }, []);
 

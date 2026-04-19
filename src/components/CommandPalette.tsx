@@ -18,6 +18,7 @@ import { useSheet } from "@/lib/hooks/useSheet";
 import { useRouter } from "next/navigation";
 import { PinIcon } from "@/components/ui/PinIcon";
 import type { PinEntry } from "@/lib/settings";
+import { slugify } from "@/lib/slug";
 
 export interface PaletteAction {
   id: string;
@@ -75,9 +76,15 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
         else sheet.open(result.path);
         pushRecent(result.path);
         return;
-      case "pin":
-        router.push("/browse");
+      case "pin": {
+        // Open the pin target if it's a known file in the vault; otherwise no-op.
+        const p = result.pin.path;
+        if (p && index.files.some((f) => f.path === p)) {
+          sheet.open(p);
+          pushRecent(p);
+        }
         return;
+      }
       case "entity":
       case "project":
         if (newTab) router.push(`/file/${result.path}`);
@@ -150,7 +157,7 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
         const body = await res.json();
         const sections: { heading: string }[] = body?.sections ?? [];
         const headings = sections.map((s) => ({
-          slug: s.heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
+          slug: slugify(s.heading),
           label: s.heading,
         }));
         if (!cancelled) setSheetHeadings({ path: openFilePath, headings });

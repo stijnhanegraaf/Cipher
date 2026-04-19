@@ -12,6 +12,8 @@ import { motion, AnimatePresence, useInView } from "framer-motion";
 import { MarkdownRenderer, Breadcrumbs } from "@/components/ui";
 import { scrollReveal, springs } from "@/lib/motion";
 import { useRecentFiles } from "@/lib/hooks/useRecentFiles";
+import { log } from "@/lib/log";
+import { slugify } from "@/lib/slug";
 
 // Theme-aware token indirection — values point to CSS custom properties
 // defined in globals.css, so light/dark mode switching is automatic.
@@ -112,7 +114,7 @@ function TableOfContents({
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {sections.map((section) => {
-          const id = `heading-${section.heading.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+          const id = `heading-${slugify(section.heading)}`;
           const isActive = activeId === id;
           const paddingLeft = (section.level - 1) * 16;
 
@@ -248,6 +250,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch file data
   const fetchData = useCallback(() => {
@@ -309,7 +312,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
 
     const headingElements = data.sections
       .map((s) => {
-        const id = `heading-${s.heading.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+        const id = `heading-${slugify(s.heading)}`;
         return document.getElementById(id);
       })
       .filter(Boolean) as HTMLElement[];
@@ -387,7 +390,12 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
       setSaveStatus("saved");
       setData((prev) => prev ? { ...prev, content } : prev);
       setToastMessage({ text: "✓ Saved", type: "success" });
-      setTimeout(() => { setSaveStatus("idle"); setToastMessage(null); }, 2000);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => {
+        setSaveStatus("idle");
+        setToastMessage(null);
+        toastTimerRef.current = null;
+      }, 2000);
     } catch (err) {
       setSaveStatus("failed");
       if (!(err instanceof Error && err.message.startsWith("Save failed"))) {
@@ -404,7 +412,9 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
     setEditContent(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      saveFile(value);
+      saveFile(value).catch((err) => {
+        log.warn("detail", "auto-save failed", err);
+      });
     }, 2000);
   }, [saveFile]);
 

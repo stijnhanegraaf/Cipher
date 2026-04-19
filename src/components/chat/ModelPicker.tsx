@@ -52,6 +52,7 @@ export function ModelPicker({ current, onChange }: Props) {
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedFired, setSavedFired] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
 
@@ -103,14 +104,24 @@ export function ModelPicker({ current, onChange }: Props) {
 
   const patch = async (patchBody: Record<string, unknown>) => {
     setSaving(true);
+    setSaveError(null);
     try {
-      await fetch("/api/settings/llm", {
+      const res = await fetch("/api/settings/llm", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(patchBody),
       });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        console.error("Failed to save LLM settings", txt);
+        setSaveError("Couldn't save — try again");
+        return;
+      }
       setApiKey("");
       await refresh();
+    } catch (err) {
+      console.error("Failed to save LLM settings", err);
+      setSaveError("Couldn't save — try again");
     } finally {
       setSaving(false);
     }
@@ -234,6 +245,12 @@ export function ModelPicker({ current, onChange }: Props) {
                 );
               })}
             </div>
+
+            {saveError && (
+              <div className="caption" style={{ marginTop: 6, color: "var(--status-danger, #c0392b)" }}>
+                {saveError}
+              </div>
+            )}
 
             {PROVIDER_META[activeProvider].needsKey && (
               <div style={{ marginTop: 10 }}>
