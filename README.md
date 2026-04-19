@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Obsidian for readers, not writers.</b><br/>
-  A local AI frontend for your Markdown vault — chat, graph, structure, ⌘K.
+  A local AI frontend for your Markdown vault, chat, graph, structure, ⌘K.
 </p>
 
 <p align="center">
@@ -41,13 +41,15 @@ Cipher is a Next.js app I built for my own vault. Everything stays on your machi
 
 ## Why I built this
 
-For a while now I've been running my whole second brain through [OpenClaw](https://openclaw.com) — an AI agent in Telegram that reads and writes to an Obsidian vault. Chat is great for capture: "add to journal", "what's Alice up to", "what do I owe Jake".
+For a while now I've been running my whole second brain through [OpenClaw](https://openclaw.com), an AI agent in Telegram that reads and writes to an Obsidian vault. Chat is great for capture: "add to journal", "what's Alice up to", "what do I owe Jake".
 
-But after a few hundred messages I noticed I kept asking for the same things — open tasks, what's waiting, what's on today — and chat was always the bottleneck. You can't *scan* a conversation. You can't pin it. You can't glance at it while you make coffee.
+But after a few hundred messages I noticed I kept asking for the same things, open tasks, what's waiting, what's on today, and chat was always the bottleneck. You can't *scan* a conversation. You can't pin it. You can't glance at it while you make coffee.
 
-I wanted a visual surface for the same vault. Tasks just *there*. A graph you can look at. A palette for the keyboard. Chat still available when I actually need it — not the only way in.
+I wanted a visual surface for the same vault. Tasks just *there*. A graph you can look at. A way to browse my files easily. A palette for the keyboard. Chat still available when I actually need it, not the only way in.
 
-Cipher is that. Same Obsidian vault — rendered as a dashboard, a graph, a ⌘K palette, and a chat. One keystroke between them.
+Cipher is that. Same Obsidian vault, rendered as a dashboard, a graph, a ⌘K palette, and a chat. One keystroke between them.
+
+This is v1, built in a weekend. Rough edges, opinionated choices, more to come.
 
 ---
 
@@ -70,7 +72,7 @@ npm run dev
 
 Open http://localhost:3000. If you don't set `VAULT_PATH`, cipher probes a few common spots (`~/Obsidian`, `~/Documents/Obsidian`, `~/Projects/Obsidian`, a sibling `../Obsidian`). No vault handy? The repo ships a 15-file sample vault you can point at with `VAULT_PATH=$(pwd)/public/sample-vault npm run dev`.
 
-For chat, you'll also want [Ollama](https://ollama.com) running locally — see [LLM setup](#llm-setup) below.
+For chat, you'll also want [Ollama](https://ollama.com) running locally, see [LLM setup](#llm-setup) below.
 
 ---
 
@@ -79,7 +81,7 @@ For chat, you'll also want [Ollama](https://ollama.com) running locally — see 
 ### Dashboard
 
 <p align="center">
-  <img src="docs/images/dashboard.png" alt="dashboard — today" width="860" />
+  <img src="docs/images/dashboard.png" alt="dashboard, today" width="860" />
 </p>
 
 Your open tasks, waiting-fors, and blocked items pulled from the journal and work areas of the vault. Quiet when there's nothing to do. Click any row to open the source note and strike it through from here.
@@ -100,11 +102,11 @@ The question you asked renders in Instrument Serif, the answer in Inter, sources
   <img src="docs/images/palette.png" alt="command palette" width="860" />
 </p>
 
-One key, one panel. Opens with your recent files + pins + commands already listed — no typing required for the common case. Type to get a merged ranked list across every file in the vault, entities, projects, and commands. Prefix scopes: `>` for commands, `@` for entities and projects, `#` for headings inside whichever file you have open in the sheet. Enter routes by result type: files open the detail sheet, pins open the scoped drawer, commands run, headings deep-link.
+One key, one panel. Opens with your recent files + pins + commands already listed, no typing required for the common case. Type to get a merged ranked list across every file in the vault, entities, projects, and commands. Prefix scopes: `>` for commands, `@` for entities and projects, `#` for headings inside whichever file you have open in the sheet. Enter routes by result type: files open the detail sheet, pins open the scoped drawer, commands run, headings deep-link.
 
 This is the fastest way to get anywhere in cipher. I almost never click the sidebar.
 
-### Map — Graph + Structure
+### Map: Graph + Structure
 
 <p align="center">
   <img src="docs/images/graph.png" alt="force-directed graph" width="860" />
@@ -114,7 +116,7 @@ This is the fastest way to get anywhere in cipher. I almost never click the side
 
 **Graph** is a force-directed map of your vault with hub-weighted physics, an orphan ring for disconnected notes, and a **focus mode** that isolates a node's 1-hop subgraph with a camera glide and a HUD card listing backlinks + outlinks.
 
-**Structure** is the other side of the toggle — Miller columns, horizontally-scrolling folders with a 360px file-preview panel on the right. For when you want to drill down rather than zoom out.
+**Structure** is the other side of the toggle. Miller columns, horizontally-scrolling folders with a 360px file-preview panel on the right. For when you want to drill down rather than zoom out.
 
 ### Timeline
 
@@ -134,7 +136,7 @@ Vault-health: broken links, stale notes, orphaned files, the entities that show 
 
 ### Detail sheet
 
-Click any file anywhere — sidebar, palette result, graph node, citation pill — and it slides in from the right as a sheet. Wiki-link previews, backlinks, frontmatter, the whole note. The sheet is additive; your previous view stays mounted behind it.
+Click any file anywhere (sidebar, palette result, graph node, citation pill) and it slides in from the right as a sheet. Wiki-link previews, backlinks, frontmatter, the whole note. The sheet is additive; your previous view stays mounted behind it.
 
 ### Vault index
 
@@ -150,14 +152,14 @@ No required folder names. No restructuring.
   <img src="docs/images/model-picker.png" alt="model picker" width="860" />
 </p>
 
-Default is local Ollama. Install it, `ollama pull llama3.2` (or whatever you want to use), `ollama pull nomic-embed-text` for embeddings, and you're done — cipher talks to `localhost:11434` and nothing leaves your machine.
+Default is local Ollama. Install it, `ollama pull llama3.2` (or whatever you want to use), `ollama pull nomic-embed-text` for embeddings, and you're done, cipher talks to `localhost:11434` and nothing leaves your machine.
 
 If you'd rather use a cloud model, the model picker in the top-right has four providers:
 
-- **Local** — Ollama on `localhost:11434`. Free, private, offline-capable.
-- **Cloud** — Ollama Cloud. Paste an Ollama API key.
-- **OpenAI** — paste an OpenAI key, pick a GPT model.
-- **Claude** — paste an Anthropic key, pick a Claude model.
+- **Local**: Ollama on `localhost:11434`. Free, private, offline-capable.
+- **Cloud**: Ollama Cloud. Paste an Ollama API key.
+- **OpenAI**: paste an OpenAI key, pick a GPT model.
+- **Claude**: paste an Anthropic key, pick a Claude model.
 
 Keys are stored locally in `<vault>/.cipher/llm.json`. Retrieval embeddings always run through local Ollama regardless of which chat provider is active (Anthropic has no embeddings API, and running `nomic-embed-text` locally is the cheap universal option). So even if you're chatting with GPT or Claude, you still want Ollama up.
 
@@ -169,19 +171,19 @@ Health endpoint: `GET /api/chat/health` tells you whether the active provider is
 
 cipher probes `getVaultLayout()` on startup and works with a typical Obsidian vault out of the box. Three-tier detection:
 
-1. **By name** — common folder names (`entities` / `people` / `contacts`, `journal` / `daily`, `projects`, `research`, `work`, `system`). Folders under a `wiki/` root work too.
-2. **By content** — if a role isn't found by name, cipher scans top-level folders and infers from what's inside.
-3. **Explicit override** — drop a `<vault>/.cipher/layout.json` with any fields you want to pin. Omitted fields still auto-detect.
+1. **By name**: common folder names (`entities` / `people` / `contacts`, `journal` / `daily`, `projects`, `research`, `work`, `system`). Folders under a `wiki/` root work too.
+2. **By content**: if a role isn't found by name, cipher scans top-level folders and infers from what's inside.
+3. **Explicit override**: drop a `<vault>/.cipher/layout.json` with any fields you want to pin. Omitted fields still auto-detect.
 
 Anything the probe doesn't find is silently ignored; the feature that depends on it just doesn't render.
 
-Pins for the sidebar live in `<vault>/.cipher/sidebar.json` — whatever syncs your vault (Obsidian Sync, iCloud, Dropbox, git) syncs your pins.
+Pins for the sidebar live in `<vault>/.cipher/sidebar.json`, whatever syncs your vault (Obsidian Sync, iCloud, Dropbox, git) syncs your pins.
 
 ---
 
 ## Tech
 
-Next.js 16 App Router, React 19, TypeScript strict. Tailwind v4, single-token design system in `src/app/globals.css`. Inter for UI, Instrument Serif for display surfaces (page titles, empty-state headings, asked questions, sheet titles). Vercel AI SDK for streaming, Ollama for embeddings, no database — the vault is the state.
+Next.js 16 App Router, React 19, TypeScript strict. Tailwind v4, single-token design system in `src/app/globals.css`. Inter for UI, Instrument Serif for display surfaces (page titles, empty-state headings, asked questions, sheet titles). Vercel AI SDK for streaming, Ollama for embeddings, no database, the vault is the state.
 
 Read-only on your filesystem; no auth, no telemetry, no server-side history.
 
@@ -200,7 +202,7 @@ No test framework. Verification is tsc + build + a manual walk.
 
 This is a personal tool. I open-sourced it because it works for me and a few people asked. I'll respond to issues and PRs on a whim, not on a schedule. If you fork it and take it somewhere weirder, I'd love to see it.
 
-Single-user by design — there's no auth layer. If you want to reach it from multiple devices, stick it on a VPS behind [Tailscale](https://tailscale.com/) and call it from `http://<tailnet-name>:3000`. Same convenience as a hosted app, your data never leaves hardware you control.
+Single-user by design, there's no auth layer. If you want to reach it from multiple devices, stick it on a VPS behind [Tailscale](https://tailscale.com/) and call it from `http://<tailnet-name>:3000`. Same convenience as a hosted app, your data never leaves hardware you control.
 
 ---
 
