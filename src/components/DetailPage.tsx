@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import { MarkdownRenderer, Breadcrumbs } from "@/components/ui";
 import { scrollReveal, springs } from "@/lib/motion";
+import { useRecentFiles } from "@/lib/hooks/useRecentFiles";
 
 // Theme-aware token indirection — values point to CSS custom properties
 // defined in globals.css, so light/dark mode switching is automatic.
@@ -238,6 +239,12 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
   const [editContent, setEditContent] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  const { push: pushRecent } = useRecentFiles();
+
+  useEffect(() => {
+    if (path) pushRecent(path);
+  }, [path, pushRecent]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
