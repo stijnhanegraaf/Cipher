@@ -1387,3 +1387,8 @@ button:active, [role="button"]:active {
 @media (prefers-reduced-motion: reduce) {
   button:active, [role="button"]:active { transform: none; }
 }
+
+@keyframes source-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
