@@ -299,6 +299,20 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
                   setQuery(e.target.value);
                   setActiveIndex(0);
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Tab") {
+                    e.preventDefault();
+                    const next = nextPrefix(prefix);
+                    setQuery(next === null ? "" : next);
+                    setActiveIndex(0);
+                    return;
+                  }
+                  if (e.key === "Backspace" && e.currentTarget.selectionStart === 0 && prefix !== null) {
+                    e.preventDefault();
+                    setQuery("");
+                    setActiveIndex(0);
+                  }
+                }}
                 placeholder={prefixPlaceholder(prefix)}
                 className="flex-1 body text-text-primary bg-transparent border-0"
                 autoComplete="off"
@@ -353,7 +367,11 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
                 </span>
                 <span className="flex items-center gap-1">
                   <Kbd>↵</Kbd>
-                  <span className="ml-1">select</span>
+                  <span className="ml-1">open</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <Kbd>Tab</Kbd>
+                  <span className="ml-1">prefix</span>
                 </span>
               </div>
               <div className="micro text-text-quaternary">
@@ -457,6 +475,15 @@ function TypedStateList({ results, activeIndex, itemProps, onActivate }: TypedSt
       })}
     </>
   );
+}
+
+function nextPrefix(p: ">" | "@" | "#" | null): string | null {
+  switch (p) {
+    case null: return ">";
+    case ">": return "@";
+    case "@": return "#";
+    case "#": return null;
+  }
 }
 
 function prefixPlaceholder(prefix: ">" | "@" | "#" | null): string {
