@@ -248,12 +248,12 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
         <>
           {/* Backdrop */}
           <motion.div
-            initial={{ opacity: 0 }}
+            className="palette-backdrop fixed inset-0 z-[400]"
+            initial={false}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.12 }}
+            transition={{ duration: 0.14, ease: "easeOut" }}
             onClick={onClose}
-            className="fixed inset-0 z-[400]"
             style={{ backgroundColor: "var(--overlay)" }}
           />
           {/* Dialog */}
@@ -261,15 +261,15 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
             role="dialog"
             aria-label="Command palette"
             aria-modal="true"
-            initial={{ opacity: 0, y: -4 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
-            className="fixed left-1/2 top-[15vh] -translate-x-1/2 z-[401] w-[560px] max-w-[calc(100vw-32px)] overflow-hidden flex flex-col"
+            className="palette-panel fixed left-1/2 top-[15vh] -translate-x-1/2 z-[401] w-[560px] max-w-[calc(100vw-32px)] overflow-hidden flex flex-col"
             style={{
               borderRadius: "var(--radius-panel)",
-              background: "var(--bg-elevated)",
-              border: "1px solid var(--border-standard)",
+              background: "var(--surface-raised)",
+              border: "1px solid var(--accent-soft)",
               boxShadow: "var(--shadow-dialog)",
               maxHeight: "min(70vh, 560px)",
             }}
@@ -424,6 +424,7 @@ function EmptyStateGroups({ results, activeIndex, itemProps, onActivate }: Empty
                   {...ip}
                   result={result}
                   active={active}
+                  animIndex={idx}
                   onPointerUp={(e) => { if (e.button === 0) onActivate(result, e.metaKey || e.ctrlKey); }}
                 />
               );
@@ -467,6 +468,7 @@ function TypedStateList({ results, activeIndex, itemProps, onActivate }: TypedSt
             {...ip}
             result={result}
             active={active}
+            animIndex={idx}
             onPointerUp={(e) => { if (e.button === 0) onActivate(result, e.metaKey || e.ctrlKey); }}
           />
         );
@@ -496,20 +498,23 @@ function prefixPlaceholder(prefix: ">" | "@" | "#" | null): string {
 interface PaletteRowProps extends React.HTMLAttributes<HTMLButtonElement> {
   result: PaletteResult;
   active: boolean;
+  animIndex?: number;
 }
-function PaletteRow({ result, active, ...rest }: PaletteRowProps) {
+function PaletteRow({ result, active, animIndex, ...rest }: PaletteRowProps) {
   const label = rowLabel(result);
   const secondary = rowSecondary(result);
+  const delay = typeof animIndex === "number" ? `${120 + animIndex * 60}ms` : "0ms";
   return (
     <button
       type="button"
       tabIndex={-1}
       {...rest}
-      className="w-full flex items-center gap-3 px-4 py-2 text-left transition-colors duration-75"
+      className="palette-row-rail w-full flex items-center gap-3 px-4 py-2 text-left transition-colors duration-75"
       style={{
         background: active ? "var(--bg-surface-alpha-4)" : "transparent",
         borderLeft: active ? "2px solid var(--accent-brand)" : "2px solid transparent",
         cursor: "pointer",
+        animationDelay: delay,
       }}
     >
       <span className="shrink-0 text-text-tertiary flex items-center justify-center" style={{ width: 16, height: 16 }}>
