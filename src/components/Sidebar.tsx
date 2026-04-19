@@ -72,14 +72,11 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
     {
       id: "dashboard",
       label: "Dashboard",
-      icon: (
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="7" height="9" rx="1.5" />
-          <rect x="14" y="3" width="7" height="5" rx="1.5" />
-          <rect x="14" y="12" width="7" height="9" rx="1.5" />
-          <rect x="3" y="16" width="7" height="5" rx="1.5" />
-        </svg>
-      ),
+      // Icon intentionally blank — the 4-grid glyph now lives exclusively
+      // on the top-right Browse button. Dashboard stands out as the only
+      // icon-less row (renders with an empty 24px icon slot so its label
+      // still aligns with the other rows' labels).
+      icon: null,
       onClick: () => {
         if (isBrowse) onHome();
         else router.push("/browse");
@@ -163,40 +160,43 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           borderBottom: "1px solid var(--border-subtle)",
         }}
       >
-        <button
-          type="button"
-          onClick={onHome}
-          className="focus-ring"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "4px 6px",
-            margin: "0 -6px",
-            borderRadius: 6,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--text-primary)",
-            transition: "background var(--motion-hover) var(--ease-default)",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-        >
-          <span
-            style={{
-              width: 18, height: 18, borderRadius: 5,
-              background: "var(--accent-brand)",
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-            }}
-          >
-            <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="var(--text-on-brand)" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0110 0v4" />
-            </svg>
-          </span>
-          <span style={{ fontSize: 13, fontWeight: 510, letterSpacing: -0.1 }}>Cipher</span>
-        </button>
+        {(() => {
+          const cursorState: "connected" | "disconnected" | "hidden" =
+            !vault.path ? "hidden" : vault.connected ? "connected" : "disconnected";
+          const ariaSuffix =
+            cursorState === "connected" ? "vault connected"
+            : cursorState === "disconnected" ? "vault disconnected"
+            : "no vault";
+          return (
+            <button
+              type="button"
+              onClick={onHome}
+              className="focus-ring"
+              aria-label={`Cipher — ${ariaSuffix}`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "4px 6px",
+                margin: "0 -6px",
+                borderRadius: 6,
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--text-primary)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 12,
+                fontWeight: 510,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                transition: "background var(--motion-hover) var(--ease-default)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            >
+              CIPHER<span className="cipher-cursor" data-state={cursorState} aria-hidden="true">_</span>
+            </button>
+          );
+        })()}
 
         <div style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
           <SidebarHeaderButton label="Command palette (⌘K)" onClick={onPalette}>
@@ -224,29 +224,6 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           </SidebarHeaderButton>
         </div>
       </div>
-
-      {/* Vault chip */}
-      {vault.connected && vault.name && (
-        <div className="px-3" style={{ marginBottom: 12, flexShrink: 0 }}>
-          <button
-            type="button"
-            onClick={onPalette}
-            title="Change vault (⌘K)"
-            className="focus-ring app-row flex items-center gap-2 w-full rounded-[6px] cursor-pointer"
-            style={{
-              padding: "6px 12px",
-              background: "transparent",
-              border: "none",
-              transition: "background-color var(--motion-hover) var(--ease-default)",
-            }}
-          >
-            <span style={{ width: "var(--dot-size-sm)", height: "var(--dot-size-sm)", borderRadius: "50%", background: "var(--status-done)", flexShrink: 0 }} />
-            <span className="mono-label" style={{ color: "var(--text-tertiary)", letterSpacing: "0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              Vault connected
-            </span>
-          </button>
-        </div>
-      )}
 
       {/* ── Primary nav ──────────────────────────── */}
       <nav className="flex flex-col px-3 gap-0.5" style={{ flexShrink: 0 }}>
