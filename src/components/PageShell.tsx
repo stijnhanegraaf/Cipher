@@ -40,11 +40,14 @@ export function PageShell({ title, subtitle, icon, actions, toolbar, contentMaxW
     : { width: "100%" };
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, background: "var(--bg-marketing)" }}>
-      {/* ── Header — 72px sticky ───────────────────────────────── */}
+      {/* ── Header — 48px sticky. Matches the sidebar brand-row
+             height so the two horizontal rails align exactly. Title
+             renders at the same scale as the 'Cipher' mark in the
+             sidebar — subtle, not a marketing headline. ─────── */}
       <header
         style={{
           flexShrink: 0,
-          height: 72,
+          height: 48,
           borderBottom: "1px solid var(--border-subtle)",
           background: "color-mix(in srgb, var(--bg-marketing) 85%, transparent)",
           backdropFilter: "blur(20px) saturate(180%)",
@@ -66,55 +69,62 @@ export function PageShell({ title, subtitle, icon, actions, toolbar, contentMaxW
             gap: 16,
           }}
         >
-        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          {icon && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                background: "var(--bg-surface-alpha-2)",
-                color: "var(--text-tertiary)",
-                flexShrink: 0,
-              }}
-            >
-              {icon}
-            </span>
-          )}
-          <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 10,
+              minWidth: 0,
+              flex: 1,
+            }}
+          >
+            {icon && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--text-tertiary)",
+                  flexShrink: 0,
+                  alignSelf: "center",
+                }}
+              >
+                {icon}
+              </span>
+            )}
             <h1
-              className="heading-2"
               style={{
+                fontSize: 13,
+                fontWeight: 510,
+                letterSpacing: -0.1,
+                lineHeight: 1,
                 color: "var(--text-primary)",
                 margin: 0,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
+                flexShrink: 0,
               }}
             >
               {title}
             </h1>
             {subtitle && (
-              <p
-                className="caption-large"
+              <span
+                className="mono-label"
                 style={{
-                  color: "var(--text-tertiary)",
-                  margin: 0,
-                  marginTop: 2,
+                  color: "var(--text-quaternary)",
+                  letterSpacing: "0.02em",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
+                  minWidth: 0,
                 }}
               >
-                {subtitle}
-              </p>
+                · {subtitle}
+              </span>
             )}
           </div>
-        </div>
-        {actions && <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>{actions}</div>}
+          {actions && <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>{actions}</div>}
         </div>
       </header>
 
@@ -128,7 +138,7 @@ export function PageShell({ title, subtitle, icon, actions, toolbar, contentMaxW
             display: "flex",
             alignItems: "center",
             position: "sticky",
-            top: 72,
+            top: 48,
             zIndex: 19,
             background: "color-mix(in srgb, var(--bg-marketing) 85%, transparent)",
             backdropFilter: "blur(20px) saturate(180%)",
