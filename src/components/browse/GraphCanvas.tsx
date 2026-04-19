@@ -742,40 +742,27 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       ctx.arc(nx, ny, displayR, 0, Math.PI * 2);
 
       const isOrphan = n.degree === 0;
-      const slot = FOLDER_SLOTS[n.slot];
-      const slotColor = isLight ? slot.light : slot.dark;
-      const orphanColor = style.getPropertyValue("--text-quaternary").trim() || (isLight ? "#9aa0a6" : "#6b7280");
 
       if (hovered || selected) {
         ctx.fillStyle = colAccent;
         ctx.shadowColor = colAccent;
         ctx.shadowBlur = 18;
-      } else if (isOrphan) {
-        ctx.fillStyle = orphanColor;
-        ctx.shadowBlur = 0;
+      } else if (isHub) {
+        ctx.fillStyle = colStarHub;
+        ctx.shadowColor = colStarHub;
+        ctx.shadowBlur = 14;
+      } else if (isBright) {
+        ctx.fillStyle = colStarBright;
+        ctx.shadowColor = colStarBright;
+        ctx.shadowBlur = 6;
       } else {
-        ctx.fillStyle = slotColor;
-        ctx.shadowColor = slotColor;
-        ctx.shadowBlur = isHub ? 14 : isBright ? 6 : 0;
+        ctx.fillStyle = colStar;
+        ctx.shadowBlur = 0;
       }
 
-      const effectiveSlotFilter = legendHover ?? legendFilter;
-      const slotMul = effectiveSlotFilter === null ? 1 : (n.slot === effectiveSlotFilter ? 1 : 0.15);
-      ctx.globalAlpha = (active ? 1 : 0.15) * inhaleAlpha * pulseMul * focusAlpha * slotMul * 0.85;
+      ctx.globalAlpha = (active ? 1 : 0.15) * inhaleAlpha * pulseMul * focusAlpha;
       ctx.fill();
       ctx.shadowBlur = 0;
-
-      // Slot ring (skip for orphans, skip when selected — selected draws brand ring).
-      if (!isOrphan && !selected) {
-        ctx.beginPath();
-        ctx.arc(nx, ny, displayR + 0.8 / scale, 0, Math.PI * 2);
-        ctx.strokeStyle = hovered
-          ? (isLight ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,1)")
-          : slotColor;
-        ctx.lineWidth = 1 / scale;
-        ctx.globalAlpha = (active ? 1 : 0.15) * inhaleAlpha * focusAlpha * slotMul;
-        ctx.stroke();
-      }
 
       if (selected) {
         ctx.beginPath();
@@ -786,10 +773,9 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         ctx.stroke();
       }
 
-      // Dual-ring hub pulse expansion (folder-tinted).
+      // Dual-ring hub pulse expansion.
       if (pulse && pulse.id === n.id) {
-        const slotBase = FOLDER_SLOTS[n.slot];
-        const pulseColor = isLight ? slotBase.light : slotBase.dark;
+        const pulseColor = colAccent;
 
         const t1 = (nowPerf - pulse.startedAt) / 600;
         if (t1 >= 0 && t1 <= 1) {
@@ -1135,56 +1121,13 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         }}
         style={{ display: "block", touchAction: "none" }}
       />
-      {/* Legend chip — 8 folder-slot dots */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 12,
-          left: 16,
-          display: "flex",
-          gap: 2,
-          alignItems: "center",
-          zIndex: 3,
-        }}
-      >
-        {FOLDER_SLOTS.map((slot, i) => {
-          const color = typeof document !== "undefined" && document.documentElement.classList.contains("light") ? slot.light : slot.dark;
-          const folders = Array.from(slotLabels.get(i) ?? []).join(" · ") || "(empty)";
-          const pressed = legendFilter === i;
-          return (
-            <button
-              key={i}
-              type="button"
-              aria-label={`Filter to ${folders}`}
-              aria-pressed={pressed}
-              title={folders}
-              onPointerEnter={() => setLegendHover(i)}
-              onPointerLeave={() => setLegendHover(null)}
-              onClick={() => setLegendFilter((prev) => (prev === i ? null : i))}
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: color,
-                border: "none",
-                padding: 0,
-                margin: 0,
-                cursor: "pointer",
-                outline: pressed ? `1.5px solid var(--accent-brand)` : "none",
-                outlineOffset: 2,
-                opacity: legendFilter === null || pressed ? 1 : 0.4,
-              }}
-            />
-          );
-        })}
-      </div>
       {/* Keyboard hint */}
       <div
         className="mono-label"
         style={{
           position: "absolute",
           bottom: 12,
-          left: 120,
+          left: 16,
           color: "var(--text-quaternary)",
           letterSpacing: "0.04em",
           pointerEvents: "none",
