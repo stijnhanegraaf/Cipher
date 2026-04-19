@@ -88,91 +88,98 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
   }, [graph.nodes, visibleFolders, orphansOnly, searchTerm]);
 
   // ── Initialize simulation on graph change ────────────────────────
+  // Gated on a non-zero container rect via ResizeObserver, because on mount
+  // the flex layout hasn't settled yet and clientWidth/Height read 0.
+  // Running init at 0×0 seeded the simulation inside a collapsed viewport,
+  // which is what made /browse/graph paint blank.
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
-    const w = container.clientWidth;
-    const h = container.clientHeight;
 
-    const simNodes: SimNode[] = graph.nodes.map((n, i) => {
-      // Deterministic pseudo-random initial positions clustered near center.
-      const angle = (i / graph.nodes.length) * Math.PI * 2;
-      const r = 50 + ((i * 97) % 200);
-      const degree = n.backlinks + n.outlinks;
-      return {
-        ...n,
-        x: w / 2 + Math.cos(angle) * r,
-        y: h / 2 + Math.sin(angle) * r,
-        vx: 0,
-        vy: 0,
-        // Obsidian-precise: tiny leaf dots, small hubs. 1.2 → 5.
-        radius: Math.max(1.2, Math.min(5, 1.2 + Math.sqrt(n.backlinks) * 0.7)),
-        degree,
-        // Degree-weighted charge. Sqrt keeps hub push modest.
-        charge: 130 + Math.sqrt(degree) * 80,
-      };
-    });
-    simNodesRef.current = simNodes;
-    simEdgesRef.current = graph.edges;
-    tickCountRef.current = 0;
-    viewRef.current = { tx: 0, ty: 0, scale: 1 };
+    let inited = false;
 
-    // Pre-settle the layout to equilibrium BEFORE the first paint. We run
-    // up to 600 ticks or until total kinetic energy is negligible — whichever
-    // comes first. The animation that follows does NOT run any physics, so
-    // what the user sees is a completely still graph fading in.
-    for (let i = 0; i < 900; i++) {
-      step();
-      // Start checking for equilibrium once collisions have mostly resolved.
-      if (i > 120 && i % 25 === 0) {
-        let energy = 0;
-        for (const n of simNodes) energy += n.vx * n.vx + n.vy * n.vy;
-        if (energy < 0.015) break;
-      }
-    }
-    // Zero residual velocities so the frozen layout doesn't drift during fade.
-    for (const n of simNodes) { n.vx = 0; n.vy = 0; }
-
-    mountTimeRef.current = performance.now();
-    inhaleRef.current = 0;
-
-    // Fade-in loop: draw only, no physics. 500ms ease-out.
-    const FADE_MS = 500;
-    const fade = () => {
-      const now = performance.now();
-      const t = Math.min(1, (now - mountTimeRef.current) / FADE_MS);
-      // Ease-out cubic.
-      inhaleRef.current = 1 - Math.pow(1 - t, 3);
-      drawRef.current();
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(fade);
-      } else {
-        inhaleRef.current = 1;
-        // After fade, a light idle loop for hover/zoom redraws + idle pulses.
-        const idle = () => {
-          const now2 = performance.now();
-          if (!pulseRef.current) {
-            if (Math.random() < 0.012) {
-              const candidates = simNodesRef.current.filter((n) => n.backlinks >= 3);
-              if (candidates.length > 0) {
-                const pick = candidates[Math.floor(Math.random() * candidates.length)];
-                pulseRef.current = { id: pick.id, startedAt: now2 };
-              }
-            }
-          } else {
-            const age = now2 - pulseRef.current.startedAt;
-            if (age > 600) pulseRef.current = null;
-          }
-          drawRef.current();
-          rafRef.current = requestAnimationFrame(idle);
+    const initSimulation = (w: number, h: number) => {
+      const simNodes: SimNode[] = graph.nodes.map((n, i) => {
+        const angle = (i / graph.nodes.length) * Math.PI * 2;
+        const r = 50 + ((i * 97) % 200);
+        const degree = n.backlinks + n.outlinks;
+        return {
+          ...n,
+          x: w / 2 + Math.cos(angle) * r,
+          y: h / 2 + Math.sin(angle) * r,
+          vx: 0,
+          vy: 0,
+          radius: Math.max(1.2, Math.min(5, 1.2 + Math.sqrt(n.backlinks) * 0.7)),
+          degree,
+          charge: 130 + Math.sqrt(degree) * 80,
         };
-        rafRef.current = requestAnimationFrame(idle);
+      });
+      simNodesRef.current = simNodes;
+      simEdgesRef.current = graph.edges;
+      tickCountRef.current = 0;
+      viewRef.current = { tx: 0, ty: 0, scale: 1 };
+
+      // Pre-settle to equilibrium before first paint.
+      for (let i = 0; i < 900; i++) {
+        step();
+        if (i > 120 && i % 25 === 0) {
+          let energy = 0;
+          for (const n of simNodes) energy += n.vx * n.vx + n.vy * n.vy;
+          if (energy < 0.015) break;
+        }
       }
+      for (const n of simNodes) { n.vx = 0; n.vy = 0; }
     };
-    rafRef.current = requestAnimationFrame(fade);
+
+    const startFadeLoop = () => {
+      mountTimeRef.current = performance.now();
+      inhaleRef.current = 0;
+      const FADE_MS = 500;
+      const fade = () => {
+        const now = performance.now();
+        const t = Math.min(1, (now - mountTimeRef.current) / FADE_MS);
+        inhaleRef.current = 1 - Math.pow(1 - t, 3);
+        drawRef.current();
+        if (t < 1) {
+          rafRef.current = requestAnimationFrame(fade);
+        } else {
+          inhaleRef.current = 1;
+          const idle = () => {
+            const now2 = performance.now();
+            if (!pulseRef.current) {
+              if (Math.random() < 0.012) {
+                const candidates = simNodesRef.current.filter((n) => n.backlinks >= 3);
+                if (candidates.length > 0) {
+                  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+                  pulseRef.current = { id: pick.id, startedAt: now2 };
+                }
+              }
+            } else {
+              const age = now2 - pulseRef.current.startedAt;
+              if (age > 600) pulseRef.current = null;
+            }
+            drawRef.current();
+            rafRef.current = requestAnimationFrame(idle);
+          };
+          rafRef.current = requestAnimationFrame(idle);
+        }
+      };
+      rafRef.current = requestAnimationFrame(fade);
+    };
+
+    const ro = new ResizeObserver(() => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (inited || w === 0 || h === 0) return;
+      inited = true;
+      initSimulation(w, h);
+      startFadeLoop();
+    });
+    ro.observe(container);
 
     return () => {
+      ro.disconnect();
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
