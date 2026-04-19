@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { IconStack } from "@/components/ui/IconStack";
 
 type ProviderId = "ollama-local" | "ollama-cloud" | "openai" | "anthropic";
 
@@ -50,6 +51,7 @@ export function ModelPicker({ current, onChange }: Props) {
   const [conn, setConn] = useState<Conn | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savedFired, setSavedFired] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
 
@@ -124,6 +126,8 @@ export function ModelPicker({ current, onChange }: Props) {
       : activeProvider === "ollama-cloud" ? "ollamaCloud"
       : activeProvider;
     patch({ [slot]: { apiKey: key } });
+    setSavedFired(true);
+    window.setTimeout(() => setSavedFired(false), 400);
   };
 
   const selectModel = (m: string) => {
@@ -273,7 +277,25 @@ export function ModelPicker({ current, onChange }: Props) {
                       opacity: apiKey.trim() ? 1 : 0.5,
                     }}
                   >
-                    Save
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <IconStack
+                        fired={savedFired}
+                        idle={
+                          <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                            <polyline points="17 21 17 13 7 13 7 21" />
+                            <polyline points="7 3 7 8 15 8" />
+                          </svg>
+                        }
+                        success={
+                          <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        }
+                        size={12}
+                      />
+                      Save
+                    </span>
                   </button>
                 </div>
                 {PROVIDER_META[activeProvider].keyHelpUrl && (
