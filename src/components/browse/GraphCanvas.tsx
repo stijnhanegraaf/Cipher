@@ -168,17 +168,26 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       rafRef.current = requestAnimationFrame(fade);
     };
 
-    const ro = new ResizeObserver(() => {
+    const tryInit = () => {
+      if (inited) return;
       const w = container.clientWidth;
       const h = container.clientHeight;
-      if (inited || w === 0 || h === 0) return;
+      if (w === 0 || h === 0) return;
       inited = true;
       initSimulation(w, h);
       startFadeLoop();
-    });
+    };
+
+    // Fire as soon as the browser has painted — covers the common case
+    // where the container already has real dimensions before ResizeObserver
+    // emits its first entry.
+    const raf = requestAnimationFrame(tryInit);
+
+    const ro = new ResizeObserver(tryInit);
     ro.observe(container);
 
     return () => {
+      cancelAnimationFrame(raf);
       ro.disconnect();
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
@@ -678,8 +687,12 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
   return (
     <div
       ref={containerRef}
-      className="relative flex-1"
       style={{
+        position: "relative",
+        flex: "1 1 0%",
+        minHeight: 0,
+        width: "100%",
+        height: "100%",
         background: "var(--bg-marketing)",
         overflow: "hidden",
         cursor: hoveredId ? "pointer" : draggingRef.current?.kind === "pan" ? "grabbing" : "default",
