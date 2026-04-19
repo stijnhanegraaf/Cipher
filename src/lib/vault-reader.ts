@@ -102,10 +102,17 @@ function firstExistingFile(root: string, candidates: string[]): string | null {
 /**
  * Probe the active vault's top-level folder structure.
  *
- * Memoised per-vault: the first call walks candidate folder names
- * (entities / projects / journal / research / work / system) and the
- * result is cached until setVaultPath() clears it. Returns null when
- * no vault is connected.
+ * Three-tier detection, memoised per-vault:
+ *   1. Explicit override — `<vault>/.cipher/layout.json` if present. Any
+ *      field set there wins; unset fields fall through.
+ *   2. Name-based probe — matches common folder names (entities / people
+ *      / contacts, journal / daily / diary, projects, research, work /
+ *      tasks, system, notes / logs / …).
+ *   3. Content heuristics — for any role still unset, scans top-level
+ *      folders and classifies by what's inside (YYYY-MM-DD filenames →
+ *      journal, subdirs with executive-summary.md → research, …).
+ *
+ * Cache cleared by setVaultPath(). Returns null when no vault connected.
  */
 export function getVaultLayout(): VaultLayout | null {
   const root = _currentVaultPath;
@@ -113,7 +120,7 @@ export function getVaultLayout(): VaultLayout | null {
   const cached = _layoutCache.get(root);
   if (cached) return cached;
 
-  const { existsSync, statSync } = require('fs');
+  const { existsSync, statSync, readFileSync, readdirSync } = require('fs');
   const wikiPath = join(root, 'wiki');
   const hasWiki = (() => {
     try { return existsSync(wikiPath) && statSync(wikiPath).isDirectory(); } catch { return false; }
@@ -135,16 +142,158 @@ export function getVaultLayout(): VaultLayout | null {
     return null;
   };
 
+  // ── Tier 1: explicit override ────────────────────────────────────
+  let override: Partial<VaultLayout> = {};
+  try {
+    const overridePath = join(root, '.cipher', 'layout.json');
+    if (existsSync(overridePath)) {
+      const raw = readFileSync(overridePath, 'utf-8');
+      const parsed = JSON.parse(raw) as Partial<VaultLayout>;
+      // Keep only string / null / boolean values from the schema — silently
+      // ignore junk keys.
+      override = {
+        entitiesDir: typeof parsed.entitiesDir === 'string' ? parsed.entitiesDir : undefined,
+        projectsDir: typeof parsed.projectsDir === 'string' ? parsed.projectsDir : undefined,
+        journalDir:  typeof parsed.journalDir  === 'string' ? parsed.journalDir  : undefined,
+        researchDir: typeof parsed.researchDir === 'string' ? parsed.researchDir : undefined,
+        workDir:     typeof parsed.workDir     === 'string' ? parsed.workDir     : undefined,
+        systemDir:   typeof parsed.systemDir   === 'string' ? parsed.systemDir   : undefined,
+        hubFile:     typeof parsed.hubFile     === 'string' ? parsed.hubFile     : undefined,
+      } as Partial<VaultLayout>;
+    }
+  } catch { /* malformed override — silently fall back */ }
+
+  // ── Tier 2: name-based probe ─────────────────────────────────────
+  const ENTITY_NAMES   = ['knowledge/entities', 'entities', 'people', 'contacts', 'companies'];
+  const PROJECT_NAMES  = ['projects', 'knowledge/projects'];
+  const JOURNAL_NAMES  = ['journal', 'daily', 'daily-notes', 'diary', 'days'];
+  const RESEARCH_NAMES = ['knowledge/research', 'research', 'literature'];
+  const WORK_NAMES     = ['work', 'tasks', 'todo', 'todos'];
+  const SYSTEM_NAMES   = ['system', 'meta', 'ops'];
+  const HUB_FILES      = ['dashboard.md', 'index.md', 'home.md', 'README.md'];
+
+  const byName: Partial<VaultLayout> = {
+    entitiesDir: findFolder(ENTITY_NAMES),
+    projectsDir: findFolder(PROJECT_NAMES),
+    journalDir:  findFolder(JOURNAL_NAMES),
+    researchDir: findFolder(RESEARCH_NAMES),
+    workDir:     findFolder(WORK_NAMES),
+    systemDir:   findFolder(SYSTEM_NAMES),
+    hubFile:     findFile(HUB_FILES),
+  };
+
+  // ── Tier 3: content heuristics ───────────────────────────────────
+  // Called only when a field is still null after override + name probe.
+  const inferFromContent = (): Partial<VaultLayout> => {
+    const out: Partial<VaultLayout> = {};
+    const seen = new Set(
+      [byName.entitiesDir, byName.projectsDir, byName.journalDir, byName.researchDir, byName.workDir, byName.systemDir]
+        .filter((d): d is string => !!d)
+    );
+
+    // Candidate folders = every top-level dir under root, plus every
+    // top-level dir under wiki/ if that exists. Up to ~30 dirs in practice.
+    const candidates: string[] = [];
+    const pushDirs = (base: string, prefix: string) => {
+      try {
+        for (const e of readdirSync(base, { withFileTypes: true })) {
+          if (!e.isDirectory()) continue;
+          if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+          const rel = prefix ? `${prefix}/${e.name}` : e.name;
+          if (seen.has(rel)) continue;
+          candidates.push(rel);
+        }
+      } catch { /* ignore */ }
+    };
+    pushDirs(root, '');
+    if (hasWiki) pushDirs(join(root, 'wiki'), 'wiki');
+
+    for (const dir of candidates) {
+      const abs = join(root, dir);
+      let entries: import('fs').Dirent[];
+      try { entries = readdirSync(abs, { withFileTypes: true }); } catch { continue; }
+
+      const files = entries.filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.md'));
+      const subs = entries.filter((e) => e.isDirectory() && !e.name.startsWith('.'));
+      const fileNames = files.map((f) => f.name);
+
+      // Journal: three or more YYYY-MM-DD.md files.
+      if (!out.journalDir && !byName.journalDir) {
+        const dated = fileNames.filter((n) => /^\d{4}-\d{2}-\d{2}\.md$/i.test(n));
+        if (dated.length >= 3) { out.journalDir = dir; continue; }
+      }
+
+      // Research: at least one sub-dir contains executive-summary.md.
+      if (!out.researchDir && !byName.researchDir) {
+        const hit = subs.some((s) => {
+          try {
+            return existsSync(join(abs, s.name, 'executive-summary.md'));
+          } catch { return false; }
+        });
+        if (hit) { out.researchDir = dir; continue; }
+      }
+
+      // Work: a known work-file lives at the top of this dir.
+      if (!out.workDir && !byName.workDir) {
+        const lc = new Set(fileNames.map((n) => n.toLowerCase()));
+        if (lc.has('open.md') || lc.has('waiting-for.md') || lc.has('now.md') || lc.has('today.md')) {
+          out.workDir = dir; continue;
+        }
+      }
+
+      // System: status / health / open-loops at the top.
+      if (!out.systemDir && !byName.systemDir) {
+        const lc = new Set(fileNames.map((n) => n.toLowerCase()));
+        if (lc.has('status.md') || lc.has('health.md') || lc.has('open-loops.md')) {
+          out.systemDir = dir; continue;
+        }
+      }
+
+      // Entity / project heuristic — peek at a few files' frontmatter.
+      if ((!out.entitiesDir && !byName.entitiesDir) || (!out.projectsDir && !byName.projectsDir)) {
+        // Only consider flat folders (mostly .md files, no deep substructure).
+        if (files.length < 3) continue;
+        let entityHits = 0, projectHits = 0;
+        for (const f of files.slice(0, 10)) {
+          try {
+            const head = readFileSync(join(abs, f.name), 'utf-8').slice(0, 600);
+            if (!head.startsWith('---')) continue;
+            const fm = head.slice(3, head.indexOf('\n---', 3));
+            if (/^\s*type:\s*(entity|person|company)/mi.test(fm)) entityHits++;
+            if (/^\s*type:\s*(project|plan|initiative)/mi.test(fm) || /^\s*status:\s*/mi.test(fm)) projectHits++;
+          } catch { /* ignore */ }
+        }
+        if (entityHits >= 2 && !out.entitiesDir && !byName.entitiesDir) { out.entitiesDir = dir; continue; }
+        if (projectHits >= 2 && !out.projectsDir && !byName.projectsDir) { out.projectsDir = dir; continue; }
+      }
+    }
+
+    return out;
+  };
+
+  const byContent = inferFromContent();
+
+  // ── Compose final layout: override > name > content ──────────────
+  const pick = (field: keyof VaultLayout): string | null => {
+    const o = (override as Record<string, unknown>)[field as string];
+    if (typeof o === 'string') return o;
+    const n = (byName as Record<string, unknown>)[field as string];
+    if (typeof n === 'string') return n;
+    const c = (byContent as Record<string, unknown>)[field as string];
+    if (typeof c === 'string') return c;
+    return null;
+  };
+
   const layout: VaultLayout = {
     root,
     hasWiki,
-    entitiesDir: findFolder(['knowledge/entities', 'entities', 'people', 'contacts']),
-    projectsDir: findFolder(['projects', 'knowledge/projects']),
-    journalDir: findFolder(['journal', 'daily', 'daily-notes']),
-    researchDir: findFolder(['knowledge/research', 'research']),
-    workDir: findFolder(['work', 'tasks']),
-    systemDir: findFolder(['system']),
-    hubFile: findFile(['dashboard.md', 'index.md', 'home.md', 'README.md']),
+    entitiesDir: pick('entitiesDir'),
+    projectsDir: pick('projectsDir'),
+    journalDir:  pick('journalDir'),
+    researchDir: pick('researchDir'),
+    workDir:     pick('workDir'),
+    systemDir:   pick('systemDir'),
+    hubFile:     pick('hubFile'),
   };
   _layoutCache.set(root, layout);
   return layout;

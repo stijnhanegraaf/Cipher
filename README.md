@@ -67,19 +67,44 @@ Every page will light up — Today shows tasks, System has checks + broken links
 
 ## Point it at your vault
 
-Cipher auto-detects folder roles by name. This table shows what it looks for:
+Cipher auto-detects folder roles in three tiers — you almost never have to configure anything.
+
+**1. By name.** First pass matches common folder names:
 
 | Role in Cipher | Your folder can be named… |
 |---|---|
-| Entities (people, companies, systems) | `entities`, `people`, `contacts`, or `knowledge/entities` |
-| Journal (per-day notes) | `journal`, `daily`, `daily-notes` |
+| Entities (people, companies, systems) | `entities`, `people`, `contacts`, `companies`, or `knowledge/entities` |
+| Journal (per-day notes) | `journal`, `daily`, `daily-notes`, `diary`, `days` |
 | Projects | `projects` or `knowledge/projects` |
-| Research | `research` or `knowledge/research` |
-| Work (open, waiting-for, logs, weeks) | `work` or `tasks` |
-| System (status, health, open-loops) | `system` |
+| Research | `research`, `literature`, or `knowledge/research` |
+| Work (open, waiting-for, logs, weeks) | `work`, `tasks`, `todo`, `todos` |
+| System (status, health, open-loops) | `system`, `meta`, `ops` |
 | Hub file | `dashboard.md`, `index.md`, `home.md`, or `README.md` at the vault root |
 
-Folders under a `wiki/` root are auto-detected too. Anything the probe doesn't find is simply ignored — the feature that depends on it just doesn't render a section.
+Folders under a `wiki/` root are auto-detected too.
+
+**2. By content.** If a role still isn't found by name, Cipher scans every top-level folder and infers the role from what's inside — so a folder called `brain` or `company-kb` still gets classified correctly:
+
+- Three or more `YYYY-MM-DD.md` files → **journal**
+- A sub-directory containing `executive-summary.md` → **research**
+- `open.md` / `waiting-for.md` / `now.md` / `today.md` at the top → **work**
+- `status.md` / `health.md` / `open-loops.md` at the top → **system**
+- Flat folder of `.md` files whose frontmatter has `type: entity|person|company` → **entities**
+- Flat folder of `.md` files whose frontmatter has `type: project|plan` or `status:` → **projects**
+
+**3. Explicit override.** If detection still gets it wrong (or you just want full control), drop a `<vault>/.cipher/layout.json`:
+
+```json
+{
+  "entitiesDir": "folks",
+  "journalDir": "diary",
+  "workDir": "org/tasks"
+}
+```
+
+Any field set here wins over the auto-probe; fields you omit still auto-detect. This is also the escape hatch when two of your folders could match the same role.
+
+Anything the probe doesn't find is simply ignored — the feature that depends on it just doesn't render a section.
 
 ## Customising the sidebar
 
