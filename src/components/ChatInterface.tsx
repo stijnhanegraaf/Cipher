@@ -213,7 +213,6 @@ export function ChatInterface() {
   return (
     <PageShell
       title="Chat"
-      contentMaxWidth={720}
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <ModelPicker current={model} onChange={selectModel} />
@@ -244,6 +243,8 @@ export function ChatInterface() {
           <div style={{ flex: 1, overflowY: "auto" }}>
             <div
               style={{
+                maxWidth: 720,
+                margin: "0 auto",
                 padding: "24px 32px 120px",
                 display: "flex",
                 flexDirection: "column",
@@ -264,7 +265,7 @@ export function ChatInterface() {
               WebkitBackdropFilter: "blur(20px) saturate(180%)",
             }}
           >
-            <div style={{ padding: "16px 32px 20px" }}>
+            <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px 32px 20px" }}>
               <Composer ref={composerRef} onSubmit={submit} disabled={streaming} />
             </div>
           </div>
