@@ -2,30 +2,42 @@
 
 /**
  * ModelPicker — header action that opens a popover to:
- *   - toggle between Local Ollama and Ollama Cloud,
- *   - paste an API key (Cloud mode),
- *   - pick the active model from the installed tags list.
+ *   - switch between Ollama (local), Ollama Cloud, OpenAI, Anthropic,
+ *   - paste an API key for the active provider (when needed),
+ *   - pick a model from the active provider's tag list.
  *
- * Connection settings persist server-side to <vault>/.cipher/ollama.json
- * via /api/settings/ollama. The selected model name persists to
- * localStorage on the client.
+ * Connection settings persist server-side to <vault>/.cipher/llm.json via
+ * /api/settings/llm. Selected model name persists to localStorage.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+type ProviderId = "ollama-local" | "ollama-cloud" | "openai" | "anthropic";
+
 interface Health {
+  provider: ProviderId;
+  providerLabel: string;
   ok: boolean;
-  model: string;
-  hasModel: boolean;
-  hasEmbedModel: boolean;
+  needsKey: boolean;
   models: string[];
+  defaultModel: string;
+  embedOk: boolean;
 }
 
 interface Conn {
-  mode: "local" | "cloud";
-  hasKey: boolean;
-  baseUrl: string | null;
+  provider: ProviderId;
+  ollamaLocal: { hasKey: boolean; baseUrl: string | null };
+  ollamaCloud: { hasKey: boolean; baseUrl: string | null };
+  openai: { hasKey: boolean; baseUrl: string | null };
+  anthropic: { hasKey: boolean; baseUrl: string | null };
 }
+
+const PROVIDER_META: Record<ProviderId, { label: string; short: string; keyHelpUrl?: string; keyLabel?: string; needsKey: boolean }> = {
+  "ollama-local":  { label: "Ollama (local)", short: "Local",     needsKey: false },
+  "ollama-cloud":  { label: "Ollama Cloud",    short: "Cloud",     keyHelpUrl: "https://ollama.com/settings/keys",      keyLabel: "Ollama key",    needsKey: true  },
+  "openai":        { label: "OpenAI",          short: "OpenAI",    keyHelpUrl: "https://platform.openai.com/api-keys",  keyLabel: "OpenAI key",    needsKey: true  },
+  "anthropic":     { label: "Anthropic",       short: "Claude",    keyHelpUrl: "https://console.anthropic.com/settings/keys", keyLabel: "Anthropic key", needsKey: true  },
+};
 
 interface Props {
   current: string;
@@ -42,22 +54,28 @@ export function ModelPicker({ current, onChange }: Props) {
   const popRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
-    setHealth(null);
     try {
       const [hRes, cRes] = await Promise.all([
         fetch("/api/chat/health", { cache: "no-store" }),
-        fetch("/api/settings/ollama", { cache: "no-store" }),
+        fetch("/api/settings/llm", { cache: "no-store" }),
       ]);
       if (hRes.ok) setHealth((await hRes.json()) as Health);
       if (cRes.ok) setConn((await cRes.json()) as Conn);
-    } catch {
-      setHealth({ ok: false, model: current, hasModel: false, hasEmbedModel: false, models: [] });
-    }
-  }, [current]);
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
-    if (open && !health) refresh();
-  }, [open, health, refresh]);
+    if (open) refresh();
+  }, [open, refresh]);
+
+  // Auto-correct model when the provider's list changes and current is invalid.
+  useEffect(() => {
+    if (!health?.ok) return;
+    if (health.models.length === 0) return;
+    if (!health.models.includes(current) && health.defaultModel) {
+      onChange(health.defaultModel);
+    }
+  }, [health, current, onChange]);
 
   useEffect(() => {
     if (!open) return;
@@ -74,18 +92,20 @@ export function ModelPicker({ current, onChange }: Props) {
     };
   }, [open]);
 
-  const select = (m: string) => {
-    onChange(m);
-    setOpen(false);
-  };
+  const activeProvider = conn?.provider ?? "ollama-local";
+  const providerConn = conn?.[
+    activeProvider === "ollama-local" ? "ollamaLocal"
+    : activeProvider === "ollama-cloud" ? "ollamaCloud"
+    : activeProvider
+  ];
 
-  const setMode = async (mode: "local" | "cloud", key?: string) => {
+  const patch = async (patchBody: Record<string, unknown>) => {
     setSaving(true);
     try {
-      await fetch("/api/settings/ollama", {
+      await fetch("/api/settings/llm", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mode, apiKey: key ?? conn?.hasKey ? key : undefined }),
+        body: JSON.stringify(patchBody),
       });
       setApiKey("");
       await refresh();
@@ -94,7 +114,22 @@ export function ModelPicker({ current, onChange }: Props) {
     }
   };
 
-  const mode = conn?.mode ?? "local";
+  const switchProvider = (p: ProviderId) => patch({ provider: p });
+
+  const saveKey = () => {
+    const key = apiKey.trim();
+    if (!key) return;
+    const slot =
+      activeProvider === "ollama-local" ? "ollamaLocal"
+      : activeProvider === "ollama-cloud" ? "ollamaCloud"
+      : activeProvider;
+    patch({ [slot]: { apiKey: key } });
+  };
+
+  const selectModel = (m: string) => {
+    onChange(m);
+    setOpen(false);
+  };
 
   return (
     <div style={{ position: "relative" }}>
@@ -121,14 +156,7 @@ export function ModelPicker({ current, onChange }: Props) {
           transition: "background var(--motion-hover) var(--ease-default)",
         }}
       >
-        <span
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: 999,
-            background: health?.ok ? "var(--success, #34d399)" : "var(--text-quaternary)",
-          }}
-        />
+        <span style={{ width: 6, height: 6, borderRadius: 999, background: health?.ok ? "var(--success, #34d399)" : "var(--text-quaternary)" }} />
         <span style={{ textTransform: "none" }}>{current}</span>
         <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.6 }}>
           <path d="M6 9l6 6 6-6" />
@@ -142,7 +170,7 @@ export function ModelPicker({ current, onChange }: Props) {
             position: "absolute",
             top: "calc(100% + 6px)",
             right: 0,
-            width: 320,
+            width: 340,
             background: "var(--bg-elevated)",
             border: "1px solid var(--border-subtle)",
             borderRadius: 10,
@@ -151,63 +179,62 @@ export function ModelPicker({ current, onChange }: Props) {
             zIndex: 30,
           }}
         >
-          {/* ── Connection toggle ───────────────────────────────── */}
+          {/* ── Provider switcher ─────────────────────────────── */}
           <div style={{ padding: "8px 8px 10px" }}>
-            <div
-              className="mono-label"
-              style={{ color: "var(--text-quaternary)", letterSpacing: "0.08em", fontSize: 10, marginBottom: 8 }}
-            >
-              CONNECTION
+            <div className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.08em", fontSize: 10, marginBottom: 8 }}>
+              PROVIDER
             </div>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 4,
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 3,
                 padding: 3,
                 background: "var(--bg-surface-alpha-2)",
                 border: "1px solid var(--border-subtle)",
                 borderRadius: 8,
               }}
             >
-              {(["local", "cloud"] as const).map((m) => {
-                const active = mode === m;
+              {(Object.keys(PROVIDER_META) as ProviderId[]).map((p) => {
+                const active = activeProvider === p;
+                const meta = PROVIDER_META[p];
                 return (
                   <button
-                    key={m}
+                    key={p}
                     type="button"
                     disabled={saving || active}
-                    onClick={() => setMode(m)}
+                    onClick={() => switchProvider(p)}
                     className="focus-ring caption"
                     style={{
-                      padding: "6px 8px",
+                      padding: "6px 4px",
                       borderRadius: 6,
                       border: "none",
                       background: active ? "var(--bg-elevated)" : "transparent",
                       color: active ? "var(--text-primary)" : "var(--text-tertiary)",
                       fontWeight: active ? 500 : 400,
                       cursor: active ? "default" : "pointer",
+                      fontSize: 11,
                       boxShadow: active ? "0 1px 2px rgba(0,0,0,0.2)" : "none",
                       transition: "background var(--motion-hover) var(--ease-default)",
                     }}
                   >
-                    {m === "local" ? "Local" : "Cloud"}
+                    {meta.short}
                   </button>
                 );
               })}
             </div>
 
-            {mode === "cloud" && (
+            {PROVIDER_META[activeProvider].needsKey && (
               <div style={{ marginTop: 10 }}>
                 <div className="caption" style={{ color: "var(--text-tertiary)", marginBottom: 6 }}>
-                  {conn?.hasKey ? "API key saved." : "Paste your Ollama Cloud API key."}
+                  {providerConn?.hasKey ? `${PROVIDER_META[activeProvider].keyLabel} saved.` : `Paste your ${PROVIDER_META[activeProvider].keyLabel}.`}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <input
                     type="password"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    placeholder={conn?.hasKey ? "•••••••• (replace)" : "sk-…"}
+                    placeholder={providerConn?.hasKey ? "•••••••• (replace)" : "sk-…"}
                     className="focus-ring"
                     style={{
                       flex: 1,
@@ -225,7 +252,7 @@ export function ModelPicker({ current, onChange }: Props) {
                   <button
                     type="button"
                     disabled={saving || !apiKey.trim()}
-                    onClick={() => setMode("cloud", apiKey.trim())}
+                    onClick={saveKey}
                     className="focus-ring caption"
                     style={{
                       height: 28,
@@ -242,26 +269,45 @@ export function ModelPicker({ current, onChange }: Props) {
                     Save
                   </button>
                 </div>
-                <a
-                  href="https://ollama.com/settings/keys"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="caption"
-                  style={{ display: "inline-block", marginTop: 8, color: "var(--text-quaternary)", textDecoration: "underline" }}
-                >
-                  Get a key →
-                </a>
+                {PROVIDER_META[activeProvider].keyHelpUrl && (
+                  <a
+                    href={PROVIDER_META[activeProvider].keyHelpUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="caption"
+                    style={{ display: "inline-block", marginTop: 8, color: "var(--text-quaternary)", textDecoration: "underline" }}
+                  >
+                    Get a key →
+                  </a>
+                )}
+              </div>
+            )}
+
+            {health && !health.embedOk && (
+              <div
+                className="caption"
+                style={{
+                  marginTop: 10,
+                  padding: "6px 8px",
+                  borderRadius: 6,
+                  border: "1px solid var(--border-subtle)",
+                  background: "var(--bg-surface-alpha-2)",
+                  color: "var(--text-tertiary)",
+                  lineHeight: 1.4,
+                }}
+              >
+                Retrieval needs local Ollama for embeddings. Start it:
+                <code style={{ display: "block", marginTop: 4, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-secondary)" }}>
+                  ollama serve && ollama pull nomic-embed-text
+                </code>
               </div>
             )}
           </div>
 
           <div style={{ height: 1, background: "var(--border-subtle)", margin: "0 4px" }} />
 
-          {/* ── Model list ────────────────────────────────────── */}
-          <div
-            className="mono-label"
-            style={{ padding: "10px 10px 6px", color: "var(--text-quaternary)", letterSpacing: "0.08em", fontSize: 10 }}
-          >
+          {/* ── Model list ─────────────────────────────────────── */}
+          <div className="mono-label" style={{ padding: "10px 10px 6px", color: "var(--text-quaternary)", letterSpacing: "0.08em", fontSize: 10 }}>
             MODELS {health?.ok ? "· CONNECTED" : "· OFFLINE"}
           </div>
 
@@ -271,31 +317,24 @@ export function ModelPicker({ current, onChange }: Props) {
             </div>
           )}
 
-          {health && !health.ok && mode === "local" && (
+          {health && !health.ok && health.needsKey && (
+            <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)" }}>
+              Paste an API key above to connect.
+            </div>
+          )}
+
+          {health && !health.ok && !health.needsKey && activeProvider === "ollama-local" && (
             <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
-              Can&apos;t reach <code style={{ fontFamily: "var(--font-mono)" }}>localhost:11434</code>. Start Ollama:
+              Can&apos;t reach <code style={{ fontFamily: "var(--font-mono)" }}>localhost:11434</code>.
               <code style={{ display: "block", marginTop: 4, padding: "4px 6px", fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--bg-surface)", borderRadius: 4, color: "var(--text-secondary)" }}>
                 ollama serve
               </code>
             </div>
           )}
 
-          {health && !health.ok && mode === "cloud" && (
-            <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
-              Cloud not reachable. Check your API key.
-            </div>
-          )}
-
           {health?.ok && health.models.length === 0 && (
-            <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
-              {mode === "cloud" ? "No cloud models available on this account." : (
-                <>
-                  No models pulled yet:
-                  <code style={{ display: "block", marginTop: 4, padding: "4px 6px", fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--bg-surface)", borderRadius: 4, color: "var(--text-secondary)" }}>
-                    ollama pull {health.model}
-                  </code>
-                </>
-              )}
+            <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)" }}>
+              No models available.
             </div>
           )}
 
@@ -307,7 +346,7 @@ export function ModelPicker({ current, onChange }: Props) {
                   key={m}
                   type="button"
                   role="menuitem"
-                  onClick={() => select(m)}
+                  onClick={() => selectModel(m)}
                   className="focus-ring"
                   style={{
                     display: "flex",
@@ -324,12 +363,8 @@ export function ModelPicker({ current, onChange }: Props) {
                     fontSize: 12,
                     textAlign: "left",
                   }}
-                  onMouseEnter={(e) => {
-                    if (!active) e.currentTarget.style.background = "var(--bg-surface-alpha-2)";
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!active) e.currentTarget.style.background = "transparent";
-                  }}
+                  onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; }}
+                  onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
                 >
                   <span>{m}</span>
                   {active && (

@@ -21,11 +21,16 @@ import { buildView } from "@/lib/view-builder";
 import type { ResponseEnvelope } from "@/lib/view-models";
 import { retrieve } from "@/lib/chat/retrieval";
 import { buildPrompt, parseCitations, type ChatHistoryTurn } from "@/lib/chat/prompt";
-import { streamChat, OllamaDownError, OllamaModelMissingError } from "@/lib/chat/ollama";
+import {
+  getActiveProvider,
+  ProviderDownError,
+  ProviderModelMissingError,
+  ProviderAuthError,
+} from "@/lib/chat/providers";
 import { EmptyVaultError } from "@/lib/chat/embeddings";
 import { log } from "@/lib/log";
 
-const CHAT_MODEL = process.env.CIPHER_CHAT_MODEL || "llama3.2:3b";
+const DEFAULT_MODEL = process.env.CIPHER_CHAT_MODEL || "llama3.2:3b";
 
 interface ChatRequest {
   query: string;
@@ -50,7 +55,7 @@ export async function POST(req: Request) {
   }
   const query = (body.query || "").trim();
   const history = Array.isArray(body.history) ? body.history.slice(-4) : [];
-  const model = (typeof body.model === "string" && body.model.trim()) || CHAT_MODEL;
+  const model = (typeof body.model === "string" && body.model.trim()) || DEFAULT_MODEL;
   if (!query) return new Response("empty query", { status: 400 });
 
   const encoder = new TextEncoder();
@@ -104,8 +109,9 @@ export async function POST(req: Request) {
         });
 
         const messages = buildPrompt({ query, history, chunks });
+        const { provider } = await getActiveProvider();
         const collected: string[] = [];
-        for await (const delta of streamChat(model, messages)) {
+        for await (const delta of provider.streamChat(model, messages)) {
           collected.push(delta);
           emit({ type: "token", text: delta });
         }
@@ -116,10 +122,12 @@ export async function POST(req: Request) {
         emit({ type: "done" });
         controller.close();
       } catch (err) {
-        if (err instanceof OllamaDownError) {
-          emit({ type: "error", code: "ollama-down", message: "Ollama isn't running. Start it with `ollama serve`." });
-        } else if (err instanceof OllamaModelMissingError) {
-          emit({ type: "error", code: "model-missing", message: `Model \`${err.model}\` not pulled. Run \`ollama pull ${err.model}\`.` });
+        if (err instanceof ProviderDownError) {
+          emit({ type: "error", code: "ollama-down", message: `${err.providerId} isn't reachable. Check your connection or API key.` });
+        } else if (err instanceof ProviderAuthError) {
+          emit({ type: "error", code: "model-missing", message: `${err.providerId} auth failed — update the API key in the model picker.` });
+        } else if (err instanceof ProviderModelMissingError) {
+          emit({ type: "error", code: "model-missing", message: `Model \`${err.model}\` not available on ${err.providerId}.` });
         } else if (err instanceof EmptyVaultError) {
           emit({ type: "error", code: "empty-vault", message: "No notes in the vault yet — add a `.md` file first." });
         } else {
