@@ -1,17 +1,53 @@
-# cipher
+<p align="center">
+  <img src="docs/images/chat.png" alt="cipher chat" width="720" />
+</p>
 
-A local AI frontend for your Markdown notes. Point it at an Obsidian-style vault and you get chat, a graph, a structure explorer, and a command palette that knows about every file.
+<h1 align="center">cipher</h1>
 
-![chat](docs/images/chat.png)
-![graph](docs/images/graph.png)
+<p align="center">
+  <b>Obsidian for readers, not writers.</b><br/>
+  A local AI frontend for your Markdown vault — chat, graph, structure, ⌘K.
+</p>
 
-It's a Next.js app I built for my own vault. Everything stays on your machine unless you opt into a cloud model. No plugins, no sync service, no account.
+<p align="center">
+  <a href="#quickstart"><b>Quickstart</b></a> ·
+  <a href="#whats-in-it"><b>What's in it</b></a> ·
+  <a href="#llm-setup"><b>LLM setup</b></a> ·
+  <a href="#status"><b>Status</b></a>
+</p>
+
+---
+
+## Cipher is for you if
+
+- ✅ You keep a folder of Markdown notes and love how local-first that feels.
+- ✅ You want to *ask* your vault questions, not just search it.
+- ✅ You want a graph view that's actually useful, not just pretty.
+- ✅ You'd rather keep your notes + keys on your own machine than trust a cloud.
+- ✅ You're comfortable running a Next.js app from source.
+- ✅ You want something you can fork and make yours, not a SaaS.
+
+## Cipher is *not*
+
+- ❌ A second Obsidian. If you want the editor, stick with Obsidian.
+- ❌ A note-taking app. Cipher reads your vault; it doesn't try to own your writing.
+- ❌ A CMS or publishing tool. Nothing is hosted for you.
+- ❌ A chatbot product. The chat is grounded in your notes, not general-purpose.
+- ❌ A multi-user anything. One person, one machine, one vault.
+
+Cipher is a Next.js app I built for my own vault. Everything stays on your machine unless you opt into a cloud model. No plugins, no sync service, no account.
 
 ## Quickstart
 
 ```bash
-git clone https://github.com/stijnhanegraaf/brain-frontend cipher
-cd cipher && npm install
+npx create-cipher my-vault
+```
+
+Not wired yet — until it is, the manual path is four commands:
+
+```bash
+git clone https://github.com/stijnhanegraaf/Cipher
+cd Cipher && npm install
 echo "VAULT_PATH=/path/to/your/vault" > .env.local
 npm run dev
 ```
