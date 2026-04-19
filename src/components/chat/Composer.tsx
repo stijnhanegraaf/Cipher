@@ -73,7 +73,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         position: "relative",
         width: "100%",
         display: "flex",
-        alignItems: "flex-start",
+        alignItems: "center",
         gap: 10,
         padding: "12px 12px 12px 14px",
         background: "var(--surface-recessed)",
