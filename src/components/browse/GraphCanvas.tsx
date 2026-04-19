@@ -39,6 +39,39 @@ interface SimNode extends GraphNode {
   degree: number;
   /** Per-node charge for degree-weighted repulsion. Hubs push harder. */
   charge: number;
+  /** Deterministic 0..7 folder slot for coloring. */
+  slot: number;
+  /** Breathing phase (0..2π), hashed from id; used by draw(). */
+  phase: number;
+}
+
+// Deterministic 8-slot folder palette. Dark/light variants resolved at draw-time.
+const FOLDER_SLOTS = [
+  { dark: "#818CF8", light: "#6366F1" }, // indigo
+  { dark: "#C4B5FD", light: "#A78BFA" }, // violet
+  { dark: "#6EE7B7", light: "#34D399" }, // emerald
+  { dark: "#FBBF24", light: "#F59E0B" }, // amber
+  { dark: "#F472B6", light: "#EC4899" }, // pink
+  { dark: "#67E8F9", light: "#06B6D4" }, // cyan
+  { dark: "#94A3B8", light: "#64748B" }, // slate
+  { dark: "#FCA5A5", light: "#F87171" }, // rose
+] as const;
+
+function folderSlot(folder: string): number {
+  const key = folder.split("/")[0] || "root";
+  let h = 0;
+  for (let i = 0; i < key.length; i++) {
+    h = (h * 31 + key.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h) % 8;
+}
+
+function hashPhase(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 31 + id.charCodeAt(i)) | 0;
+  }
+  return (Math.abs(h) % 6283) / 1000; // 0..~2π
 }
 
 /**
@@ -113,6 +146,8 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
           radius: Math.max(1.2, Math.min(5, 1.2 + Math.sqrt(n.backlinks) * 0.7)),
           degree,
           charge: 130 + Math.sqrt(degree) * 80,
+          slot: folderSlot(n.folder),
+          phase: hashPhase(n.id),
         };
       });
       simNodesRef.current = simNodes;
@@ -442,26 +477,39 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       ctx.beginPath();
       ctx.arc(n.x, n.y, n.radius * inhaleScale, 0, Math.PI * 2);
 
+      const isOrphan = n.degree === 0;
+      const slot = FOLDER_SLOTS[n.slot];
+      const slotColor = isLight ? slot.light : slot.dark;
+      const orphanColor = style.getPropertyValue("--text-quaternary").trim() || (isLight ? "#9aa0a6" : "#6b7280");
+
       if (hovered || selected) {
         ctx.fillStyle = colAccent;
         ctx.shadowColor = colAccent;
         ctx.shadowBlur = 18;
-      } else if (isHub) {
-        ctx.fillStyle = colStarHub;
-        ctx.shadowColor = isLight ? "rgba(94,106,210,0.6)" : "rgba(200,220,255,0.95)";
-        ctx.shadowBlur = 16;
-      } else if (isBright) {
-        ctx.fillStyle = colStarBright;
-        ctx.shadowColor = isLight ? "rgba(94,106,210,0.4)" : "rgba(200,220,255,0.85)";
-        ctx.shadowBlur = 8;
-      } else {
-        ctx.fillStyle = colStar;
+      } else if (isOrphan) {
+        ctx.fillStyle = orphanColor;
         ctx.shadowBlur = 0;
+      } else {
+        ctx.fillStyle = slotColor;
+        ctx.shadowColor = slotColor;
+        ctx.shadowBlur = isHub ? 14 : isBright ? 6 : 0;
       }
 
-      ctx.globalAlpha = (active ? 1 : 0.15) * inhaleAlpha * pulseMul * focusAlpha;
+      ctx.globalAlpha = (active ? 1 : 0.15) * inhaleAlpha * pulseMul * focusAlpha * 0.85;
       ctx.fill();
       ctx.shadowBlur = 0;
+
+      // Slot ring (skip for orphans, skip when selected — selected draws brand ring).
+      if (!isOrphan && !selected) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.radius * inhaleScale + 0.8 / scale, 0, Math.PI * 2);
+        ctx.strokeStyle = hovered
+          ? (isLight ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,1)")
+          : slotColor;
+        ctx.lineWidth = 1 / scale;
+        ctx.globalAlpha = (active ? 1 : 0.15) * inhaleAlpha * focusAlpha;
+        ctx.stroke();
+      }
 
       if (selected) {
         ctx.beginPath();
