@@ -1144,7 +1144,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
           userSelect: "none",
         }}
       >
-        drag · scroll to zoom · ↑↓←→ pan · f fit · esc reset
+        drag · scroll zoom · arrows pan · f fit · esc reset
       </div>
       {focusLinks && focusLinks.node && typeof document !== "undefined"
         ? createPortal(
@@ -1166,7 +1166,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
               }}
             >
               <div className="mono-label" style={{ color: "var(--text-quaternary)", marginBottom: 8 }}>
-                FOCUSED · {focusLinks.backlinks.length} backlinks · {focusLinks.outlinks.length} outlinks
+                FOCUSED · {focusLinks.backlinks.length} LINKED FROM · {focusLinks.outlinks.length} LINKS TO
               </div>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                 <div style={{ minWidth: 0 }}>

@@ -255,7 +255,7 @@ export function ModelPicker({ current, onChange }: Props) {
             {PROVIDER_META[activeProvider].needsKey && (
               <div style={{ marginTop: 10 }}>
                 <div className="caption" style={{ color: "var(--text-tertiary)", marginBottom: 6 }}>
-                  {providerConn?.hasKey ? `${PROVIDER_META[activeProvider].keyLabel} saved.` : `Paste your ${PROVIDER_META[activeProvider].keyLabel}.`}
+                  {providerConn?.hasKey ? `Key saved` : `Paste your ${PROVIDER_META[activeProvider].keyLabel}`}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <input
@@ -343,7 +343,7 @@ export function ModelPicker({ current, onChange }: Props) {
                   lineHeight: 1.4,
                 }}
               >
-                Retrieval needs local Ollama for embeddings. Start it:
+                Search needs Ollama running locally. Start it:
                 <code style={{ display: "block", marginTop: 4, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-secondary)" }}>
                   ollama serve && ollama pull nomic-embed-text
                 </code>
@@ -372,7 +372,7 @@ export function ModelPicker({ current, onChange }: Props) {
 
           {health && !health.ok && !health.needsKey && activeProvider === "ollama-local" && (
             <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
-              Can&apos;t reach <code style={{ fontFamily: "var(--font-mono)" }}>localhost:11434</code>.
+              Can't reach <code style={{ fontFamily: "var(--font-mono)" }}>localhost:11434</code>.
               <code style={{ display: "block", marginTop: 4, padding: "4px 6px", fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--bg-surface)", borderRadius: 4, color: "var(--text-secondary)" }}>
                 ollama serve
               </code>
@@ -381,7 +381,7 @@ export function ModelPicker({ current, onChange }: Props) {
 
           {health?.ok && health.models.length === 0 && (
             <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)" }}>
-              No models available.
+              No models yet. Pull one with <code style={{ fontFamily: "var(--font-mono)" }}>ollama pull llama3.2:3b</code>
             </div>
           )}
 

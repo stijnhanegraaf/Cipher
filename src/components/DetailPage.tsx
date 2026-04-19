@@ -714,7 +714,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
                             margin: 0,
                           }}
                         >
-                          {isNotFound ? `Couldn't find "${fileName}"` : "Something went wrong"}
+                          {isNotFound ? `Couldn't find "${fileName}"` : "Couldn't load this file"}
                         </p>
                         <p
                           style={{
