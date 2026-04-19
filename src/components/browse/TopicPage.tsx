@@ -61,6 +61,7 @@ export function TopicPage({ name }: { name: string }) {
     <PageShell
       title={title}
       subtitle={subtitle}
+      contentMaxWidth={880}
       actions={
         <PageAction label="Open in Obsidian" onClick={openObsidian}>
           <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -69,7 +70,7 @@ export function TopicPage({ name }: { name: string }) {
         </PageAction>
       }
     >
-      <div style={{ padding: "24px 32px 80px", maxWidth: 880, margin: "0 auto" }}>
+      <div style={{ padding: "24px 32px 80px" }}>
         {loading && <p className="small" style={{ color: "var(--text-quaternary)" }}>Loading…</p>}
         {!loading && data && (
           <>

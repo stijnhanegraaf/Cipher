@@ -66,7 +66,7 @@ export function TodayRow({ task, onToggle, pendingCheck = false, onAsk }: Props)
         gap: 12,
         width: "100%",
         height: "var(--row-h-cozy)",
-        padding: "0 16px",
+        padding: "0 32px",
         cursor: "pointer",
         textAlign: "left",
         borderBottom: "1px solid var(--border-subtle)",
