@@ -231,6 +231,28 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         }
       }
       for (const n of simNodes) { n.vx = 0; n.vy = 0; }
+
+      // Auto-fit: compute the settled bounding box and size the camera so
+      // the graph fills ~85% of the viewport. Gives mount presence without
+      // clipping hub labels.
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const n of simNodes) {
+        if (n.x < minX) minX = n.x;
+        if (n.y < minY) minY = n.y;
+        if (n.x > maxX) maxX = n.x;
+        if (n.y > maxY) maxY = n.y;
+      }
+      const bboxW = Math.max(1, maxX - minX);
+      const bboxH = Math.max(1, maxY - minY);
+      const fit = Math.min((w * 0.85) / bboxW, (h * 0.85) / bboxH);
+      const scale = Math.min(2.2, Math.max(0.9, fit));
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      viewRef.current = {
+        tx: w / 2 - cx * scale,
+        ty: h / 2 - cy * scale,
+        scale,
+      };
     };
 
     const startFadeLoop = () => {
