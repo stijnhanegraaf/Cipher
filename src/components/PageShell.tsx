@@ -141,9 +141,13 @@ export function PageShell({ title, subtitle, icon, actions, toolbar, contentMaxW
         </div>
       )}
 
-      {/* ── Body — scrollable ──────────────────────────────────── */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", scrollbarWidth: "thin" }}>
-        <div style={{ ...innerConstraint }}>{children}</div>
+      {/* ── Body — scrollable. Height cascades through the inner
+             constraint wrapper so pages with full-height content
+             (GraphCanvas etc.) still get 100% height. ───────── */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", scrollbarWidth: "thin", display: "flex", flexDirection: "column" }}>
+        <div style={{ ...innerConstraint, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          {children}
+        </div>
       </div>
     </div>
   );
