@@ -471,19 +471,24 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           href="https://github.com/stijnhanegraaf"
           target="_blank"
           rel="noreferrer"
+          title="by stijn hanegraaf"
+          aria-label="by stijn hanegraaf"
           className="focus-ring"
           style={{
             display: "block",
             padding: "8px 10px 0",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
             fontSize: 10,
-            letterSpacing: "0.04em",
-            color: "var(--text-quaternary)",
+            lineHeight: 1,
+            color: "color-mix(in srgb, var(--text-quaternary) 55%, transparent)",
             textDecoration: "none",
+            transition: "color var(--motion-micro) var(--ease-out-gentle)",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-quaternary)"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-quaternary)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "color-mix(in srgb, var(--text-quaternary) 55%, transparent)"; }}
         >
-          by stijn hanegraaf
+          stijn
         </a>
       </div>
     </aside>
