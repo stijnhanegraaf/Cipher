@@ -401,57 +401,64 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           gap: 2,
         }}
       >
-        <button
-          type="button"
-          onClick={onToggleTheme}
-          aria-label="Toggle appearance"
-          title="Toggle appearance"
-          className="focus-ring app-row flex items-center gap-2.5 rounded-[8px] cursor-pointer"
-          style={{
-            height: 32,
-            padding: "0 12px",
-            background: "transparent",
-            border: "none",
-            color: "var(--text-tertiary)",
-            fontSize: 13,
-            fontWeight: 500,
-            letterSpacing: -0.1,
-            textAlign: "left",
-            transition: "background-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-surface-alpha-2)"; e.currentTarget.style.color = "var(--text-primary)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--text-tertiary)"; }}
+        <div
+          className="flex items-center"
+          style={{ height: 32, padding: "0 12px", gap: 10 }}
         >
-          <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 14, color: "var(--text-tertiary)" }}>
-            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20.354 15.354A9 9 0 018.646 3.646 9 9 0 0012 21a9 9 0 008.354-5.646z" />
-            </svg>
-          </span>
-          Appearance
-        </button>
-        <a
-          href="https://github.com/stijnhanegraaf"
-          target="_blank"
-          rel="noreferrer"
-          title="by stijn hanegraaf"
-          aria-label="by stijn hanegraaf"
-          className="focus-ring"
-          style={{
-            display: "block",
-            padding: "8px 10px 0",
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: 10,
-            lineHeight: 1,
-            color: "color-mix(in srgb, var(--text-quaternary) 55%, transparent)",
-            textDecoration: "none",
-            transition: "color var(--motion-micro) var(--ease-out-gentle)",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-quaternary)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "color-mix(in srgb, var(--text-quaternary) 55%, transparent)"; }}
-        >
-          by Stijn
-        </a>
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            aria-label="Toggle appearance"
+            title="Toggle appearance"
+            className="focus-ring flex items-center"
+            style={{
+              gap: 10,
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              color: "var(--text-quaternary)",
+              fontSize: 12,
+              fontWeight: 400,
+              letterSpacing: -0.1,
+              cursor: "pointer",
+              flex: 1,
+              minWidth: 0,
+              textAlign: "left",
+              transition: "color var(--motion-hover) var(--ease-default)",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-quaternary)"; }}
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14 }}>
+              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.354 15.354A9 9 0 018.646 3.646 9 9 0 0012 21a9 9 0 008.354-5.646z" />
+              </svg>
+            </span>
+            Appearance
+          </button>
+          <a
+            href="https://github.com/stijnhanegraaf"
+            target="_blank"
+            rel="noreferrer"
+            title="by stijn hanegraaf"
+            aria-label="by stijn hanegraaf"
+            className="focus-ring"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 11,
+              lineHeight: 1,
+              color: "color-mix(in srgb, var(--text-quaternary) 55%, transparent)",
+              textDecoration: "none",
+              flexShrink: 0,
+              transition: "color var(--motion-micro) var(--ease-out-gentle)",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-quaternary)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "color-mix(in srgb, var(--text-quaternary) 55%, transparent)"; }}
+          >
+            by Stijn
+          </a>
+        </div>
       </div>
     </aside>
   );
