@@ -1,10 +1,8 @@
 /**
- * Provider router — reads llm-settings and returns the active provider.
+ * Provider router — reads llm-settings and returns the active chat provider.
  *
- * Also exports a dedicated `embedWithOllamaLocal()` function that the
- * retrieval pipeline uses unconditionally (Anthropic has no embeddings
- * API; running Ollama locally for nomic-embed-text is the cheap universal
- * option per the spec).
+ * Embedding backends are resolved separately via `resolveEmbedder()` in
+ * `./embeddings` (the active chat provider is preferred; Ollama is a fallback).
  */
 
 import "server-only";
@@ -16,6 +14,7 @@ import { createAnthropicProvider } from "./anthropic";
 
 export { ProviderDownError, ProviderModelMissingError, ProviderAuthError } from "./types";
 export type { ChatMessage, ChatProvider, ProviderStatus } from "./types";
+export { resolveEmbedder, embedLabel, type Embedder, type EmbedderId } from "./embeddings";
 
 export function createProvider(id: ProviderId, settings: LLMSettings): ChatProvider {
   switch (id) {
@@ -29,28 +28,4 @@ export function createProvider(id: ProviderId, settings: LLMSettings): ChatProvi
 export async function getActiveProvider(): Promise<{ provider: ChatProvider; settings: LLMSettings }> {
   const settings = await readLLMSettings();
   return { provider: createProvider(settings.provider, settings), settings };
-}
-
-// ── Dedicated Ollama-local embedding ─────────────────────────────────
-// Retrieval always runs through local Ollama regardless of chat provider.
-// Falls back to skipping embedding if Ollama isn't running.
-
-interface OllamaEmbeddingsResponse { embedding: number[] }
-
-export async function embedWithOllamaLocal(model: string, prompt: string): Promise<number[]> {
-  const base = "http://localhost:11434";
-  let res: Response;
-  try {
-    res = await fetch(`${base}/api/embeddings`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model, prompt }),
-    });
-  } catch {
-    throw new Error("Ollama not reachable for embeddings. Start it with `ollama serve`.");
-  }
-  if (!res.ok) throw new Error(`Embedding failed: ${res.status}`);
-  const json = (await res.json()) as OllamaEmbeddingsResponse;
-  if (!Array.isArray(json.embedding)) throw new Error("Malformed embedding response");
-  return json.embedding;
 }

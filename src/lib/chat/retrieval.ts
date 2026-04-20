@@ -12,8 +12,10 @@
 
 import "server-only";
 import { fuzzyScore } from "@/lib/fuzzy";
-import { cosine, ensureIndex, EMBED_MODEL, type IndexChunk, type IndexProgress } from "./embeddings";
-import { embedWithOllamaLocal as embed } from "./providers";
+import { cosine, ensureIndex, type IndexChunk, type IndexProgress } from "./embeddings";
+import { resolveEmbedder } from "./providers";
+import { readLLMSettings } from "@/lib/llm-settings";
+import { log } from "@/lib/log";
 
 export interface RetrievedChunk {
   id: string;
@@ -28,7 +30,17 @@ const FINAL_TOP_N = 8;
 const TOKEN_BUDGET = 3000;
 
 export async function retrieve(query: string, onProgress?: IndexProgress): Promise<RetrievedChunk[]> {
-  const index = await ensureIndex(onProgress);
+  const settings = await readLLMSettings();
+  const embedder = await resolveEmbedder(settings);
+
+  // Degraded path: no embedder reachable. Rank by keyword alone against
+  // whatever chunks the existing (possibly stale) index has, else bail.
+  if (!embedder) {
+    log.info("chat/retrieval", "no embedder available; using keyword-only ranking");
+    return keywordOnly(query);
+  }
+
+  const index = await ensureIndex(embedder, onProgress);
   if (index.chunks.length === 0) return [];
 
   // 1. Keyword shortlist.
@@ -43,8 +55,17 @@ export async function retrieve(query: string, onProgress?: IndexProgress): Promi
   // scoring the whole corpus with cosine. Cheap at vault scale.
   const pool: IndexChunk[] = scored.length > 0 ? scored : index.chunks;
 
-  // 2. Embed the query.
-  const qVec = await embed(EMBED_MODEL, query);
+  // 2. Embed the query. On failure, degrade to keyword-only for this request.
+  let qVec: number[];
+  try {
+    qVec = await embedder.embed(query);
+  } catch (err) {
+    log.warn("chat/retrieval", `query embed failed via ${embedder.id}; falling back to keyword-only`, err);
+    const top = scored.slice(0, FINAL_TOP_N).map((c) => ({ c, sim: 0 }));
+    return truncateToBudget(top, TOKEN_BUDGET).map(({ c, sim }) => ({
+      id: c.id, path: c.path, heading: c.heading, text: c.text, score: sim,
+    }));
+  }
 
   // 3. Cosine rerank.
   const ranked = pool
@@ -61,6 +82,23 @@ export async function retrieve(query: string, onProgress?: IndexProgress): Promi
     heading: c.heading,
     text: c.text,
     score: sim,
+  }));
+}
+
+async function keywordOnly(query: string): Promise<RetrievedChunk[]> {
+  // Without an embedder we can't build or refresh an index; read whatever is
+  // already on disk and rank by fuzzy score. If nothing exists, return empty.
+  const { loadExistingIndex } = await import("./embeddings");
+  const index = await loadExistingIndex();
+  if (!index || index.chunks.length === 0) return [];
+  const scored = index.chunks
+    .map((c) => ({ c, s: fuzzyScore(query, c.text) }))
+    .filter((x) => x.s !== Infinity)
+    .sort((a, b) => a.s - b.s)
+    .slice(0, FINAL_TOP_N)
+    .map(({ c }) => ({ c, sim: 0 }));
+  return truncateToBudget(scored, TOKEN_BUDGET).map(({ c, sim }) => ({
+    id: c.id, path: c.path, heading: c.heading, text: c.text, score: sim,
   }));
 }
 
