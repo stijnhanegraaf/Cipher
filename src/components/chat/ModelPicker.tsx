@@ -22,7 +22,11 @@ interface Health {
   needsKey: boolean;
   models: string[];
   defaultModel: string;
-  embedOk: boolean;
+  embed: {
+    ok: boolean;
+    source: "openai" | "ollama-local" | "ollama-cloud" | "keyword-only";
+    label: string;
+  };
 }
 
 interface Conn {
@@ -33,11 +37,41 @@ interface Conn {
   anthropic: { hasKey: boolean; baseUrl: string | null };
 }
 
-const PROVIDER_META: Record<ProviderId, { label: string; short: string; keyHelpUrl?: string; keyLabel?: string; needsKey: boolean }> = {
-  "ollama-local":  { label: "Ollama (local)", short: "Local",     needsKey: false },
-  "ollama-cloud":  { label: "Ollama Cloud",    short: "Cloud",     keyHelpUrl: "https://ollama.com/settings/keys",      keyLabel: "Ollama key",    needsKey: true  },
-  "openai":        { label: "OpenAI",          short: "OpenAI",    keyHelpUrl: "https://platform.openai.com/api-keys",  keyLabel: "OpenAI key",    needsKey: true  },
-  "anthropic":     { label: "Anthropic",       short: "Claude",    keyHelpUrl: "https://console.anthropic.com/settings/keys", keyLabel: "Anthropic key", needsKey: true  },
+const PROVIDER_META: Record<ProviderId, {
+  label: string;
+  short: string;
+  tagline: string;
+  needsKey: boolean;
+  keyLabel?: string;
+  keyHint?: string;
+  keyHelpUrl?: string;
+  keyHelpLabel?: string;
+}> = {
+  "ollama-local": {
+    label: "Ollama (local)", short: "Local", needsKey: false,
+    tagline: "Runs on this Mac. Private and free.",
+  },
+  "ollama-cloud": {
+    label: "Ollama Cloud", short: "Cloud", needsKey: true,
+    tagline: "Ollama's hosted models. No local GPU needed.",
+    keyLabel: "Ollama Cloud key", keyHint: "ollama-...",
+    keyHelpUrl: "https://ollama.com/settings/keys",
+    keyHelpLabel: "Get a key at ollama.com/settings/keys",
+  },
+  "openai": {
+    label: "OpenAI", short: "OpenAI", needsKey: true,
+    tagline: "GPT-4o and o-series. Pay per token.",
+    keyLabel: "OpenAI API key", keyHint: "sk-...",
+    keyHelpUrl: "https://platform.openai.com/api-keys",
+    keyHelpLabel: "Get a key at platform.openai.com",
+  },
+  "anthropic": {
+    label: "Anthropic", short: "Claude", needsKey: true,
+    tagline: "Claude 3.5 and 4 family. Pay per token.",
+    keyLabel: "Anthropic API key", keyHint: "sk-ant-...",
+    keyHelpUrl: "https://console.anthropic.com/settings/keys",
+    keyHelpLabel: "Get a key at console.anthropic.com",
+  },
 };
 
 interface Props {
@@ -114,14 +148,14 @@ export function ModelPicker({ current, onChange }: Props) {
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
         console.error("Failed to save LLM settings", txt);
-        setSaveError("Couldn't save — try again");
+        setSaveError("Couldn't save. Try again.");
         return;
       }
       setApiKey("");
       await refresh();
     } catch (err) {
       console.error("Failed to save LLM settings", err);
-      setSaveError("Couldn't save — try again");
+      setSaveError("Couldn't save. Try again.");
     } finally {
       setSaving(false);
     }
@@ -145,6 +179,15 @@ export function ModelPicker({ current, onChange }: Props) {
     onChange(m);
     setOpen(false);
   };
+
+  const activeMeta = PROVIDER_META[activeProvider];
+  const isConnected = !!health?.ok && !health.needsKey && health.models.length > 0;
+  const labelText =
+    !health              ? "Checking…" :
+    health.needsKey      ? `Connect ${activeMeta.short}` :
+    !health.ok           ? `${activeMeta.short} offline` :
+    health.models.length === 0 ? "No models" :
+    current;
 
   return (
     <div style={{ position: "relative" }}>
@@ -175,11 +218,11 @@ export function ModelPicker({ current, onChange }: Props) {
           width: 6,
           height: 6,
           borderRadius: 999,
-          background: health?.ok && !health.needsKey && health.models.length > 0
+          background: isConnected
             ? "var(--success, #34d399)"
             : "var(--text-quaternary)",
         }} />
-        <span style={{ textTransform: "none" }}>{current}</span>
+        <span style={{ textTransform: "none" }}>{labelText}</span>
         <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.6 }}>
           <path d="M6 9l6 6 6-6" />
         </svg>
@@ -246,23 +289,28 @@ export function ModelPicker({ current, onChange }: Props) {
               })}
             </div>
 
+            <div className="caption" style={{ marginTop: 8, color: "var(--text-tertiary)", lineHeight: 1.4 }}>
+              {activeMeta.tagline}
+            </div>
+
             {saveError && (
               <div className="caption" style={{ marginTop: 6, color: "var(--status-danger, #c0392b)" }}>
                 {saveError}
               </div>
             )}
 
-            {PROVIDER_META[activeProvider].needsKey && (
+            {activeMeta.needsKey && (
               <div style={{ marginTop: 10 }}>
                 <div className="caption" style={{ color: "var(--text-tertiary)", marginBottom: 6 }}>
-                  {providerConn?.hasKey ? `Key saved` : `Paste your ${PROVIDER_META[activeProvider].keyLabel}`}
+                  {providerConn?.hasKey ? `${activeMeta.keyLabel} saved` : `Paste your ${activeMeta.keyLabel}`}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <input
                     type="password"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    placeholder={providerConn?.hasKey ? "•••••••• (replace)" : "sk-…"}
+                    placeholder={providerConn?.hasKey ? "•••••••• (replace)" : (activeMeta.keyHint ?? "API key")}
+                    aria-label={activeMeta.keyLabel ?? "API key"}
                     className="focus-ring"
                     style={{
                       flex: 1,
@@ -312,25 +360,25 @@ export function ModelPicker({ current, onChange }: Props) {
                         }
                         size={12}
                       />
-                      Save
+                      {providerConn?.hasKey && apiKey.trim() ? "Replace" : "Save"}
                     </span>
                   </button>
                 </div>
-                {PROVIDER_META[activeProvider].keyHelpUrl && (
+                {activeMeta.keyHelpUrl && (
                   <a
-                    href={PROVIDER_META[activeProvider].keyHelpUrl}
+                    href={activeMeta.keyHelpUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="caption"
                     style={{ display: "inline-block", marginTop: 8, color: "var(--text-quaternary)", textDecoration: "underline" }}
                   >
-                    Get a key →
+                    {activeMeta.keyHelpLabel ?? "Get a key →"}
                   </a>
                 )}
               </div>
             )}
 
-            {health && !health.embedOk && (
+            {health?.embed && (
               <div
                 className="caption"
                 style={{
@@ -339,14 +387,13 @@ export function ModelPicker({ current, onChange }: Props) {
                   borderRadius: 6,
                   border: "1px solid var(--border-subtle)",
                   background: "var(--bg-surface-alpha-2)",
-                  color: "var(--text-tertiary)",
+                  color: health.embed.source === "keyword-only"
+                    ? "var(--status-warning, #d19a66)"
+                    : "var(--text-tertiary)",
                   lineHeight: 1.4,
                 }}
               >
-                Search needs Ollama running locally. Start it:
-                <code style={{ display: "block", marginTop: 4, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-secondary)" }}>
-                  ollama serve && ollama pull nomic-embed-text
-                </code>
+                {health.embed.label}
               </div>
             )}
           </div>
@@ -365,23 +412,40 @@ export function ModelPicker({ current, onChange }: Props) {
           )}
 
           {health && !health.ok && health.needsKey && (
-            <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)" }}>
-              Paste an API key above to connect.
+            <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
+              Paste your {activeMeta.keyLabel} above and press Save. Stored in your vault. Only sent to {activeMeta.label}.
             </div>
           )}
 
           {health && !health.ok && !health.needsKey && activeProvider === "ollama-local" && (
             <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
-              Can't reach <code style={{ fontFamily: "var(--font-mono)" }}>localhost:11434</code>.
+              Ollama isn't running. Start it in Terminal:
               <code style={{ display: "block", marginTop: 4, padding: "4px 6px", fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--bg-surface)", borderRadius: 4, color: "var(--text-secondary)" }}>
                 ollama serve
+              </code>
+              <a
+                href="https://ollama.com/download"
+                target="_blank"
+                rel="noreferrer"
+                style={{ display: "inline-block", marginTop: 6, color: "var(--text-quaternary)", textDecoration: "underline" }}
+              >
+                Don't have Ollama? Download it here
+              </a>
+            </div>
+          )}
+
+          {health?.ok && health.models.length === 0 && activeProvider === "ollama-local" && (
+            <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
+              No models installed yet. Pull one:
+              <code style={{ display: "block", marginTop: 4, padding: "4px 6px", fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--bg-surface)", borderRadius: 4, color: "var(--text-secondary)" }}>
+                ollama pull llama3.2:3b
               </code>
             </div>
           )}
 
-          {health?.ok && health.models.length === 0 && (
-            <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)" }}>
-              No models yet. Pull one with <code style={{ fontFamily: "var(--font-mono)" }}>ollama pull llama3.2:3b</code>
+          {health?.ok && health.models.length === 0 && activeProvider !== "ollama-local" && (
+            <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
+              Connected, but this key has no models available. Check your {activeMeta.label} account.
             </div>
           )}
 
