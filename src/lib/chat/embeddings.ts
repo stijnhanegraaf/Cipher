@@ -16,10 +16,8 @@ import "server-only";
 import { readFile, writeFile, mkdir, rename, readdir, stat } from "fs/promises";
 import { join, dirname } from "path";
 import { getVaultPath } from "@/lib/vault-reader";
-import { embedWithOllamaLocal as embed } from "./providers";
+import type { Embedder, EmbedderId } from "./providers/embeddings";
 import { log } from "@/lib/log";
-
-export const EMBED_MODEL = "nomic-embed-text";
 
 export interface IndexChunk {
   id: string;          // `${path}#${headingSlug || windowIndex}`
@@ -31,7 +29,9 @@ export interface IndexChunk {
 }
 
 export interface EmbeddingIndex {
+  embedder: EmbedderId;
   model: string;
+  dim: number;
   builtAt: number;
   chunks: IndexChunk[];
 }
@@ -50,7 +50,7 @@ export type IndexProgress = (done: number, total: number) => void;
  * `onProgress(done, total)` is called before each chunk is embedded; use
  * it to stream progress events to the client.
  */
-export async function ensureIndex(onProgress?: IndexProgress): Promise<EmbeddingIndex> {
+export async function ensureIndex(embedder: Embedder, onProgress?: IndexProgress): Promise<EmbeddingIndex> {
   const vault = getVaultPath();
   if (!vault) throw new Error("No vault connected");
   const indexPath = join(vault, ".cipher", "embeddings.json");
@@ -60,11 +60,19 @@ export async function ensureIndex(onProgress?: IndexProgress): Promise<Embedding
   if (files.length === 0) throw new EmptyVaultError();
 
   const maxMtime = files.reduce((m, f) => Math.max(m, f.mtime), 0);
-  if (existing && existing.model === EMBED_MODEL && existing.builtAt >= maxMtime) {
+  const compatible =
+    existing &&
+    existing.embedder === embedder.id &&
+    existing.model === embedder.model &&
+    existing.dim === embedder.dim;
+  if (compatible && existing.builtAt >= maxMtime) {
     return existing;
   }
 
-  log.info("chat/embed", `rebuilding index: ${files.length} files, maxMtime=${maxMtime}, builtAt=${existing?.builtAt ?? 0}`);
+  log.info(
+    "chat/embed",
+    `rebuilding index: ${files.length} files, embedder=${embedder.id}/${embedder.model} (${embedder.dim}d), maxMtime=${maxMtime}, builtAt=${existing?.builtAt ?? 0}`,
+  );
 
   // Collect all chunks up front so progress total is meaningful.
   const pending: { path: string; heading?: string; text: string; mtime: number }[] = [];
@@ -82,7 +90,7 @@ export async function ensureIndex(onProgress?: IndexProgress): Promise<Embedding
     onProgress?.(i, total);
     const p = pending[i];
     try {
-      const vec = await embed(EMBED_MODEL, p.text);
+      const vec = await embedder.embed(p.text);
       chunks.push({
         id: `${p.path}#${slugify(p.heading || `w${i}`)}`,
         path: p.path,
@@ -97,9 +105,25 @@ export async function ensureIndex(onProgress?: IndexProgress): Promise<Embedding
   }
   onProgress?.(total, total);
 
-  const index: EmbeddingIndex = { model: EMBED_MODEL, builtAt: Date.now(), chunks };
+  const index: EmbeddingIndex = {
+    embedder: embedder.id,
+    model: embedder.model,
+    dim: embedder.dim,
+    builtAt: Date.now(),
+    chunks,
+  };
   await writeIndexAtomically(indexPath, index);
   return index;
+}
+
+/**
+ * Read the on-disk index as-is without rebuilding. Used by the keyword-only
+ * fallback when no embedder is reachable.
+ */
+export async function loadExistingIndex(): Promise<EmbeddingIndex | null> {
+  const vault = getVaultPath();
+  if (!vault) return null;
+  return loadIndex(join(vault, ".cipher", "embeddings.json"));
 }
 
 export class EmptyVaultError extends Error {
@@ -199,10 +223,22 @@ async function walkMarkdown(root: string): Promise<VaultFile[]> {
 async function loadIndex(indexPath: string): Promise<EmbeddingIndex | null> {
   try {
     const raw = await readFile(indexPath, "utf-8");
-    const parsed = JSON.parse(raw) as EmbeddingIndex;
+    const parsed = JSON.parse(raw) as Partial<EmbeddingIndex> & { chunks?: IndexChunk[] };
     if (typeof parsed.builtAt !== "number") return null;
     if (!Array.isArray(parsed.chunks)) return null;
-    return parsed;
+    // Back-compat: legacy indices predate embedder/dim fields. Treat them as
+    // ollama-local + nomic-embed-text (768) so they rebuild when the resolver
+    // picks a different backend.
+    const embedder: EmbedderId = parsed.embedder ?? "ollama-local";
+    const model = parsed.model ?? "nomic-embed-text";
+    const dim = parsed.dim ?? parsed.chunks[0]?.vec.length ?? 768;
+    return {
+      embedder,
+      model,
+      dim,
+      builtAt: parsed.builtAt,
+      chunks: parsed.chunks,
+    };
   } catch {
     return null;
   }

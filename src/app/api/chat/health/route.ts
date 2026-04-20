@@ -1,19 +1,16 @@
 /**
- * GET /api/chat/health — reachability + model list for the active provider.
- *
- * Also reports whether Ollama-local is up (needed for embeddings even
- * when the chat provider is OpenAI or Anthropic).
+ * GET /api/chat/health — reachability + model list for the active provider,
+ * plus which backend semantic search will use.
  */
 
 import { NextResponse } from "next/server";
-import { getActiveProvider } from "@/lib/chat/providers";
-import { createOllamaProvider } from "@/lib/chat/providers/ollama";
+import { getActiveProvider, resolveEmbedder, embedLabel } from "@/lib/chat/providers";
 
 export async function GET() {
   const { provider, settings } = await getActiveProvider();
   const status = await provider.status();
-  const embedProvider = createOllamaProvider("ollama-local", settings.ollamaLocal);
-  const embedStatus = await embedProvider.status();
+  const embedder = await resolveEmbedder(settings);
+  const source = embedder?.id ?? "keyword-only";
   return NextResponse.json({
     provider: provider.id,
     providerLabel: provider.label,
@@ -21,6 +18,10 @@ export async function GET() {
     needsKey: status.needsKey ?? false,
     models: status.models,
     defaultModel: status.defaultModel,
-    embedOk: embedStatus.ok,
+    embed: {
+      ok: embedder !== null,
+      source,
+      label: embedLabel(source),
+    },
   });
 }
