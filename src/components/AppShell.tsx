@@ -183,8 +183,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           onRemoveRecent={handleRemoveRecent}
           onClearRecents={handleClearRecents}
           onOpenPin={(path) => {
-            setVaultDrawerOpen(true);
-            setDrawerScopedPath(path);
+            router.push(`/files/${path.split("/").filter(Boolean).map(encodeURIComponent).join("/")}`);
           }}
         />
       </aside>
@@ -223,10 +222,9 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
               } else if (s === "work" || s === "tasks" || s === "todo" || s === "todos") {
                 router.push("/browse");
               } else {
-                // Fallback: dashboard + open the drawer scoped to that folder.
-                router.push("/browse");
-                setDrawerScopedPath(folderPath);
-                setVaultDrawerOpen(true);
+                // Unrecognised section → navigate to the full-page file browser
+                // scoped to that folder path.
+                router.push(`/files/${folderPath.split("/").filter(Boolean).map(encodeURIComponent).join("/")}`);
               }
             }}
           />
