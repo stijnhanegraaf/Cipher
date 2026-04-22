@@ -1450,20 +1450,13 @@ button:active, [role="button"]:active {
   .icon-stack > span { transition: none; }
 }
 
-/* ── Shiki syntax highlighting ──
-   Emit both --shiki-light and --shiki-dark per token (via defaultColor:false),
-   then this CSS selects which to use based on the app-wide data-theme flag. */
-.shiki,
-.shiki span {
-  color: var(--shiki-light);
-  background-color: var(--shiki-light-bg);
+/* ── highlight.js syntax highlighting ──
+   Two themes (atom-one-light, atom-one-dark) are loaded at runtime by
+   MarkdownRenderer and toggled via <link disabled> based on data-theme. */
+.markdown-content pre code.hljs {
+  background: transparent;
+  padding: 0;
 }
-html[data-theme="dark"] .shiki,
-html[data-theme="dark"] .shiki span {
-  color: var(--shiki-dark);
-  background-color: var(--shiki-dark-bg);
-}
-.shiki { background: transparent !important; }
 
 /* ── Reader preferences — apply to the markdown preview only. ── */
 .markdown-content {

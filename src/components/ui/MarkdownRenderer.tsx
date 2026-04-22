@@ -11,7 +11,7 @@ import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import rehypeShiki from "@shikijs/rehype";
+import rehypeHighlight from "rehype-highlight";
 import { CheckboxIndicator, StatusDot } from "./StatusDot";
 
 let katexCssLoaded = false;
@@ -27,15 +27,32 @@ function ensureKatexCss() {
   katexCssLoaded = true;
 }
 
-// ── Shiki config ──
-const SHIKI_OPTIONS = {
-  themes: { light: "github-light", dark: "github-dark" },
-  defaultColor: false as const,
-  langs: [
-    "ts","tsx","js","jsx","py","go","rust","swift","java","kotlin",
-    "rb","php","sql","sh","bash","zsh","yaml","json","toml","html","css","md",
-  ],
-};
+// ── highlight.js theme CSS ──
+// Load one light + one dark stylesheet, keep exactly one active via the DOM
+// `link.disabled` property based on <html data-theme>.
+let hljsCssLoaded = false;
+function ensureHljsCss() {
+  if (hljsCssLoaded || typeof document === "undefined") return;
+  const mk = (href: string, theme: "light" | "dark"): HTMLLinkElement => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    link.setAttribute("data-hljs-theme", theme);
+    document.head.appendChild(link);
+    return link;
+  };
+  const light = mk("https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/atom-one-light.min.css", "light");
+  const dark = mk("https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/atom-one-dark.min.css", "dark");
+  const sync = () => {
+    const d = document.documentElement.getAttribute("data-theme") === "dark";
+    light.disabled = d;
+    dark.disabled = !d;
+  };
+  sync();
+  const observer = new MutationObserver(sync);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  hljsCssLoaded = true;
+}
 
 // ── Mermaid block ──
 // Dynamically imports mermaid and renders the SVG on mount / code change.
@@ -158,13 +175,13 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
     [content, onNavigate]
   );
 
-  useEffect(() => { ensureKatexCss(); }, []);
+  useEffect(() => { ensureKatexCss(); ensureHljsCss(); }, []);
 
   return (
     <div className={`markdown-content ${className || ""}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex, [rehypeShiki, SHIKI_OPTIONS]] as unknown as Parameters<typeof ReactMarkdown>[0]["rehypePlugins"]}
+        rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: true, ignoreMissing: true }]] as unknown as Parameters<typeof ReactMarkdown>[0]["rehypePlugins"]}
         components={{
           // ── Headings ──
           h1: ({ children }) => {
