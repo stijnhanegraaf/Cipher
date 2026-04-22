@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { FileTree } from "./FileTree";
+import { PreviewPane } from "./PreviewPane";
 import { encodeVaultPath } from "@/lib/browse/path";
 
 const EXPAND_KEY = "cipher.browse.expand.v1";
@@ -45,6 +46,14 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
   const openFull = (p: string) => {
     router.push(`/file/${encodeVaultPath(p)}`);
   };
+  const navigateTo = async (target: string) => {
+    try {
+      const res = await fetch(`/api/file?path=${encodeURIComponent(target)}`);
+      if (!res.ok) return;
+      const j = (await res.json()) as { path: string };
+      selectFile(j.path);
+    } catch { /* swallow */ }
+  };
 
   return (
     <div style={{ display: "flex", height: "100dvh", minWidth: 0 }}>
@@ -62,9 +71,13 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
         />
       </aside>
       <main style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
-        <div style={{ padding: 16, color: "var(--text-tertiary)", fontSize: 12 }}>
-          Folder: {currentFolder || "(root)"} · File: {currentFile ?? "(none)"}
-        </div>
+        <PreviewPane
+          folderPath={currentFolder}
+          filePath={currentFile}
+          onOpenFile={selectFile}
+          onOpenFolder={selectFolder}
+          onNavigate={navigateTo}
+        />
       </main>
     </div>
   );
