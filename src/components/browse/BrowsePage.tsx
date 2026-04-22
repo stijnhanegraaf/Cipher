@@ -15,7 +15,7 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [treeWidth] = useState(280);
+  const [treeWidth, setTreeWidth] = useState(280);
   const [expand, setExpand] = useState<Record<string, boolean>>({});
   const [height, setHeight] = useState(800);
   const [mode, setMode] = useState<"rendered" | "source">("rendered");
@@ -27,6 +27,13 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
     try {
       const raw = localStorage.getItem(EXPAND_KEY);
       if (raw) setExpand(JSON.parse(raw));
+    } catch {}
+    try {
+      const raw = localStorage.getItem("cipher.browse.tree-width.v1");
+      if (raw) {
+        const n = Number(raw);
+        if (Number.isFinite(n)) setTreeWidth(Math.min(480, Math.max(220, n)));
+      }
     } catch {}
     const measure = () => setHeight(window.innerHeight);
     measure();
@@ -91,6 +98,24 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
     } catch { /* swallow */ }
   };
 
+  const startDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = treeWidth;
+    let latest = startW;
+    const onMove = (me: MouseEvent) => {
+      latest = Math.min(480, Math.max(220, startW + (me.clientX - startX)));
+      setTreeWidth(latest);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      try { localStorage.setItem("cipher.browse.tree-width.v1", String(latest)); } catch {}
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
   return (
     <div style={{ display: "flex", height: "100dvh", minWidth: 0 }}>
       <aside style={{ width: treeWidth, borderRight: "1px solid var(--border-subtle)", flexShrink: 0 }}>
@@ -106,6 +131,16 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
           height={height}
         />
       </aside>
+      <div
+        onMouseDown={startDrag}
+        aria-label="Resize tree"
+        style={{
+          width: 4,
+          cursor: "col-resize",
+          background: "var(--border-subtle)",
+          flexShrink: 0,
+        }}
+      />
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", position: "relative" }}>
         <PreviewHeader
           folderPath={currentFolder}
