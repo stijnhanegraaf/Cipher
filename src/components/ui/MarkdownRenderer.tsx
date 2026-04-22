@@ -120,6 +120,33 @@ const wikiLinkIcon = (
   </svg>
 );
 
+function CopyHeadingLink({ id }: { id: string }) {
+  const copy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (typeof window === "undefined") return;
+    const href = `${window.location.pathname}${window.location.search}#${id}`;
+    const full = `${window.location.origin}${href}`;
+    navigator.clipboard?.writeText(full).catch(() => {});
+  };
+  return (
+    <a
+      href={`#${id}`}
+      onClick={copy}
+      className="copy-heading"
+      aria-label="Copy link to heading"
+      style={{
+        marginLeft: 6, opacity: 0,
+        transition: "opacity 120ms var(--ease-default, ease)",
+        textDecoration: "none",
+        color: "var(--text-quaternary)",
+        fontSize: "0.8em",
+      }}
+    >
+      🔗
+    </a>
+  );
+}
+
 export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRendererProps) {
   // Preprocess wiki links before passing to react-markdown
   // When onNavigate is provided, use vault:// URLs instead of obsidian://
@@ -149,6 +176,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 style={{ margin: "32px 0 16px" }}
               >
                 {children}
+                <CopyHeadingLink id={id} />
               </h1>
             );
           },
@@ -161,6 +189,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 style={{ margin: "32px 0 16px" }}
               >
                 {children}
+                <CopyHeadingLink id={id} />
               </h2>
             );
           },
@@ -173,6 +202,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 style={{ margin: "24px 0 8px" }}
               >
                 {children}
+                <CopyHeadingLink id={id} />
               </h3>
             );
           },
@@ -185,6 +215,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 style={{ margin: "20px 0 6px" }}
               >
                 {children}
+                <CopyHeadingLink id={id} />
               </h4>
             );
           },

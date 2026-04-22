@@ -1475,3 +1475,10 @@ html[data-theme="dark"] .shiki span {
   margin: 0 auto;
 }
 .markdown-content strong { font-weight: var(--md-weight, 600); }
+
+/* ── Heading copy-link hover reveal ── */
+.markdown-content h1:hover .copy-heading,
+.markdown-content h2:hover .copy-heading,
+.markdown-content h3:hover .copy-heading,
+.markdown-content h4:hover .copy-heading { opacity: 0.6; }
+.markdown-content .copy-heading:hover { opacity: 1 !important; }
