@@ -120,7 +120,7 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
     <div style={{ display: "flex", height: "100dvh", minWidth: 0 }}>
       <aside style={{ width: treeWidth, borderRight: "1px solid var(--border-subtle)", flexShrink: 0 }}>
         <FileTree
-          initialPath=""
+          initialPath={currentFolder}
           selectedFilePath={currentFile}
           expandState={expand}
           onExpandChange={persistExpand}

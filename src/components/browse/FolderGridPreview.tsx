@@ -22,32 +22,44 @@ export function FolderGridPreview({ folderPath, onOpenFile, onOpenFolder }: Prop
   }, [folderPath]);
 
   if (!children) return <div className="caption" style={{ padding: 24, color: "var(--text-tertiary)" }}>Loading…</div>;
+  if (children.length === 0) return <div className="caption" style={{ padding: 24, color: "var(--text-tertiary)" }}>Empty folder.</div>;
+
   return (
-    <div style={{ padding: 24, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-      {children.map((c) => (
-        <button
-          key={c.path}
-          type="button"
-          onClick={() => c.type === "folder" ? onOpenFolder(c.path) : onOpenFile(c.path)}
-          className="focus-ring"
-          style={{
-            textAlign: "left", padding: 12, border: "1px solid var(--border-subtle)",
-            borderRadius: 8, background: "var(--bg-surface-alpha-2)", color: "var(--text-secondary)",
-            fontSize: 12, cursor: "pointer",
-          }}
-        >
-          <div style={{ fontSize: 18, marginBottom: 4 }}>
-            {c.type === "folder" ? "📁" : iconForFileKind(fileKindForExt(c.ext))}
-          </div>
-          <div style={{ color: "var(--text-primary)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
-          <div className="caption" style={{ marginTop: 4, color: "var(--text-quaternary)" }}>
-            {new Date(c.mtime).toLocaleDateString()}
-          </div>
-        </button>
-      ))}
-      {children.length === 0 && (
-        <div className="caption" style={{ color: "var(--text-tertiary)" }}>Empty folder.</div>
-      )}
+    <div style={{ padding: "16px 24px", maxWidth: 720, margin: "0 auto" }}>
+      {children.map((c) => {
+        const glyph = c.type === "folder" ? "📁" : iconForFileKind(fileKindForExt(c.ext));
+        return (
+          <button
+            key={c.path}
+            type="button"
+            onClick={() => c.type === "folder" ? onOpenFolder(c.path) : onOpenFile(c.path)}
+            className="focus-ring"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              width: "100%",
+              padding: "8px 10px",
+              border: "none",
+              background: "transparent",
+              color: "var(--text-primary)",
+              textAlign: "left",
+              fontSize: 13,
+              borderRadius: 6,
+              cursor: "pointer",
+              transition: "background var(--motion-hover) var(--ease-default)",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          >
+            <span style={{ width: 18, fontSize: 14, textAlign: "center", flexShrink: 0 }}>{glyph}</span>
+            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+            <span className="caption" style={{ color: "var(--text-quaternary)", flexShrink: 0 }}>
+              {new Date(c.mtime).toLocaleDateString()}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
