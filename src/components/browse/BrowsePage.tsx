@@ -130,6 +130,7 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
         width: treeWidth, borderRight: "1px solid var(--border-subtle)",
         flexShrink: 0, background: "var(--bg-surface-alpha-2)",
         display: "flex", flexDirection: "column", position: "relative",
+        overflow: "hidden", minWidth: 0,
       }}>
         <PreviewHeader folderPath={currentFolder} filePath={currentFile} />
         <div ref={treeBoxRef} style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>

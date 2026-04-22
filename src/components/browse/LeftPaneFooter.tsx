@@ -25,6 +25,7 @@ const iconBtn: React.CSSProperties = {
   background: "transparent",
   color: "var(--text-tertiary)",
   cursor: "pointer",
+  flexShrink: 0,
 };
 
 export function LeftPaneFooter({ folderPath, filePath, mode, onToggleMode, onOpenSettings }: Props) {
@@ -41,6 +42,7 @@ export function LeftPaneFooter({ folderPath, filePath, mode, onToggleMode, onOpe
         padding: "8px 10px",
         borderTop: "1px solid var(--border-subtle)",
         flexShrink: 0,
+        flexWrap: "wrap",
       }}
     >
       <ThemeToggle />
