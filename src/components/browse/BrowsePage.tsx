@@ -5,6 +5,7 @@ import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { FileTree } from "./FileTree";
 import { PreviewPane } from "./PreviewPane";
 import { PreviewHeader } from "./PreviewHeader";
+import { LeftPaneFooter } from "./LeftPaneFooter";
 import { encodeVaultPath } from "@/lib/browse/path";
 import { applyPrefsToCssVars, readPrefs } from "@/lib/browse/reader-prefs";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
@@ -116,20 +117,39 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
     window.addEventListener("mouseup", onUp);
   };
 
+  // Leave room in the tree for the breadcrumb header (~32px) and the footer
+  // action row (~40px) so the virtualized tree sits flush between them.
+  const TREE_CHROME = 72;
+
   return (
     <div style={{ display: "flex", height: "100dvh", minWidth: 0 }}>
-      <aside style={{ width: treeWidth, borderRight: "1px solid var(--border-subtle)", flexShrink: 0, background: "var(--bg-surface-alpha-2)" }}>
-        <FileTree
-          initialPath={currentFolder}
-          selectedFilePath={currentFile}
-          expandState={expand}
-          onExpandChange={persistExpand}
-          onSelectFile={selectFile}
-          onSelectFolder={selectFolder}
-          onOpenFull={openFull}
-          width={treeWidth}
-          height={height}
+      <aside style={{
+        width: treeWidth, borderRight: "1px solid var(--border-subtle)",
+        flexShrink: 0, background: "var(--bg-surface-alpha-2)",
+        display: "flex", flexDirection: "column", position: "relative",
+      }}>
+        <PreviewHeader folderPath={currentFolder} filePath={currentFile} />
+        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+          <FileTree
+            initialPath={currentFolder}
+            selectedFilePath={currentFile}
+            expandState={expand}
+            onExpandChange={persistExpand}
+            onSelectFile={selectFile}
+            onSelectFolder={selectFolder}
+            onOpenFull={openFull}
+            width={treeWidth}
+            height={Math.max(0, height - TREE_CHROME)}
+          />
+        </div>
+        <LeftPaneFooter
+          folderPath={currentFolder}
+          filePath={currentFile}
+          mode={mode}
+          onToggleMode={() => setMode((m) => (m === "rendered" ? "source" : "rendered"))}
+          onOpenSettings={() => setReaderSettingsOpen((v) => !v)}
         />
+        {readerSettingsOpen && <ReaderSettingsPanel onClose={() => setReaderSettingsOpen(false)} />}
       </aside>
       <div
         onMouseDown={startDrag}
@@ -141,25 +161,15 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
           flexShrink: 0,
         }}
       />
-      <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", position: "relative" }}>
-        <PreviewHeader
+      <main style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
+        <PreviewPane
           folderPath={currentFolder}
           filePath={currentFile}
           mode={mode}
-          onToggleMode={() => setMode((m) => (m === "rendered" ? "source" : "rendered"))}
-          onOpenSettings={() => setReaderSettingsOpen((v) => !v)}
+          onOpenFile={selectFile}
+          onOpenFolder={selectFolder}
+          onNavigate={navigateTo}
         />
-        {readerSettingsOpen && <ReaderSettingsPanel onClose={() => setReaderSettingsOpen(false)} />}
-        <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
-          <PreviewPane
-            folderPath={currentFolder}
-            filePath={currentFile}
-            mode={mode}
-            onOpenFile={selectFile}
-            onOpenFolder={selectFolder}
-            onNavigate={navigateTo}
-          />
-        </div>
       </main>
     </div>
   );

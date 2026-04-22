@@ -1,114 +1,67 @@
 "use client";
 
+/**
+ * LeftPaneHeader — breadcrumb above the file tree. Lives in the left column
+ * so the right preview area can stay pure content with no chrome.
+ */
+
 import Link from "next/link";
-import { useSidebarPins } from "@/lib/hooks/useSidebarPins";
 import { breadcrumbsFor, encodeVaultPath } from "@/lib/browse/path";
-import { ThemeToggle } from "./ThemeToggle";
 
 interface Props {
   folderPath: string;
   filePath: string | null;
-  mode: "rendered" | "source";
-  onToggleMode: () => void;
-  onOpenSettings: () => void;
 }
 
-export function PreviewHeader({ folderPath, filePath, mode, onToggleMode, onOpenSettings }: Props) {
-  const { pins, addPin, removePin } = useSidebarPins();
+export function PreviewHeader({ folderPath, filePath }: Props) {
   const crumbs = breadcrumbsFor(folderPath);
-  const pinned = pins.find((p) => p.path === folderPath);
-  const name = filePath ? filePath.split("/").pop() : (folderPath.split("/").pop() || "Vault");
-
+  const name = filePath ? filePath.split("/").pop() : null;
   return (
-    <header style={{
-      display: "flex", alignItems: "center", gap: 8,
-      padding: "8px 16px",
-      borderBottom: "1px solid var(--border-subtle)",
-      fontSize: 12,
-      flexShrink: 0,
-    }}>
-      <nav style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, minWidth: 0, overflow: "hidden", whiteSpace: "nowrap" }}>
-        <Link href="/files" style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>Vault</Link>
-        {crumbs.map((c) => (
-          <span key={c.path} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-            <span style={{ color: "var(--text-quaternary)" }}>/</span>
-            <Link href={`/files/${encodeVaultPath(c.path)}`} style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>{c.name}</Link>
-          </span>
-        ))}
-        {filePath && (
-          <>
-            <span style={{ color: "var(--text-quaternary)" }}>/</span>
-            <span style={{ color: "var(--text-primary)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
-          </>
-        )}
-      </nav>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        <ThemeToggle />
-        {folderPath && (
-          <button
-            type="button"
-            onClick={() => {
-              if (pinned) removePin(pinned.id);
-              else addPin({ label: folderPath.split("/").pop() ?? folderPath, path: folderPath, icon: "folder" });
-            }}
-            className="focus-ring caption"
-            style={{
-              padding: "4px 8px", borderRadius: 6,
-              border: "1px solid var(--border-subtle)",
-              background: pinned ? "var(--bg-surface-alpha-4)" : "transparent",
-              color: "var(--text-primary)",
-              cursor: "pointer",
-            }}
-          >
-            {pinned ? "Pinned" : "Pin folder"}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          className="focus-ring caption"
-          title="Reader settings"
-          style={{
-            padding: "4px 8px", borderRadius: 6,
-            border: "1px solid var(--border-subtle)",
-            background: "transparent", color: "var(--text-primary)",
-            cursor: "pointer",
-          }}
-        >
-          Aa
-        </button>
-        {filePath && filePath.toLowerCase().endsWith(".md") && (
-          <button
-            type="button"
-            onClick={onToggleMode}
-            aria-pressed={mode === "source"}
-            className="focus-ring caption"
-            title="Toggle source (⌘⇧M)"
-            style={{
-              padding: "4px 8px", borderRadius: 6,
-              border: "1px solid var(--border-subtle)",
-              background: mode === "source" ? "var(--bg-surface-alpha-4)" : "transparent",
-              color: "var(--text-primary)",
-              cursor: "pointer",
-            }}
-          >
-            {mode === "source" ? "Rendered" : "Source"}
-          </button>
-        )}
-        {filePath && filePath.toLowerCase().endsWith(".md") && (
+    <div
+      style={{
+        padding: "8px 10px",
+        borderBottom: "1px solid var(--border-subtle)",
+        fontSize: 12,
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        flexWrap: "wrap",
+        color: "var(--text-tertiary)",
+      }}
+    >
+      <Link href="/files" style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>Vault</Link>
+      {crumbs.map((c, i) => (
+        <span key={c.path} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <span style={{ color: "var(--text-quaternary)" }}>/</span>
           <Link
-            href={`/file/${encodeVaultPath(filePath)}`}
-            className="focus-ring caption"
+            href={`/files/${encodeVaultPath(c.path)}`}
             style={{
-              padding: "4px 8px", borderRadius: 6,
-              border: "1px solid var(--border-subtle)",
-              textDecoration: "none", color: "var(--text-primary)",
+              color: i === crumbs.length - 1 && !filePath ? "var(--text-primary)" : "var(--text-tertiary)",
+              textDecoration: "none",
+              fontWeight: i === crumbs.length - 1 && !filePath ? 500 : 400,
             }}
           >
-            Open full view
+            {c.name}
           </Link>
-        )}
-      </div>
-    </header>
+        </span>
+      ))}
+      {name && (
+        <>
+          <span style={{ color: "var(--text-quaternary)" }}>/</span>
+          <span
+            style={{
+              color: "var(--text-primary)",
+              fontWeight: 500,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              maxWidth: "100%",
+            }}
+          >
+            {name}
+          </span>
+        </>
+      )}
+    </div>
   );
 }
