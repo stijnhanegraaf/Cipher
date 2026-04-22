@@ -5,10 +5,8 @@ import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { FileTree } from "./FileTree";
 import { PreviewPane } from "./PreviewPane";
 import { PreviewHeader } from "./PreviewHeader";
-import { LeftPaneFooter } from "./LeftPaneFooter";
 import { encodeVaultPath } from "@/lib/browse/path";
 import { applyPrefsToCssVars, readPrefs } from "@/lib/browse/reader-prefs";
-import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 
 const EXPAND_KEY = "cipher.browse.expand.v1";
 
@@ -19,7 +17,6 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
   const [treeWidth, setTreeWidth] = useState(280);
   const [expand, setExpand] = useState<Record<string, boolean>>({});
   const [mode, setMode] = useState<"rendered" | "source">("rendered");
-  const [readerSettingsOpen, setReaderSettingsOpen] = useState(false);
   const [treeHeight, setTreeHeight] = useState(400);
   const treeBoxRef = useRef<HTMLDivElement | null>(null);
 
@@ -132,7 +129,12 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
         display: "flex", flexDirection: "column", position: "relative",
         overflow: "hidden", minWidth: 0,
       }}>
-        <PreviewHeader folderPath={currentFolder} filePath={currentFile} />
+        <PreviewHeader
+          folderPath={currentFolder}
+          filePath={currentFile}
+          mode={mode}
+          onToggleMode={() => setMode((m) => (m === "rendered" ? "source" : "rendered"))}
+        />
         <div ref={treeBoxRef} style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
           <FileTree
             initialPath={currentFolder}
@@ -146,14 +148,6 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
             height={treeHeight}
           />
         </div>
-        <LeftPaneFooter
-          folderPath={currentFolder}
-          filePath={currentFile}
-          mode={mode}
-          onToggleMode={() => setMode((m) => (m === "rendered" ? "source" : "rendered"))}
-          onOpenSettings={() => setReaderSettingsOpen((v) => !v)}
-        />
-        {readerSettingsOpen && <ReaderSettingsPanel onClose={() => setReaderSettingsOpen(false)} />}
       </aside>
       <div
         onMouseDown={startDrag}
