@@ -14,6 +14,7 @@ We need a file browser that:
 - Opens from pinned folders as a jump-to shortcut.
 - Scrolls smoothly at any vault size.
 - Renders `.md` beautifully and previews images / PDFs without a detour.
+- Matches the reading quality of tools like [scratch](https://github.com/erictli/scratch): math, mermaid, rich code highlighting, wiki-link autocomplete, raw ↔ rendered toggle, adjustable typography.
 
 This spec replaces the drawer with a full-page Browse surface (tree + preview). A follow-up spec will cover writing dashboard task toggles back to the correct `.md` file; that work is explicitly out of scope here.
 
@@ -25,6 +26,7 @@ This spec replaces the drawer with a full-page Browse surface (tree + preview). 
 - Multi-select, bulk ops.
 - Mobile layout. Below ~700px we show a “tree too narrow — open full view” fallback.
 - Dashboard task writeback (separate spec).
+- WYSIWYG editor. The `.md` source view (toggleable) is read-only in v1. Editing still happens in `/file/<path>` as today. Bringing a scratch-style TipTap editor to this app is its own follow-up spec.
 
 ## Decisions
 
@@ -100,6 +102,43 @@ Empty state (no file selected):
 - If a folder is selected: cards-grid of its direct children (name, type, mtime).
 - If nothing is selected: the grid for the vault root.
 
+### Markdown rendering enhancements
+
+`MarkdownRenderer` (src/components/ui/MarkdownRenderer.tsx) already handles GFM, headings, wiki-links via `vault://` intercept. Extend it with:
+
+- **KaTeX math** — inline `$…$` and block `$$…$$`. Add `remark-math` + `rehype-katex`. KaTeX CSS is lazy-loaded on first math render to keep cold-path bundle small.
+- **Mermaid diagrams** — fenced code blocks with language `mermaid` render as SVG. Use the `mermaid` package. Lazy-load it on demand: the code-block renderer detects `language === "mermaid"` and dynamically imports the library + calls `mermaid.run()` against the rendered node. Fallback: if Mermaid fails, show the raw code block with a small error chip.
+- **Syntax highlighting** — replace the plain `<code>` rendering with `rehype-shiki` using one light + one dark theme picked by the app theme. Shiki ships pre-built grammars; limit to the 20 most common languages to cap bundle (ts/tsx/js/jsx/py/go/rust/swift/java/kotlin/rb/php/sql/sh/bash/zsh/yaml/json/toml/html/css/md).
+- **Images with captions** — an `<img>` directly inside a paragraph where the paragraph contains only that image becomes a `<figure>` with `alt` text as the `<figcaption>`. Relative image paths (e.g. `![](./screenshot.png)`) resolve to `/api/vault/asset?path=…` relative to the current file.
+- **Wiki-link autocomplete** — when the `.md` source view is showing, typing `[[` opens a popover listing vault files filtered by substring. Source view is still read-only in v1 (no persistence), but the popover is useful for "find a file by typing its name" scanning. Reuses `/api/vault/folders` pattern but against files.
+- **Task list semantics** — preserve existing `[ ]` / `[x]` checkbox rendering via `StatusDot`. Task toggling from the preview (writing back to the `.md`) is explicitly deferred to the separate Task writeback spec.
+- **Heading anchors** — current `id="heading-…"` convention stays. Add a small "copy link" icon on hover for each heading that copies `/browse/<path>?file=<file>#heading-…` to the clipboard.
+
+### Raw ↔ rendered toggle
+
+- Icon button in the preview header (next to "Open full view"), labeled "Source". Toggles between rendered view and a read-only source view showing the raw `.md`.
+- Keyboard shortcut: `⌘⇧M` (same as scratch; standard enough to remember).
+- Source view uses CodeMirror 6 in read-only mode with markdown syntax highlighting, soft-wrap, line numbers off, same typography as the rendered view (so the font choice applies everywhere).
+- Toggle state is per-file during the session but resets on navigation to avoid a surprising "everything is suddenly source" when switching files. (A sticky default can be revisited later.)
+
+### Reader preferences
+
+A panel accessible from the preview header via a "Reader settings" icon (or `⌘,`). Applies to the markdown preview and source view only — not to the rest of the app chrome (sidebar, dashboard, etc. keep their own styling).
+
+- Typography: font family (Sans / Serif / Mono), size (12–20px), bold weight (Regular / Medium / Semibold / Bold), line height (1.3–2.0, 0.1 step), text direction (LTR / RTL).
+- Page width: Narrow (56ch) / Comfortable (72ch, default) / Wide (96ch) / Custom (px).
+- Zoom: 75–150%, 5% step. Applies only to preview content.
+- Persisted in `localStorage` under `cipher.reader-prefs.v1`. Vault-agnostic — one set of prefs across all vaults.
+- Implementation: all prefs map to CSS custom properties on the `.markdown-content` root (`--md-font`, `--md-size`, `--md-line-height`, `--md-weight`, `--md-dir`, `--md-max-width`, `--md-zoom`). The renderer never reads prefs directly; styles are the single source of truth.
+
+### App-wide theme (light / dark / system)
+
+Separate from reader prefs. Already partially present; this spec makes it explicit:
+
+- Top-level toggle in a general Settings surface: Light / Dark / System. System follows `prefers-color-scheme`.
+- Applies a `data-theme` attribute on `<html>` which all app styles key off.
+- Shiki themes and KaTeX dark-mode styles switch with this.
+
 ### Data layer
 
 Existing endpoints reused:
@@ -128,6 +167,10 @@ Server cache:
 - No Framer Motion per row. Expand is a CSS transition or instant.
 - No `useLayoutEffect` attached to scroll. No per-row event listeners — delegated through the tree’s handler.
 - Images: `loading="lazy" decoding="async"`.
+- KaTeX CSS and `mermaid` package are dynamically imported on first use only. Neither sits in the initial bundle.
+- Shiki highlighter is initialized lazily per language on first render. Grammars cached in a module-scope `Map`.
+- CodeMirror (raw view) is dynamically imported on first toggle to source view.
+- Reader-pref CSS variable changes do not retrigger the markdown parse — they re-style the already-rendered DOM.
 
 ### Pinned folder integration
 
@@ -169,10 +212,21 @@ Manual, via `pnpm dev`:
 11. Drawer gone — no route or button anywhere opens `VaultDrawer`; grep for `VaultDrawer` in `src/` returns zero results after the change.
 12. Scroll — scrolling the tree at 10k nodes stays at 60fps on a 2024 MacBook Air.
 13. Performance — profiling a fast flip between 20 files shows no repeated markdown re-render on unrelated state changes.
+14. Math — a file with `$E = mc^2$` and a block `$$\int_0^1 x^2 dx$$` renders correctly; KaTeX CSS only loads when the first math file is opened.
+15. Mermaid — a file with a ` ```mermaid ` flowchart block renders the diagram; `mermaid` is not in the initial bundle (verify via Network tab).
+16. Code highlighting — `.md` with fenced `ts`, `py`, `rust`, `sql`, `bash` blocks renders each with syntax colors; switching app theme flips to the matching Shiki theme without flash.
+17. Image caption — `![A diagram of the system](./diagram.png)` renders as `<figure>` with the alt as caption; the image src resolves via `/api/vault/asset`.
+18. Raw toggle — `⌘⇧M` on an open `.md` flips to source view; shortcut reverses; state does not persist across navigation.
+19. Reader prefs — changing font size in the reader-settings panel updates the current preview without a remount and persists after reload. Setting page width to Wide widens the rendered content but does not touch the sidebar.
+20. Theme — switching app theme to Dark updates Shiki + KaTeX + app chrome; reloading respects the stored choice.
 
 ## Open risks
 
 - `react-arborist` is well-maintained but adds a new dependency. Bundle impact ~30kb gzip.
+- Mermaid is ~450kb gzipped. Hard requirement: lazy-loaded, never in the initial bundle.
+- Shiki is ~120kb gzipped for the grammar set we pick. Lazy-loaded per language on first use.
+- KaTeX CSS is ~50kb. Lazy-loaded the first time a math-containing file renders.
+- If the combined render bundle on a math-heavy note feels too big on slow connections, we can defer Mermaid further behind a per-file opt-in.
 - HEIC images are not browser-decodable; v1 shows them as "other" if server decode isn’t added.
 - If the vault root has tens of thousands of top-level entries (rare), initial root fetch can feel slow. Mitigation: same 30s server cache; if it becomes a real issue, fetch the root in two batches.
 
