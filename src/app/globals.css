@@ -1449,3 +1449,18 @@ button:active, [role="button"]:active {
 @media (prefers-reduced-motion: reduce) {
   .icon-stack > span { transition: none; }
 }
+
+/* ── Shiki syntax highlighting ──
+   Emit both --shiki-light and --shiki-dark per token (via defaultColor:false),
+   then this CSS selects which to use based on the app-wide data-theme flag. */
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+html[data-theme="dark"] .shiki,
+html[data-theme="dark"] .shiki span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+}
+.shiki { background: transparent !important; }
