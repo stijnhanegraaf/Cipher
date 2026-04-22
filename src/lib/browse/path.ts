@@ -1,4 +1,4 @@
-/** Encode a vault-relative path for use in /browse/<...path> URLs. */
+/** Encode a vault-relative path for use in /files/<...path> URLs. */
 export function encodeVaultPath(path: string): string {
   return path.split("/").filter(Boolean).map(encodeURIComponent).join("/");
 }

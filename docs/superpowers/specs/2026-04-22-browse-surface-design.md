@@ -32,17 +32,17 @@ This spec replaces the drawer with a full-page Browse surface (tree + preview). 
 
 1. **Tree + preview layout (Obsidian-style).** Tree on the left (~280px, resizable), preview on the right. Chosen over Miller columns because vault filenames are long and horizontal scrolling loses context.
 2. **Replace the drawer entirely.** `VaultDrawer` is deleted. One surface for folder navigation.
-3. **Pure filesystem, no categorization.** Root of `/browse` shows whatever’s on disk, alphabetized, folders-first. Matches Obsidian and works for any vault structure.
+3. **Pure filesystem, no categorization.** Root of `/files` shows whatever’s on disk, alphabetized, folders-first. Matches Obsidian and works for any vault structure.
 4. **Inline preview.** Tree stays put; the preview pane renders the selected file.
 5. **Everything renders**, not just `.md`: images, PDFs, other files each have a rendering path.
-6. **Pinned folders become `router.push('/browse/' + path)`**. Single code change in the sidebar click handler.
+6. **Pinned folders become `router.push('/files/' + path)`**. Single code change in the sidebar click handler.
 
 ## Architecture
 
 ### Routes
 
-- `/browse` — vault root.
-- `/browse/<vault-relative-path>` — that folder selected, tree scrolled/expanded to it.
+- `/files` — vault root.
+- `/files/<vault-relative-path>` — that folder selected, tree scrolled/expanded to it.
 - `?file=<vault-relative-file>` — which file the preview pane renders. Deep-linkable.
 
 All three are the same page component. Path and query drive state.
@@ -93,7 +93,7 @@ Rendering by file extension:
 - Other (`.txt`, `.json`, `.csv`, `.mp4`, …) — a card with filename, size, mtime, and two actions: "Reveal in Finder" (hits a new `POST /api/vault/reveal` that runs `open -R <absolute-path>` on the host) and "Download" (a direct link to `/api/vault/asset?path=…&download=1` which sets `Content-Disposition: attachment`). No custom viewers in v1.
 
 Preview header strip:
-- Breadcrumb (each segment is a `/browse/...` link)
+- Breadcrumb (each segment is a `/files/...` link)
 - Filename
 - "Open full view" → `/file/<path>` (existing file page)
 - "Pin this folder" toggle (writes `.cipher/sidebar.json` via existing pins API)
@@ -112,7 +112,7 @@ Empty state (no file selected):
 - **Images with captions** — an `<img>` directly inside a paragraph where the paragraph contains only that image becomes a `<figure>` with `alt` text as the `<figcaption>`. Relative image paths (e.g. `![](./screenshot.png)`) resolve to `/api/vault/asset?path=…` relative to the current file.
 - **Wiki-link resolution** — existing `vault://` intercept stays. In the rendered view, `[[Page Name]]` resolves to the matching vault file via a server-side name-to-path resolver (reuse the existing wiki-link fallback used by `/api/file`). Clicking updates `?file=<resolved-path>` in-place. Autocomplete while typing `[[` is deferred with the WYSIWYG editor — source view is read-only in v1.
 - **Task list semantics** — preserve existing `[ ]` / `[x]` checkbox rendering via `StatusDot`. Task toggling from the preview (writing back to the `.md`) is explicitly deferred to the separate Task writeback spec.
-- **Heading anchors** — current `id="heading-…"` convention stays. Add a small "copy link" icon on hover for each heading that copies `/browse/<path>?file=<file>#heading-…` to the clipboard.
+- **Heading anchors** — current `id="heading-…"` convention stays. Add a small "copy link" icon on hover for each heading that copies `/files/<path>?file=<file>#heading-…` to the clipboard.
 
 ### Raw ↔ rendered toggle
 
@@ -189,7 +189,7 @@ Server cache:
 
 ## Error handling
 
-- `GET /api/vault/tree` missing path → 404, UI shows a "Folder not found" card with a link to `/browse`.
+- `GET /api/vault/tree` missing path → 404, UI shows a "Folder not found" card with a link to `/files`.
 - `GET /api/vault/asset` missing file → 404, preview pane shows a broken-file card.
 - `GET /api/file` failing on `.md` → preview shows the raw error card (reuses current file-page error UI pattern).
 - Filter input matches nothing → tree shows a "No matches" row; clearing the filter restores the tree.
@@ -199,14 +199,14 @@ Server cache:
 
 Manual, via `pnpm dev`:
 
-1. Root view — `/browse` lists every folder and loose file at the vault root, alpha-sorted, folders first. The test vault’s `skills`, `meetings`, `twitter`, `work` are all visible.
+1. Root view — `/files` lists every folder and loose file at the vault root, alpha-sorted, folders first. The test vault’s `skills`, `meetings`, `twitter`, `work` are all visible.
 2. Deep expand — expand `twitter/2026/apr`; rows virtualize; memory usage steady; no jank at 500+ nodes.
 3. Markdown preview — select an `.md` file; content renders with gfm tables, code blocks, wiki-links. Clicking a wiki-link updates `?file=` and re-renders without a page reload.
 4. Image preview — select a `.png`; inline image renders; click opens zoom modal.
 5. PDF preview — select a PDF; iframe viewer loads.
 6. Other files — select a `.mp4`; card shows size/mtime + Reveal/Download buttons.
-7. Pinned folder — click a pinned folder in the sidebar; navigates to `/browse/<path>`, that folder is expanded and selected.
-8. Deep link — paste `/browse/projects/alpha?file=projects/alpha/notes.md` in a new tab; tree opens to it, preview shows the file.
+7. Pinned folder — click a pinned folder in the sidebar; navigates to `/files/<path>`, that folder is expanded and selected.
+8. Deep link — paste `/files/projects/alpha?file=projects/alpha/notes.md` in a new tab; tree opens to it, preview shows the file.
 9. Filter — type in the filter; only matching files/folders are visible within 80ms; ancestors stay expanded; Escape clears.
 10. Keyboard — arrow keys move selection, `/` focuses filter, Enter previews, ⌘Enter opens full view.
 11. Drawer gone — no route or button anywhere opens `VaultDrawer`; grep for `VaultDrawer` in `src/` returns zero results after the change.

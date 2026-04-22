@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the right-side `VaultDrawer` with a full-page `/browse` surface: virtualized folder tree on the left, rich markdown / image / PDF preview on the right, scratch-inspired rendering (KaTeX, Mermaid, Shiki), raw↔rendered toggle, reader-preferences panel, and app-wide light/dark/system theme. Pinned folders in the sidebar become navigations into `/browse/<path>`.
+**Goal:** Replace the right-side `VaultDrawer` with a full-page `/files` surface: virtualized folder tree on the left, rich markdown / image / PDF preview on the right, scratch-inspired rendering (KaTeX, Mermaid, Shiki), raw↔rendered toggle, reader-preferences panel, and app-wide light/dark/system theme. Pinned folders in the sidebar become navigations into `/files/<path>`.
 
-**Architecture:** One Next.js App Router page at `src/app/browse/[[...path]]/page.tsx` renders a client component `BrowsePage` split into `FileTree` (react-arborist, lazy children via `/api/vault/tree`) and `PreviewPane` (dispatches on file extension to `MarkdownPreview` / `ImagePreview` / `PdfPreview` / `GenericPreview`). `MarkdownRenderer` is extended in place with `remark-math` + `rehype-katex` + `rehype-shiki` + a Mermaid code-block component, all lazy-loaded. Reader prefs apply as CSS variables on `.markdown-content`. Theme applies as `data-theme` on `<html>`.
+**Architecture:** One Next.js App Router page at `src/app/files/[[...path]]/page.tsx` renders a client component `BrowsePage` split into `FileTree` (react-arborist, lazy children via `/api/vault/tree`) and `PreviewPane` (dispatches on file extension to `MarkdownPreview` / `ImagePreview` / `PdfPreview` / `GenericPreview`). `MarkdownRenderer` is extended in place with `remark-math` + `rehype-katex` + `rehype-shiki` + a Mermaid code-block component, all lazy-loaded. Reader prefs apply as CSS variables on `.markdown-content`. Theme applies as `data-theme` on `<html>`.
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript strict, react-markdown + remark-gfm (existing), react-arborist (new), remark-math + rehype-katex + katex (new), mermaid (new, dynamic), rehype-shiki + shiki (new), @codemirror/lang-markdown + @codemirror/view + @codemirror/state (new, dynamic). No test framework in repo — verification is manual via `npm run dev` and targeted `curl`/browser checks.
 
@@ -14,7 +14,7 @@
 
 **New files**
 
-- `src/app/browse/[[...path]]/page.tsx` — App Router entry; reads path + `?file=`, renders `<BrowsePage>`.
+- `src/app/files/[[...path]]/page.tsx` — App Router entry; reads path + `?file=`, renders `<BrowsePage>`.
 - `src/components/browse/BrowsePage.tsx` — client layout: resizable tree + preview.
 - `src/components/browse/FileTree.tsx` — `react-arborist` wrapper, lazy children, filter input, keyboard.
 - `src/components/browse/PreviewPane.tsx` — dispatches to sub-previews by extension.
@@ -40,7 +40,7 @@
 **Modified files**
 
 - `src/components/ui/MarkdownRenderer.tsx` — add math, mermaid, shiki, figure, vault-path image resolution, heading copy-link.
-- `src/components/Sidebar.tsx` — pin click = `router.push('/browse/<path>')`; remove drawer opener.
+- `src/components/Sidebar.tsx` — pin click = `router.push('/files/<path>')`; remove drawer opener.
 - `src/components/AppShell.tsx` — remove `vaultDrawerOpen` / `drawerScopedPath` state + the `<VaultDrawer />` render; remove palette `nav-drawer` action; remove `onBrowse` wiring.
 - `src/components/VaultDrawer.tsx` — deleted.
 - `src/app/api/vault/structure/route.ts` — deleted.
@@ -353,7 +353,7 @@ git commit -m "feat(browse): POST /api/vault/reveal (macOS Finder)"
 
 ```ts
 // src/lib/browse/path.ts
-/** Encode a vault-relative path for use in /browse/<...path> URLs. */
+/** Encode a vault-relative path for use in /files/<...path> URLs. */
 export function encodeVaultPath(path: string): string {
   return path.split("/").filter(Boolean).map(encodeURIComponent).join("/");
 }
@@ -473,13 +473,13 @@ git commit -m "feat(browse): client-side tree fetcher with per-path memoization"
 
 **Files:**
 
-- Create: `src/app/browse/[[...path]]/page.tsx`
+- Create: `src/app/files/[[...path]]/page.tsx`
 - Create: `src/components/browse/BrowsePage.tsx` (minimal stub — tree + preview filled in later tasks)
 
 - [ ] **Step 1: Route**
 
 ```tsx
-// src/app/browse/[[...path]]/page.tsx
+// src/app/files/[[...path]]/page.tsx
 import { BrowsePage } from "@/components/browse/BrowsePage";
 import { decodeVaultPath } from "@/lib/browse/path";
 
@@ -527,13 +527,13 @@ export function BrowsePage({ folderPath, filePath }: Props) {
 
 - [ ] **Step 3: Manual verification**
 
-Open `http://localhost:3000/browse`, `http://localhost:3000/browse/projects`, `http://localhost:3000/browse/projects?file=projects/notes.md`. All three should render the stub with the right strings.
+Open `http://localhost:3000/browse`, `http://localhost:3000/files/projects`, `http://localhost:3000/files/projects?file=projects/notes.md`. All three should render the stub with the right strings.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add src/app/browse src/components/browse/BrowsePage.tsx
-git commit -m "feat(browse): route skeleton for /browse and /browse/<path>"
+git commit -m "feat(browse): route skeleton for /browse and /files/<path>"
 ```
 
 ---
@@ -784,7 +784,7 @@ export function BrowsePage({ folderPath, filePath }: { folderPath: string; fileP
           }}
           onSelectFolder={(p) => {
             const parts = p ? p.split("/").map(encodeURIComponent).join("/") : "";
-            window.history.replaceState(null, "", `/browse/${parts}`);
+            window.history.replaceState(null, "", `/files/${parts}`);
           }}
           width={treeWidth}
           height={height}
@@ -800,7 +800,7 @@ export function BrowsePage({ folderPath, filePath }: { folderPath: string; fileP
 
 - [ ] **Step 3: Manual verification**
 
-Visit `/browse`. Root children appear, folders first, alpha. Expanding a folder fetches its children. Type into filter — non-matching rows disappear. Refresh — expand state persists.
+Visit `/files`. Root children appear, folders first, alpha. Expanding a folder fetches its children. Type into filter — non-matching rows disappear. Refresh — expand state persists.
 
 - [ ] **Step 4: Commit**
 
@@ -1172,11 +1172,11 @@ export function PreviewHeader({
       fontSize: 12,
     }}>
       <nav style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, minWidth: 0, overflow: "hidden" }}>
-        <Link href="/browse" style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>Vault</Link>
+        <Link href="/files" style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>Vault</Link>
         {crumbs.map((c) => (
           <span key={c.path} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
             <span style={{ color: "var(--text-quaternary)" }}>/</span>
-            <Link href={`/browse/${encodeVaultPath(c.path)}`} style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>{c.name}</Link>
+            <Link href={`/files/${encodeVaultPath(c.path)}`} style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>{c.name}</Link>
           </span>
         ))}
         {filePath && (
@@ -1910,7 +1910,7 @@ git commit -m "feat(browse): app-wide theme toggle with system-preference follow
 
 ---
 
-## Task 17: Wire pinned-folder click to `/browse/<path>`
+## Task 17: Wire pinned-folder click to `/files/<path>`
 
 **Files:**
 
@@ -1930,7 +1930,7 @@ setDrawerScopedPath(path);
 Replace with:
 
 ```tsx
-router.push(`/browse/${path.split("/").map(encodeURIComponent).join("/")}`);
+router.push(`/files/${path.split("/").map(encodeURIComponent).join("/")}`);
 ```
 
 Also replace `AppShell.tsx:228-229`:
@@ -1943,20 +1943,20 @@ setVaultDrawerOpen(true);
 with
 
 ```tsx
-router.push(`/browse/${folderPath.split("/").map(encodeURIComponent).join("/")}`);
+router.push(`/files/${folderPath.split("/").map(encodeURIComponent).join("/")}`);
 ```
 
 Leave `setVaultDrawerOpen` state in place for Task 18 to remove.
 
 - [ ] **Step 2: Manual verification**
 
-Click a pinned folder in the sidebar. Page navigates to `/browse/<path>`. Tree is selected/expanded to that folder.
+Click a pinned folder in the sidebar. Page navigates to `/files/<path>`. Tree is selected/expanded to that folder.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add src/components/AppShell.tsx
-git commit -m "feat(browse): pinned folder click navigates to /browse/<path>"
+git commit -m "feat(browse): pinned folder click navigates to /files/<path>"
 ```
 
 ---
@@ -1976,7 +1976,7 @@ Strip out:
 - `vaultDrawerOpen` / `setVaultDrawerOpen` state
 - `drawerScopedPath` / `setDrawerScopedPath` state
 - The `CommandPalette` action `{ id: "nav-drawer", ... run: () => setVaultDrawerOpen(true) }`
-- The Sidebar `onBrowse={() => setVaultDrawerOpen(true)}` prop — replace with `onBrowse={() => router.push("/browse")}`
+- The Sidebar `onBrowse={() => setVaultDrawerOpen(true)}` prop — replace with `onBrowse={() => router.push("/files")}`
 - The `<VaultDrawer … />` render block
 - The keybinding that closes the drawer on Esc
 
@@ -1997,7 +1997,7 @@ Address any type errors — likely Sidebar still expects `onBrowse` and other en
 
 - [ ] **Step 4: Manual verification**
 
-`grep -r "VaultDrawer" src/` — zero matches. All previous drawer entry points (vault chip, palette "Open vault drawer", sidebar structure section) land in `/browse` now.
+`grep -r "VaultDrawer" src/` — zero matches. All previous drawer entry points (vault chip, palette "Open vault drawer", sidebar structure section) land in `/files` now.
 
 - [ ] **Step 5: Commit**
 
@@ -2114,13 +2114,13 @@ No file changes; this task walks through the spec's verification checklist and c
 
 From `docs/superpowers/specs/2026-04-22-browse-surface-design.md`, section **Verification**, items 1–20. For each:
 
-1. Root `/browse` — shows every top-level folder and loose file.
+1. Root `/files` — shows every top-level folder and loose file.
 2. Deep expand — `twitter/2026/apr` stays smooth at >500 nodes.
 3. Markdown — gfm tables, code, wiki-links update preview inline.
 4. Image — click to zoom works.
 5. PDF — iframe loads.
 6. Generic — Reveal + Download work.
-7. Pinned folder — sidebar click lands on `/browse/<path>`.
+7. Pinned folder — sidebar click lands on `/files/<path>`.
 8. Deep link — pasting a URL opens correctly.
 9. Filter — matches within 80ms; Esc clears.
 10. Keyboard — `/`, arrows, Enter, ⌘Enter.

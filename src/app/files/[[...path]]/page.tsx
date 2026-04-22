@@ -1,7 +1,7 @@
 import { BrowsePage } from "@/components/browse/BrowsePage";
 import { decodeVaultPath } from "@/lib/browse/path";
 
-export default async function BrowseRoute({
+export default async function FilesRoute({
   params,
   searchParams,
 }: {
