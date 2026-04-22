@@ -2,6 +2,9 @@
 
 import { MarkdownPreview } from "./MarkdownPreview";
 import { FolderGridPreview } from "./FolderGridPreview";
+import { ImagePreview } from "./ImagePreview";
+import { PdfPreview } from "./PdfPreview";
+import { GenericPreview } from "./GenericPreview";
 import { fileKindForExt } from "@/lib/browse/file-kind";
 
 interface Props {
@@ -17,6 +20,7 @@ export function PreviewPane({ folderPath, filePath, onOpenFile, onOpenFolder, on
   const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
   const kind = fileKindForExt(ext);
   if (kind === "md") return <MarkdownPreview filePath={filePath} onNavigate={onNavigate} />;
-  // image / pdf / other come in Task 9.
-  return <div className="caption" style={{ padding: 24, color: "var(--text-tertiary)" }}>Preview for .{ext} coming soon.</div>;
+  if (kind === "image") return <ImagePreview filePath={filePath} />;
+  if (kind === "pdf") return <PdfPreview filePath={filePath} />;
+  return <GenericPreview filePath={filePath} />;
 }
