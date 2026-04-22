@@ -11,6 +11,7 @@ import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import rehypeShiki from "@shikijs/rehype";
 import { CheckboxIndicator, StatusDot } from "./StatusDot";
 
 let katexCssLoaded = false;
@@ -24,6 +25,47 @@ function ensureKatexCss() {
   link.crossOrigin = "anonymous";
   document.head.appendChild(link);
   katexCssLoaded = true;
+}
+
+// ── Shiki config ──
+const SHIKI_OPTIONS = {
+  themes: { light: "github-light", dark: "github-dark" },
+  defaultColor: false as const,
+  langs: [
+    "ts","tsx","js","jsx","py","go","rust","swift","java","kotlin",
+    "rb","php","sql","sh","bash","zsh","yaml","json","toml","html","css","md",
+  ],
+};
+
+// ── Mermaid block ──
+// Dynamically imports mermaid and renders the SVG on mount / code change.
+function MermaidBlock({ code }: { code: string }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const mod = await import("mermaid");
+        const mermaid = (mod as unknown as { default?: unknown }).default ?? mod;
+        // Using `as any` because mermaid's types aren't perfectly loose.
+        (mermaid as unknown as { initialize: (o: object) => void }).initialize({
+          startOnLoad: false,
+          securityLevel: "loose",
+        });
+        const id = `m-${Math.random().toString(36).slice(2)}`;
+        const { svg } = await (mermaid as unknown as {
+          render: (id: string, code: string) => Promise<{ svg: string }>;
+        }).render(id, code);
+        if (alive && ref.current) ref.current.innerHTML = svg;
+      } catch (err) {
+        if (alive && ref.current) {
+          ref.current.innerHTML = `<pre style="color:var(--status-danger,#c0392b);padding:12px">${String(err).replace(/[<>&]/g, "")}</pre>`;
+        }
+      }
+    })();
+    return () => { alive = false; };
+  }, [code]);
+  return <div ref={ref} className="mermaid-block" style={{ margin: "0 0 16px" }} />;
 }
 
 // Re-export for backward compatibility with existing imports.
@@ -95,7 +137,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
     <div className={`markdown-content ${className || ""}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        rehypePlugins={[rehypeKatex, [rehypeShiki, SHIKI_OPTIONS]] as unknown as Parameters<typeof ReactMarkdown>[0]["rehypePlugins"]}
         components={{
           // ── Headings ──
           h1: ({ children }) => {
@@ -241,6 +283,22 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
             );
           },
 
+          // ── Images (figure + figcaption, asset path resolution) ──
+          img: ({ src, alt }) => {
+            const srcStr = typeof src === "string" ? src : undefined;
+            const resolved =
+              srcStr && !/^https?:\/\//.test(srcStr) && !srcStr.startsWith("/") && !srcStr.startsWith("vault://")
+                ? `/api/vault/asset?path=${encodeURIComponent(srcStr.replace(/^\.\//, ""))}`
+                : srcStr;
+            return (
+              <figure style={{ margin: "16px 0", textAlign: "center" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={resolved} alt={alt ?? ""} loading="lazy" decoding="async" style={{ maxWidth: "100%", borderRadius: 6 }} />
+                {alt ? <figcaption className="caption" style={{ color: "var(--text-tertiary)", marginTop: 6 }}>{alt}</figcaption> : null}
+              </figure>
+            );
+          },
+
           // ── Bullet lists ──
           ul: ({ children }) => (
             <ul className="flex flex-col gap-1.5 p-0 m-0 mb-4 list-none">
@@ -295,11 +353,22 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
           ),
 
           // ── Code inline + code block child ──
-          code: ({ className, children, ...props }) => {
-            // Inline or block-child code — both use the same pill styling
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          code: ({ className, children, node, ...props }: any) => {
+            const match = /language-(\w+)/.exec(className || "");
+            const lang = match?.[1];
+            const blockLevel = node?.position?.start?.line !== node?.position?.end?.line;
+            if (blockLevel && lang === "mermaid") {
+              return <MermaidBlock code={String(children).trim()} />;
+            }
+            // Inline code and non-mermaid block code both keep the inline styling.
+            // Note: Shiki's rehype plugin has already replaced fenced code blocks with
+            // <pre><code class="shiki ..."> nodes and their classes trigger the
+            // existing `pre:` wrapper below. For unhighlighted inline, fall back to
+            // the pill styling that existed before.
             return (
               <code
-                className="text-accent-violet mono-caption"
+                className={["text-accent-violet mono-caption", className].filter(Boolean).join(" ")}
                 style={{
                   fontSize: "0.875em",
                   backgroundColor: "var(--bg-surface-alpha-4)",
