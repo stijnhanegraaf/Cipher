@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * LeftPaneHeader — breadcrumb above the file tree. Lives in the left column
- * so the right preview area can stay pure content with no chrome.
+ * Breadcrumb header for the left tree column. Single-line, horizontally
+ * scrollable on overflow so long paths don't wrap and cause layout shift
+ * (per emil design rule: dynamic content = no layout shift).
  */
 
 import Link from "next/link";
@@ -15,9 +16,11 @@ interface Props {
 
 export function PreviewHeader({ folderPath, filePath }: Props) {
   const crumbs = breadcrumbsFor(folderPath);
-  const name = filePath ? filePath.split("/").pop() : null;
+  const filename = filePath ? (filePath.split("/").pop() ?? null) : null;
+
   return (
-    <div
+    <nav
+      aria-label="Breadcrumb"
       style={{
         padding: "8px 10px",
         borderBottom: "1px solid var(--border-subtle)",
@@ -25,27 +28,35 @@ export function PreviewHeader({ folderPath, filePath }: Props) {
         display: "flex",
         alignItems: "center",
         gap: 4,
-        flexWrap: "wrap",
+        flexShrink: 0,
+        overflowX: "auto",
+        scrollbarWidth: "none",
         color: "var(--text-tertiary)",
+        whiteSpace: "nowrap",
       }}
     >
-      <Link href="/files" style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>Vault</Link>
-      {crumbs.map((c, i) => (
-        <span key={c.path} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <span style={{ color: "var(--text-quaternary)" }}>/</span>
-          <Link
-            href={`/files/${encodeVaultPath(c.path)}`}
-            style={{
-              color: i === crumbs.length - 1 && !filePath ? "var(--text-primary)" : "var(--text-tertiary)",
-              textDecoration: "none",
-              fontWeight: i === crumbs.length - 1 && !filePath ? 500 : 400,
-            }}
-          >
-            {c.name}
-          </Link>
-        </span>
-      ))}
-      {name && (
+      <Link href="/files" style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>
+        Vault
+      </Link>
+      {crumbs.map((c, i) => {
+        const isLast = i === crumbs.length - 1 && !filename;
+        return (
+          <span key={c.path} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{ color: "var(--text-quaternary)" }}>/</span>
+            <Link
+              href={`/files/${encodeVaultPath(c.path)}`}
+              style={{
+                color: isLast ? "var(--text-primary)" : "var(--text-tertiary)",
+                textDecoration: "none",
+                fontWeight: isLast ? 500 : 400,
+              }}
+            >
+              {c.name}
+            </Link>
+          </span>
+        );
+      })}
+      {filename && (
         <>
           <span style={{ color: "var(--text-quaternary)" }}>/</span>
           <span
@@ -54,14 +65,14 @@ export function PreviewHeader({ folderPath, filePath }: Props) {
               fontWeight: 500,
               overflow: "hidden",
               textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
               maxWidth: "100%",
             }}
+            title={filename}
           >
-            {name}
+            {filename}
           </span>
         </>
       )}
-    </div>
+    </nav>
   );
 }
