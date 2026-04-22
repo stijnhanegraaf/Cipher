@@ -5,11 +5,26 @@
  * GFM, and Cipher-styled elements (headings, tasks, tables).
  */
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 import { CheckboxIndicator, StatusDot } from "./StatusDot";
+
+let katexCssLoaded = false;
+function ensureKatexCss() {
+  if (katexCssLoaded || typeof document === "undefined") return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  // Pin to an exact version and include SRI; served from jsDelivr (fine for a local app).
+  link.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
+  link.integrity = "sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+";
+  link.crossOrigin = "anonymous";
+  document.head.appendChild(link);
+  katexCssLoaded = true;
+}
 
 // Re-export for backward compatibility with existing imports.
 export { CheckboxIndicator, StatusDot };
@@ -74,10 +89,13 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
     [content, onNavigate]
   );
 
+  useEffect(() => { ensureKatexCss(); }, []);
+
   return (
     <div className={`markdown-content ${className || ""}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
         components={{
           // ── Headings ──
           h1: ({ children }) => {
