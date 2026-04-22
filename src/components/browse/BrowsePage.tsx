@@ -28,6 +28,22 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
     return () => window.removeEventListener("resize", measure);
   }, []);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "/") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tgt = e.target as HTMLElement | null;
+      const tag = tgt?.tagName;
+      const typing = tag === "INPUT" || tag === "TEXTAREA" || tgt?.isContentEditable;
+      if (typing) return;
+      e.preventDefault();
+      const input = document.querySelector<HTMLInputElement>('input[placeholder^="Filter"]');
+      input?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const persistExpand = (next: Record<string, boolean>) => {
     setExpand(next);
     try { localStorage.setItem(EXPAND_KEY, JSON.stringify(next)); } catch {}
