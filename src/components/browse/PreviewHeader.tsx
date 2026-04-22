@@ -40,8 +40,14 @@ export function PreviewHeader({ folderPath, filePath, mode, onToggleMode }: Prop
   const { pins, addPin, removePin } = useSidebarPins();
   const crumbs = breadcrumbsFor(folderPath);
   const filename = filePath ? (filePath.split("/").pop() ?? null) : null;
-  const pinned = pins.find((p) => p.path === folderPath);
   const isMd = !!filePath && filePath.toLowerCase().endsWith(".md");
+  // Pin target: the current file when one is selected, else the current folder.
+  const pinTarget = filePath ?? folderPath;
+  const pinLabel = filePath
+    ? (filename?.replace(/\.md$/i, "") ?? filePath)
+    : (folderPath.split("/").pop() ?? folderPath);
+  const pinned = pinTarget ? pins.find((p) => p.path === pinTarget) : undefined;
+  const pinIcon: "folder" | "document" = filePath ? "document" : "folder";
 
   return (
     <div
@@ -102,15 +108,15 @@ export function PreviewHeader({ folderPath, filePath, mode, onToggleMode }: Prop
         )}
       </nav>
       <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-        {folderPath && (
+        {pinTarget && (
           <button
             type="button"
             onClick={() => {
               if (pinned) removePin(pinned.id);
-              else addPin({ label: folderPath.split("/").pop() ?? folderPath, path: folderPath, icon: "folder" });
+              else addPin({ label: pinLabel, path: pinTarget, icon: pinIcon });
             }}
-            aria-label={pinned ? "Unpin folder" : "Pin folder"}
-            title={pinned ? "Unpin folder" : "Pin folder"}
+            aria-label={pinned ? `Unpin ${filePath ? "file" : "folder"}` : `Pin ${filePath ? "file" : "folder"}`}
+            title={pinned ? `Unpin ${filePath ? "file" : "folder"}` : `Pin ${filePath ? "file" : "folder"}`}
             className="focus-ring"
             style={{
               ...iconBtn,

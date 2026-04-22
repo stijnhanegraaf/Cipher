@@ -406,23 +406,29 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
           code: ({ className, children, node, ...props }: any) => {
             const match = /language-(\w+)/.exec(className || "");
             const lang = match?.[1];
-            const blockLevel = node?.position?.start?.line !== node?.position?.end?.line;
-            if (blockLevel && lang === "mermaid") {
+            // A language-xxx class means this code node lives inside a fenced
+            // block (rehype-highlight has already decorated it). Let <pre>
+            // own the box styling; don't layer the inline pill on top.
+            const isBlock = !!lang;
+            if (isBlock && lang === "mermaid") {
               return <MermaidBlock code={String(children).trim()} />;
             }
-            // Inline code and non-mermaid block code both keep the inline styling.
-            // Note: Shiki's rehype plugin has already replaced fenced code blocks with
-            // <pre><code class="shiki ..."> nodes and their classes trigger the
-            // existing `pre:` wrapper below. For unhighlighted inline, fall back to
-            // the pill styling that existed before.
+            if (isBlock) {
+              return (
+                <code className={["mono-caption", className].filter(Boolean).join(" ")} {...props}>
+                  {children}
+                </code>
+              );
+            }
             return (
               <code
-                className={["text-accent-violet mono-caption", className].filter(Boolean).join(" ")}
+                className="mono-caption"
                 style={{
                   fontSize: "0.875em",
                   backgroundColor: "var(--bg-surface-alpha-4)",
                   padding: "0.15em 0.4em",
                   borderRadius: 4,
+                  color: "var(--text-primary)",
                 }}
                 {...props}
               >

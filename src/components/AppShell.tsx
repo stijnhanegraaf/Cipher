@@ -176,7 +176,13 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           onRemoveRecent={handleRemoveRecent}
           onClearRecents={handleClearRecents}
           onOpenPin={(path) => {
-            router.push(`/files/${path.split("/").filter(Boolean).map(encodeURIComponent).join("/")}`);
+            const isFile = /\.[a-z0-9]+$/i.test(path);
+            if (isFile) {
+              const parent = path.split("/").slice(0, -1).filter(Boolean).map(encodeURIComponent).join("/");
+              router.push(`/files/${parent}?file=${encodeURIComponent(path)}`);
+            } else {
+              router.push(`/files/${path.split("/").filter(Boolean).map(encodeURIComponent).join("/")}`);
+            }
           }}
         />
       </aside>
