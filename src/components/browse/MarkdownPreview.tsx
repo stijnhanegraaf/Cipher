@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useState } from "react";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { SourceView } from "./SourceView";
 
 interface FileData { path: string; title: string; content: string }
 
@@ -24,10 +25,11 @@ function lruSet(path: string, data: FileData) {
 
 interface Props {
   filePath: string;
+  mode: "rendered" | "source";
   onNavigate: (target: string) => void;
 }
 
-export const MarkdownPreview = memo(function MarkdownPreview({ filePath, onNavigate }: Props) {
+export const MarkdownPreview = memo(function MarkdownPreview({ filePath, mode, onNavigate }: Props) {
   const [data, setData] = useState<FileData | null>(() => lruGet(filePath) ?? null);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +52,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({ filePath, onNavig
 
   if (error) return <div className="caption" style={{ padding: 24, color: "var(--status-danger, #c0392b)" }}>Couldn't load file: {error}</div>;
   if (!data) return <div className="caption" style={{ padding: 24, color: "var(--text-tertiary)" }}>Loading…</div>;
+  if (mode === "source") return <SourceView content={data.content} />;
   return (
     <div className="markdown-content" style={{ maxWidth: "72ch", margin: "0 auto", padding: "32px 24px" }}>
       <MarkdownRenderer content={data.content} onNavigate={onNavigate} />

@@ -16,6 +16,7 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
   const [treeWidth] = useState(280);
   const [expand, setExpand] = useState<Record<string, boolean>>({});
   const [height, setHeight] = useState(800);
+  const [mode, setMode] = useState<"rendered" | "source">("rendered");
 
   useEffect(() => {
     try {
@@ -44,13 +45,26 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const currentFolder = (pathname ?? "/files").replace(/^\/files\/?/, "");
+  const currentFile = searchParams.get("file");
+
+  useEffect(() => { setMode("rendered"); }, [currentFile]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "m") {
+        e.preventDefault();
+        setMode((m) => (m === "rendered" ? "source" : "rendered"));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const persistExpand = (next: Record<string, boolean>) => {
     setExpand(next);
     try { localStorage.setItem(EXPAND_KEY, JSON.stringify(next)); } catch {}
   };
-
-  const currentFolder = (pathname ?? "/files").replace(/^\/files\/?/, "");
-  const currentFile = searchParams.get("file");
 
   const selectFile = (p: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -88,11 +102,17 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
         />
       </aside>
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-        <PreviewHeader folderPath={currentFolder} filePath={currentFile} />
+        <PreviewHeader
+          folderPath={currentFolder}
+          filePath={currentFile}
+          mode={mode}
+          onToggleMode={() => setMode((m) => (m === "rendered" ? "source" : "rendered"))}
+        />
         <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
           <PreviewPane
             folderPath={currentFolder}
             filePath={currentFile}
+            mode={mode}
             onOpenFile={selectFile}
             onOpenFolder={selectFolder}
             onNavigate={navigateTo}

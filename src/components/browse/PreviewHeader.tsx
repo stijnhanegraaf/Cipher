@@ -7,9 +7,11 @@ import { breadcrumbsFor, encodeVaultPath } from "@/lib/browse/path";
 interface Props {
   folderPath: string;
   filePath: string | null;
+  mode: "rendered" | "source";
+  onToggleMode: () => void;
 }
 
-export function PreviewHeader({ folderPath, filePath }: Props) {
+export function PreviewHeader({ folderPath, filePath, mode, onToggleMode }: Props) {
   const { pins, addPin, removePin } = useSidebarPins();
   const crumbs = breadcrumbsFor(folderPath);
   const pinned = pins.find((p) => p.path === folderPath);
@@ -56,6 +58,24 @@ export function PreviewHeader({ folderPath, filePath }: Props) {
             }}
           >
             {pinned ? "Pinned" : "Pin folder"}
+          </button>
+        )}
+        {filePath && filePath.toLowerCase().endsWith(".md") && (
+          <button
+            type="button"
+            onClick={onToggleMode}
+            aria-pressed={mode === "source"}
+            className="focus-ring caption"
+            title="Toggle source (⌘⇧M)"
+            style={{
+              padding: "4px 8px", borderRadius: 6,
+              border: "1px solid var(--border-subtle)",
+              background: mode === "source" ? "var(--bg-surface-alpha-4)" : "transparent",
+              color: "var(--text-primary)",
+              cursor: "pointer",
+            }}
+          >
+            {mode === "source" ? "Rendered" : "Source"}
           </button>
         )}
         {filePath && filePath.toLowerCase().endsWith(".md") && (
