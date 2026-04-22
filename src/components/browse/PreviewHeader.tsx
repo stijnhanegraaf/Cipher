@@ -9,9 +9,10 @@ interface Props {
   filePath: string | null;
   mode: "rendered" | "source";
   onToggleMode: () => void;
+  onOpenSettings: () => void;
 }
 
-export function PreviewHeader({ folderPath, filePath, mode, onToggleMode }: Props) {
+export function PreviewHeader({ folderPath, filePath, mode, onToggleMode, onOpenSettings }: Props) {
   const { pins, addPin, removePin } = useSidebarPins();
   const crumbs = breadcrumbsFor(folderPath);
   const pinned = pins.find((p) => p.path === folderPath);
@@ -60,6 +61,20 @@ export function PreviewHeader({ folderPath, filePath, mode, onToggleMode }: Prop
             {pinned ? "Pinned" : "Pin folder"}
           </button>
         )}
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          className="focus-ring caption"
+          title="Reader settings"
+          style={{
+            padding: "4px 8px", borderRadius: 6,
+            border: "1px solid var(--border-subtle)",
+            background: "transparent", color: "var(--text-primary)",
+            cursor: "pointer",
+          }}
+        >
+          Aa
+        </button>
         {filePath && filePath.toLowerCase().endsWith(".md") && (
           <button
             type="button"

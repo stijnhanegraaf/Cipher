@@ -1464,3 +1464,14 @@ html[data-theme="dark"] .shiki span {
   background-color: var(--shiki-dark-bg);
 }
 .shiki { background: transparent !important; }
+
+/* ── Reader preferences — apply to the markdown preview only. ── */
+.markdown-content {
+  font-family: var(--md-font, ui-sans-serif, system-ui);
+  font-size: calc(var(--md-size, 15px) * var(--md-zoom, 1));
+  line-height: var(--md-line-height, 1.6);
+  direction: var(--md-dir, ltr);
+  max-width: var(--md-max-width, 72ch);
+  margin: 0 auto;
+}
+.markdown-content strong { font-weight: var(--md-weight, 600); }

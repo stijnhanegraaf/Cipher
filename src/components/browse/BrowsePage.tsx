@@ -6,6 +6,8 @@ import { FileTree } from "./FileTree";
 import { PreviewPane } from "./PreviewPane";
 import { PreviewHeader } from "./PreviewHeader";
 import { encodeVaultPath } from "@/lib/browse/path";
+import { applyPrefsToCssVars, readPrefs } from "@/lib/browse/reader-prefs";
+import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 
 const EXPAND_KEY = "cipher.browse.expand.v1";
 
@@ -17,6 +19,9 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
   const [expand, setExpand] = useState<Record<string, boolean>>({});
   const [height, setHeight] = useState(800);
   const [mode, setMode] = useState<"rendered" | "source">("rendered");
+  const [readerSettingsOpen, setReaderSettingsOpen] = useState(false);
+
+  useEffect(() => { applyPrefsToCssVars(readPrefs()); }, []);
 
   useEffect(() => {
     try {
@@ -101,13 +106,15 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
           height={height}
         />
       </aside>
-      <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", position: "relative" }}>
         <PreviewHeader
           folderPath={currentFolder}
           filePath={currentFile}
           mode={mode}
           onToggleMode={() => setMode((m) => (m === "rendered" ? "source" : "rendered"))}
+          onOpenSettings={() => setReaderSettingsOpen((v) => !v)}
         />
+        {readerSettingsOpen && <ReaderSettingsPanel onClose={() => setReaderSettingsOpen(false)} />}
         <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
           <PreviewPane
             folderPath={currentFolder}
