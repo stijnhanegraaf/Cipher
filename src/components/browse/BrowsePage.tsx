@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { FileTree } from "./FileTree";
 import { PreviewPane } from "./PreviewPane";
+import { PreviewHeader } from "./PreviewHeader";
 import { encodeVaultPath } from "@/lib/browse/path";
 
 const EXPAND_KEY = "cipher.browse.expand.v1";
@@ -70,14 +71,17 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
           height={height}
         />
       </aside>
-      <main style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
-        <PreviewPane
-          folderPath={currentFolder}
-          filePath={currentFile}
-          onOpenFile={selectFile}
-          onOpenFolder={selectFolder}
-          onNavigate={navigateTo}
-        />
+      <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <PreviewHeader folderPath={currentFolder} filePath={currentFile} />
+        <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
+          <PreviewPane
+            folderPath={currentFolder}
+            filePath={currentFile}
+            onOpenFile={selectFile}
+            onOpenFolder={selectFolder}
+            onNavigate={navigateTo}
+          />
+        </div>
       </main>
     </div>
   );
