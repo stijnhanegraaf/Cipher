@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Tree, type NodeApi, type NodeRendererProps, type TreeApi } from "react-arborist";
 import { fetchChildren, type TreeChild } from "@/lib/browse/vault-tree-client";
 import { fileKindForExt } from "@/lib/browse/file-kind";
-import { iconForFileKind } from "@/lib/browse/icon-for-file";
+import { FileKindIcon } from "./FileKindIcon";
 
 interface NodeData {
   id: string;
@@ -138,25 +138,33 @@ export function FileTree({
 
 function Row({ node, style, dragHandle }: NodeRendererProps<NodeData>) {
   const isFolder = node.data.type === "folder";
-  const glyph = isFolder
-    ? (node.isOpen ? "▾" : "▸")
-    : iconForFileKind(fileKindForExt(node.data.ext));
   return (
     <div
       ref={dragHandle}
       style={{
         ...style,
-        display: "flex", alignItems: "center", gap: 6,
-        padding: "0 8px",
+        display: "flex", alignItems: "center", gap: 4,
+        padding: "0 6px",
         cursor: "pointer",
         color: node.isSelected ? "var(--text-primary)" : "var(--text-secondary)",
         background: node.isSelected ? "var(--bg-surface-alpha-4)" : "transparent",
-        fontSize: 12,
+        fontSize: 13,
+        borderRadius: 4,
       }}
       onClick={() => { if (isFolder) node.toggle(); else node.select(); }}
     >
-      <span style={{ width: 14, textAlign: "center", fontSize: 10 }}>{glyph}</span>
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{node.data.name}</span>
+      <span style={{ width: 12, display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--text-quaternary)" }}>
+        {isFolder ? (
+          <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"
+            style={{ transform: node.isOpen ? "rotate(90deg)" : "none", transition: "transform 120ms var(--ease-default, ease)" }}>
+            <polyline points="9 6 15 12 9 18" />
+          </svg>
+        ) : null}
+      </span>
+      <span style={{ width: 16, display: "inline-flex", alignItems: "center", justifyContent: "center", color: isFolder ? "var(--text-tertiary)" : "var(--text-quaternary)", flexShrink: 0 }}>
+        <FileKindIcon kind={isFolder ? "folder" : fileKindForExt(node.data.ext)} size={14} />
+      </span>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{node.data.name}</span>
     </div>
   );
 }

@@ -118,7 +118,7 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
 
   return (
     <div style={{ display: "flex", height: "100dvh", minWidth: 0 }}>
-      <aside style={{ width: treeWidth, borderRight: "1px solid var(--border-subtle)", flexShrink: 0 }}>
+      <aside style={{ width: treeWidth, borderRight: "1px solid var(--border-subtle)", flexShrink: 0, background: "var(--bg-surface-alpha-2)" }}>
         <FileTree
           initialPath={currentFolder}
           selectedFilePath={currentFile}
