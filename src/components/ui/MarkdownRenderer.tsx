@@ -10,6 +10,7 @@ import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import remarkUnwrapImages from "remark-unwrap-images";
 import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
 import { CheckboxIndicator, StatusDot } from "./StatusDot";
@@ -180,7 +181,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
   return (
     <div className={`markdown-content ${className || ""}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        remarkPlugins={[remarkGfm, remarkMath, remarkUnwrapImages]}
         rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: true, ignoreMissing: true }]] as unknown as Parameters<typeof ReactMarkdown>[0]["rehypePlugins"]}
         components={{
           // ── Headings ──

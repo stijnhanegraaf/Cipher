@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { FileTree } from "./FileTree";
 import { PreviewPane } from "./PreviewPane";
@@ -18,11 +18,22 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
   const searchParams = useSearchParams();
   const [treeWidth, setTreeWidth] = useState(280);
   const [expand, setExpand] = useState<Record<string, boolean>>({});
-  const [height, setHeight] = useState(800);
   const [mode, setMode] = useState<"rendered" | "source">("rendered");
   const [readerSettingsOpen, setReaderSettingsOpen] = useState(false);
+  const [treeHeight, setTreeHeight] = useState(400);
+  const treeBoxRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { applyPrefsToCssVars(readPrefs()); }, []);
+
+  useEffect(() => {
+    const el = treeBoxRef.current;
+    if (!el) return;
+    const measure = () => setTreeHeight(el.clientHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     try {
@@ -36,10 +47,6 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
         if (Number.isFinite(n)) setTreeWidth(Math.min(480, Math.max(220, n)));
       }
     } catch {}
-    const measure = () => setHeight(window.innerHeight);
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
   }, []);
 
   useEffect(() => {
@@ -117,10 +124,6 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
     window.addEventListener("mouseup", onUp);
   };
 
-  // Leave room in the tree for the breadcrumb header (~32px) and the footer
-  // action row (~40px) so the virtualized tree sits flush between them.
-  const TREE_CHROME = 72;
-
   return (
     <div style={{ display: "flex", height: "100dvh", minWidth: 0 }}>
       <aside style={{
@@ -129,7 +132,7 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
         display: "flex", flexDirection: "column", position: "relative",
       }}>
         <PreviewHeader folderPath={currentFolder} filePath={currentFile} />
-        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+        <div ref={treeBoxRef} style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
           <FileTree
             initialPath={currentFolder}
             selectedFilePath={currentFile}
@@ -139,7 +142,7 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
             onSelectFolder={selectFolder}
             onOpenFull={openFull}
             width={treeWidth}
-            height={Math.max(0, height - TREE_CHROME)}
+            height={treeHeight}
           />
         </div>
         <LeftPaneFooter

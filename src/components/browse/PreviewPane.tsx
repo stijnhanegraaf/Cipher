@@ -1,7 +1,6 @@
 "use client";
 
 import { MarkdownPreview } from "./MarkdownPreview";
-import { FolderGridPreview } from "./FolderGridPreview";
 import { ImagePreview } from "./ImagePreview";
 import { PdfPreview } from "./PdfPreview";
 import { GenericPreview } from "./GenericPreview";
@@ -16,8 +15,24 @@ interface Props {
   onNavigate: (target: string) => void;
 }
 
-export function PreviewPane({ folderPath, filePath, mode, onOpenFile, onOpenFolder, onNavigate }: Props) {
-  if (!filePath) return <FolderGridPreview folderPath={folderPath} onOpenFile={onOpenFile} onOpenFolder={onOpenFolder} />;
+export function PreviewPane({ filePath, mode, onNavigate }: Props) {
+  if (!filePath) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          padding: 24,
+          color: "var(--text-quaternary)",
+          fontSize: 13,
+        }}
+      >
+        Select a file from the tree to preview.
+      </div>
+    );
+  }
   const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
   const kind = fileKindForExt(ext);
   if (kind === "md") return <MarkdownPreview filePath={filePath} mode={mode} onNavigate={onNavigate} />;
