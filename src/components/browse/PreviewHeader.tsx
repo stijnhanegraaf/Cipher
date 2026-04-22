@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSidebarPins } from "@/lib/hooks/useSidebarPins";
 import { breadcrumbsFor, encodeVaultPath } from "@/lib/browse/path";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface Props {
   folderPath: string;
@@ -42,6 +43,7 @@ export function PreviewHeader({ folderPath, filePath, mode, onToggleMode, onOpen
         )}
       </nav>
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        <ThemeToggle />
         {folderPath && (
           <button
             type="button"
