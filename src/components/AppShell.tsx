@@ -9,7 +9,6 @@ import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { DetailPage } from "@/components/DetailPage";
-import { VaultDrawer } from "@/components/VaultDrawer";
 import { HintChip } from "@/components/HintChip";
 import { Sidebar } from "@/components/Sidebar";
 import { CommandPalette, type PaletteAction } from "@/components/CommandPalette";
@@ -17,12 +16,11 @@ import { VaultConnectDialog } from "@/components/VaultConnectDialog";
 import { useSheet } from "@/lib/hooks/useSheet";
 import { useVault } from "@/lib/hooks/useVault";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
-import { useSidebarPins } from "@/lib/hooks/useSidebarPins";
 
 /**
  * AppShell — persistent chrome shared by every route.
  *
- * Owns: Sidebar, CommandPalette, VaultDrawer, DetailPage sheet (via ?sheet=),
+ * Owns: Sidebar, CommandPalette, DetailPage sheet (via ?sheet=),
  * HintChip, global keyboard shortcuts. Children render as the route content
  * to the right of the sidebar.
  *
@@ -46,10 +44,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const vault = useVault();
   const sheet = useSheet();
-  const { addPin } = useSidebarPins();
 
-  const [vaultDrawerOpen, setVaultDrawerOpen] = useState(false);
-  const [drawerScopedPath, setDrawerScopedPath] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
@@ -100,7 +95,6 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       key: "Escape",
       handler: () => {
         if (paletteOpen) setPaletteOpen(false);
-        else if (vaultDrawerOpen) setVaultDrawerOpen(false);
         else if (sheet.path) sheet.close();
       },
     },
@@ -146,7 +140,6 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       { id: "nav-graph", group: "Navigation", label: "Graph", icon: navIcon, run: () => router.push("/browse/graph") },
       { id: "nav-system", group: "Navigation", label: "System", icon: navIcon, run: () => router.push("/browse/system") },
       { id: "nav-timeline", group: "Navigation", label: "Timeline", icon: navIcon, run: () => router.push("/browse/timeline") },
-      { id: "nav-drawer", group: "Navigation", label: "Open vault drawer", icon: navIcon, run: () => setVaultDrawerOpen(true) },
       { id: "action-theme", group: "Actions", label: "Toggle theme", run: handleToggleTheme },
       {
         id: "action-connect-vault",
@@ -175,7 +168,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         <Sidebar
           onAsk={handleAsk}
           onHome={handleHome}
-          onBrowse={() => setVaultDrawerOpen(true)}
+          onBrowse={() => router.push("/files")}
           onPalette={() => setPaletteOpen(true)}
           onToggleTheme={handleToggleTheme}
           activeKind={activeKind}
@@ -211,8 +204,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             }}
             onOpenSection={(section, folderPath) => {
               // Close the sheet, then route to the most relevant page for
-              // this section. Unrecognised sections open the VaultDrawer
-              // scoped to the folder so the user still sees its contents.
+              // this section. Unrecognised sections navigate to the file
+              // browser scoped to the folder so the user still sees its contents.
               sheet.close();
               const s = section.toLowerCase();
               if (s === "system" || s === "meta" || s === "ops") {
@@ -231,23 +224,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
 
-      <VaultDrawer
-        open={vaultDrawerOpen}
-        scopedPath={drawerScopedPath ?? undefined}
-        onClose={() => { setVaultDrawerOpen(false); setDrawerScopedPath(null); }}
-        onNavigate={(query) => {
-          setVaultDrawerOpen(false);
-          handleAsk(query);
-        }}
-        onOpenFile={(path) => {
-          setVaultDrawerOpen(false);
-          sheet.open(path);
-        }}
-        onClearScope={() => setDrawerScopedPath(null)}
-        onPinFolder={(path, label) => addPin({ path, label, icon: "folder" })}
-      />
-
-      <HintChip hidden={!!sheet.path || vaultDrawerOpen || paletteOpen} />
+      <HintChip hidden={!!sheet.path || paletteOpen} />
 
       <CommandPalette
         open={paletteOpen}

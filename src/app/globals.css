@@ -634,7 +634,7 @@
   /* ── .app-row ─────────────────────────────
      Unified list-row affordance. Used across:
      welcome Recent/Open, SearchResults, SourceList, LinkList,
-     TaskItemRow, TimelineMini, VaultDrawer, DetailPage ToC.
+     TaskItemRow, TimelineMini, DetailPage ToC.
      Subtle hover bg + 2px brand rail on the leading edge.
      This is THE list-row style across the app. */
   .app-row {
