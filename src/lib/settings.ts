@@ -66,7 +66,9 @@ export async function writeSidebarSettings(config: SidebarConfig): Promise<void>
   if (!isValidConfig(config)) throw new Error("Invalid sidebar config");
   const absFile = join(root, FILE_REL);
   const absDir = join(root, ".cipher");
-  const tmp = `${absFile}.tmp`;
+  // Unique tmp suffix so concurrent writes don't collide on the same
+  // <file>.tmp and race into ENOENT during the second rename.
+  const tmp = `${absFile}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
   await mkdir(absDir, { recursive: true });
   await writeFile(tmp, JSON.stringify(config, null, 2), "utf-8");
   await rename(tmp, absFile);

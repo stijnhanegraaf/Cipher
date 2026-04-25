@@ -511,19 +511,23 @@ function CheckRow({ status, label, detail }: { status: Status; label: string; de
 
 function HubRow({ hub, onOpen }: { hub: HubNote; onOpen: () => void }) {
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={onOpen}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
       className="app-row focus-ring"
       style={{
         display: "flex",
         alignItems: "center",
         gap: 12,
+        width: "100%",
         padding: "0 32px",
         height: "var(--row-h-cozy)",
+        border: "none",
         borderBottom: "1px solid var(--border-subtle)",
+        background: "transparent",
+        textAlign: "left",
+        color: "inherit",
+        font: "inherit",
         cursor: "pointer",
       }}
     >
@@ -534,25 +538,29 @@ function HubRow({ hub, onOpen }: { hub: HubNote; onOpen: () => void }) {
       <span className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.02em", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
         {hub.backlinks} {hub.backlinks === 1 ? "ref" : "refs"}
       </span>
-    </div>
+    </button>
   );
 }
 
 function BrokenLinkRow({ sample, onOpen }: { sample: BrokenLinkSample; onOpen: () => void }) {
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={onOpen}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
       className="app-row focus-ring"
       style={{
         display: "flex",
         alignItems: "center",
         gap: 12,
+        width: "100%",
         padding: "0 32px",
         height: "var(--row-h-cozy)",
+        border: "none",
         borderBottom: "1px solid var(--border-subtle)",
+        background: "transparent",
+        textAlign: "left",
+        color: "inherit",
+        font: "inherit",
         cursor: "pointer",
       }}
     >
@@ -575,25 +583,29 @@ function BrokenLinkRow({ sample, onOpen }: { sample: BrokenLinkSample; onOpen: (
       >
         {sample.from}
       </span>
-    </div>
+    </button>
   );
 }
 
 function StaleNoteRow({ sample, onOpen }: { sample: StaleNoteSample; onOpen: () => void }) {
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={onOpen}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
       className="app-row focus-ring"
       style={{
         display: "flex",
         alignItems: "center",
         gap: 12,
+        width: "100%",
         padding: "0 32px",
         height: "var(--row-h-cozy)",
+        border: "none",
         borderBottom: "1px solid var(--border-subtle)",
+        background: "transparent",
+        textAlign: "left",
+        color: "inherit",
+        font: "inherit",
         cursor: "pointer",
       }}
     >
@@ -604,7 +616,7 @@ function StaleNoteRow({ sample, onOpen }: { sample: StaleNoteSample; onOpen: () 
       <span className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.02em", flexShrink: 0 }}>
         {sample.daysStale}d
       </span>
-    </div>
+    </button>
   );
 }
 

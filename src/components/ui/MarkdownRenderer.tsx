@@ -5,11 +5,86 @@
  * GFM, and Cipher-styled elements (headings, tasks, tables).
  */
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import remarkUnwrapImages from "remark-unwrap-images";
+import rehypeKatex from "rehype-katex";
+import rehypeHighlight from "rehype-highlight";
 import { CheckboxIndicator, StatusDot } from "./StatusDot";
+
+let katexCssLoaded = false;
+function ensureKatexCss() {
+  if (katexCssLoaded || typeof document === "undefined") return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  // Pin to an exact version and include SRI; served from jsDelivr (fine for a local app).
+  link.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
+  link.integrity = "sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+";
+  link.crossOrigin = "anonymous";
+  document.head.appendChild(link);
+  katexCssLoaded = true;
+}
+
+// ── highlight.js theme CSS ──
+// Load one light + one dark stylesheet, keep exactly one active via the DOM
+// `link.disabled` property based on <html data-theme>.
+let hljsCssLoaded = false;
+function ensureHljsCss() {
+  if (hljsCssLoaded || typeof document === "undefined") return;
+  const mk = (href: string, theme: "light" | "dark"): HTMLLinkElement => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    link.setAttribute("data-hljs-theme", theme);
+    document.head.appendChild(link);
+    return link;
+  };
+  const light = mk("https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/atom-one-light.min.css", "light");
+  const dark = mk("https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/atom-one-dark.min.css", "dark");
+  const sync = () => {
+    const d = document.documentElement.getAttribute("data-theme") === "dark";
+    light.disabled = d;
+    dark.disabled = !d;
+  };
+  sync();
+  const observer = new MutationObserver(sync);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  hljsCssLoaded = true;
+}
+
+// ── Mermaid block ──
+// Dynamically imports mermaid and renders the SVG on mount / code change.
+function MermaidBlock({ code }: { code: string }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const mod = await import("mermaid");
+        const mermaid = (mod as unknown as { default?: unknown }).default ?? mod;
+        // Using `as any` because mermaid's types aren't perfectly loose.
+        (mermaid as unknown as { initialize: (o: object) => void }).initialize({
+          startOnLoad: false,
+          securityLevel: "loose",
+        });
+        const id = `m-${Math.random().toString(36).slice(2)}`;
+        const { svg } = await (mermaid as unknown as {
+          render: (id: string, code: string) => Promise<{ svg: string }>;
+        }).render(id, code);
+        if (alive && ref.current) ref.current.innerHTML = svg;
+      } catch (err) {
+        if (alive && ref.current) {
+          ref.current.innerHTML = `<pre style="color:var(--status-danger,#c0392b);padding:12px">${String(err).replace(/[<>&]/g, "")}</pre>`;
+        }
+      }
+    })();
+    return () => { alive = false; };
+  }, [code]);
+  return <div ref={ref} className="mermaid-block" style={{ margin: "0 0 16px" }} />;
+}
 
 // Re-export for backward compatibility with existing imports.
 export { CheckboxIndicator, StatusDot };
@@ -63,6 +138,33 @@ const wikiLinkIcon = (
   </svg>
 );
 
+function CopyHeadingLink({ id }: { id: string }) {
+  const copy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (typeof window === "undefined") return;
+    const href = `${window.location.pathname}${window.location.search}#${id}`;
+    const full = `${window.location.origin}${href}`;
+    navigator.clipboard?.writeText(full).catch(() => {});
+  };
+  return (
+    <a
+      href={`#${id}`}
+      onClick={copy}
+      className="copy-heading"
+      aria-label="Copy link to heading"
+      style={{
+        marginLeft: 6, opacity: 0,
+        transition: "opacity 120ms var(--ease-default, ease)",
+        textDecoration: "none",
+        color: "var(--text-quaternary)",
+        fontSize: "0.8em",
+      }}
+    >
+      🔗
+    </a>
+  );
+}
+
 export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRendererProps) {
   // Preprocess wiki links before passing to react-markdown
   // When onNavigate is provided, use vault:// URLs instead of obsidian://
@@ -74,10 +176,13 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
     [content, onNavigate]
   );
 
+  useEffect(() => { ensureKatexCss(); ensureHljsCss(); }, []);
+
   return (
     <div className={`markdown-content ${className || ""}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkMath, remarkUnwrapImages]}
+        rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: true, ignoreMissing: true }]] as unknown as Parameters<typeof ReactMarkdown>[0]["rehypePlugins"]}
         components={{
           // ── Headings ──
           h1: ({ children }) => {
@@ -89,6 +194,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 style={{ margin: "32px 0 16px" }}
               >
                 {children}
+                <CopyHeadingLink id={id} />
               </h1>
             );
           },
@@ -101,6 +207,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 style={{ margin: "32px 0 16px" }}
               >
                 {children}
+                <CopyHeadingLink id={id} />
               </h2>
             );
           },
@@ -113,6 +220,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 style={{ margin: "24px 0 8px" }}
               >
                 {children}
+                <CopyHeadingLink id={id} />
               </h3>
             );
           },
@@ -125,6 +233,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 style={{ margin: "20px 0 6px" }}
               >
                 {children}
+                <CopyHeadingLink id={id} />
               </h4>
             );
           },
@@ -188,14 +297,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                     e.preventDefault();
                     onNavigate(vaultPath);
                   }}
-                  className="text-accent-violet hover:text-accent-hover cursor-pointer transition-colors duration-150"
-                  style={{
-                    textDecoration: "none",
-                    borderBottom: "1px solid transparent",
-                    transition: "border-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = "currentColor"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = "transparent"; }}
+                  className="md-link focus-ring"
                 >
                   {wikiLinkIcon}
                   {children}
@@ -208,18 +310,27 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-accent-violet hover:text-accent-hover transition-colors duration-150"
-                style={{
-                  textDecoration: "none",
-                  borderBottom: "1px solid transparent",
-                  transition: "border-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = "currentColor"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = "transparent"; }}
+                className="md-link focus-ring"
               >
                 {isWikiLink && wikiLinkIcon}
                 {children}
               </a>
+            );
+          },
+
+          // ── Images (figure + figcaption, asset path resolution) ──
+          img: ({ src, alt }) => {
+            const srcStr = typeof src === "string" ? src : undefined;
+            const resolved =
+              srcStr && !/^https?:\/\//.test(srcStr) && !srcStr.startsWith("/") && !srcStr.startsWith("vault://")
+                ? `/api/vault/asset?path=${encodeURIComponent(srcStr.replace(/^\.\//, ""))}`
+                : srcStr;
+            return (
+              <figure style={{ margin: "16px 0", textAlign: "center" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={resolved} alt={alt ?? ""} loading="lazy" decoding="async" style={{ maxWidth: "100%", borderRadius: 6 }} />
+                {alt ? <figcaption className="caption" style={{ color: "var(--text-tertiary)", marginTop: 6 }}>{alt}</figcaption> : null}
+              </figure>
             );
           },
 
@@ -277,16 +388,33 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
           ),
 
           // ── Code inline + code block child ──
-          code: ({ className, children, ...props }) => {
-            // Inline or block-child code — both use the same pill styling
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          code: ({ className, children, node, ...props }: any) => {
+            const match = /language-(\w+)/.exec(className || "");
+            const lang = match?.[1];
+            // A language-xxx class means this code node lives inside a fenced
+            // block (rehype-highlight has already decorated it). Let <pre>
+            // own the box styling; don't layer the inline pill on top.
+            const isBlock = !!lang;
+            if (isBlock && lang === "mermaid") {
+              return <MermaidBlock code={String(children).trim()} />;
+            }
+            if (isBlock) {
+              return (
+                <code className={["mono-caption", className].filter(Boolean).join(" ")} {...props}>
+                  {children}
+                </code>
+              );
+            }
             return (
               <code
-                className="text-accent-violet mono-caption"
+                className="mono-caption"
                 style={{
                   fontSize: "0.875em",
                   backgroundColor: "var(--bg-surface-alpha-4)",
                   padding: "0.15em 0.4em",
                   borderRadius: 4,
+                  color: "var(--text-primary)",
                 }}
                 {...props}
               >

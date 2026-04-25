@@ -6,3 +6,4 @@ export { Kbd } from "./Kbd";
 export { Avatar } from "./Avatar";
 export { HoverCard } from "./HoverCard";
 export { Breadcrumbs } from "./Breadcrumbs";
+export { IconButton } from "./IconButton";

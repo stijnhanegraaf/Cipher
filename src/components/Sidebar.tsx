@@ -42,7 +42,7 @@ export interface SidebarProps {
   onRemoveRecent?: (query: string) => void;
   /** Clear all recent queries. */
   onClearRecents?: () => void;
-  /** Called when a pinned folder is clicked. Consumer opens the VaultDrawer scoped to path. */
+  /** Called when a pinned folder is clicked. Consumer navigates to /files/<path>. */
   onOpenPin?: (path: string) => void;
 }
 

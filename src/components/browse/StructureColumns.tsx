@@ -313,34 +313,24 @@ export function StructureColumns({ graph, onOpen }: Props) {
                   const rowSelectedFile =
                     row.kind === "file" && selectedFile === row.node.id;
                   const showRail = rowActive || rowSelectedFile || isAncestorRow;
-                  const bg = showRail
-                    ? "var(--bg-surface-alpha-4)"
-                    : "transparent";
-                  const style: CSSProperties = {
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    height: "var(--row-h-cozy)",
-                    padding: "0 8px 0 10px",
-                    borderLeft: showRail ? "2px solid var(--accent-brand)" : "2px solid transparent",
-                    background: bg,
-                    cursor: "pointer",
-                    opacity: row.dim ? 0.3 : 1,
-                  };
+                  // Dimmed rows de-emphasise via the token, not opacity — opacity can
+                  // drop text below WCAG contrast on the lightest surfaces.
+                  const baseColor: string = row.dim
+                    ? "var(--text-quaternary)"
+                    : rowActive || isAncestorRow || rowSelectedFile
+                      ? "var(--text-primary)"
+                      : "var(--text-secondary)";
+                  const weight = rowActive || isAncestorRow || rowSelectedFile ? 500 : 400;
                   if (row.kind === "folder") {
                     return (
                       <div
                         key={`f:${row.path}`}
                         role="button"
-                        tabIndex={0}
+                        tabIndex={-1}
                         aria-current={rowActive ? "true" : undefined}
-                        style={style}
-                        onMouseEnter={(e) => {
-                          if (!showRail) e.currentTarget.style.background = "var(--bg-surface-alpha-2)";
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!showRail) e.currentTarget.style.background = "transparent";
-                        }}
+                        data-rail={showRail || undefined}
+                        data-dim={row.dim || undefined}
+                        className="miller-row focus-ring"
                         onClick={() => pushFolder(colIdx, row.path)}
                       >
                         <FolderIcon />
@@ -352,11 +342,8 @@ export function StructureColumns({ graph, onOpen }: Props) {
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
-                            color:
-                              rowActive || isAncestorRow
-                                ? "var(--text-primary)"
-                                : "var(--text-secondary)",
-                            fontWeight: rowActive || isAncestorRow ? 500 : 400,
+                            color: baseColor,
+                            fontWeight: weight,
                           }}
                         >
                           {row.name}
@@ -378,15 +365,11 @@ export function StructureColumns({ graph, onOpen }: Props) {
                     <div
                       key={`file:${row.node.id}`}
                       role="button"
-                      tabIndex={0}
+                      tabIndex={-1}
                       aria-current={rowActive ? "true" : undefined}
-                      style={style}
-                      onMouseEnter={(e) => {
-                        if (!showRail) e.currentTarget.style.background = "var(--bg-surface-alpha-2)";
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!showRail) e.currentTarget.style.background = "transparent";
-                      }}
+                      data-rail={showRail || undefined}
+                      data-dim={row.dim || undefined}
+                      className="miller-row focus-ring"
                       onClick={() => {
                         // Files have no depth — collapse any deeper columns,
                         // matching macOS Finder behaviour.
@@ -405,10 +388,8 @@ export function StructureColumns({ graph, onOpen }: Props) {
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
-                          color: rowSelectedFile
-                            ? "var(--text-primary)"
-                            : "var(--text-secondary)",
-                          fontWeight: rowSelectedFile ? 500 : 400,
+                          color: baseColor,
+                          fontWeight: weight,
                         }}
                       >
                         {row.node.title}
