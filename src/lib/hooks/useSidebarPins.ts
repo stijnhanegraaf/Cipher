@@ -13,6 +13,8 @@ function newId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
+const PINS_CHANGED_EVENT = "cipher:pins-changed";
+
 async function persist(config: SidebarConfig): Promise<void> {
   const res = await fetch("/api/settings/sidebar", {
     method: "PUT",
@@ -22,6 +24,10 @@ async function persist(config: SidebarConfig): Promise<void> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body?.error ?? `PUT failed: ${res.status}`);
+  }
+  // Broadcast so other useSidebarPins instances pick up the change.
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(PINS_CHANGED_EVENT, { detail: config.pins }));
   }
 }
 
@@ -53,6 +59,17 @@ export function useSidebarPins() {
       }
     })();
     return () => { cancelled = true; };
+  }, []);
+
+  // Listen for peer updates (e.g. pin toggled in a different component
+  // mounting its own useSidebarPins instance).
+  useEffect(() => {
+    const onChange = (e: Event) => {
+      const next = (e as CustomEvent<PinEntry[]>).detail;
+      if (Array.isArray(next)) setPins(next);
+    };
+    window.addEventListener(PINS_CHANGED_EVENT, onChange);
+    return () => window.removeEventListener(PINS_CHANGED_EVENT, onChange);
   }, []);
 
   // Optimistic mutation. Every helper uses the functional setState form

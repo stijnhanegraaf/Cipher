@@ -103,6 +103,13 @@
   --motion-enter:  180ms; /* entrance / exit fade */
   --motion-sheet:  220ms; /* panel slide */
 
+  /* Shorthand transition for background/color/border-color hover flips.
+     One-line swap target when tuning hover feel globally. */
+  --transition-hover:
+    background-color var(--motion-hover) var(--ease-default),
+    border-color     var(--motion-hover) var(--ease-default),
+    color            var(--motion-hover) var(--ease-default);
+
   /* ── Craft pass — chrome frame ───────────── */
   --chrome-margin: 8px;
   --chrome-gap:    8px;
@@ -586,6 +593,20 @@
     outline: none;
   }
 
+  /* Touch — kill 300ms double-tap zoom on interactive elements. */
+  button, a, [role="button"], [role="tab"], [role="option"], label, summary, input, select, textarea {
+    touch-action: manipulation;
+  }
+
+  /* iOS Safari zooms focused inputs when their computed font-size is <16px.
+     Bump any sub-16px inputs up on touch devices only — desktop density is
+     preserved. Uses `pointer: coarse` to avoid affecting laptop Safari. */
+  @media (pointer: coarse) {
+    input, select, textarea {
+      font-size: max(16px, 1em);
+    }
+  }
+
   /* Reduced motion */
   @media (prefers-reduced-motion: reduce) {
     :root {
@@ -634,7 +655,7 @@
   /* ── .app-row ─────────────────────────────
      Unified list-row affordance. Used across:
      welcome Recent/Open, SearchResults, SourceList, LinkList,
-     TaskItemRow, TimelineMini, VaultDrawer, DetailPage ToC.
+     TaskItemRow, TimelineMini, DetailPage ToC.
      Subtle hover bg + 2px brand rail on the leading edge.
      This is THE list-row style across the app. */
   .app-row {
@@ -1065,6 +1086,208 @@
     text-wrap: pretty;
   }
 
+  /* ── .reading-column ────────────────────────
+     Shared max-width container so the ReaderToolbar and the markdown body
+     align on the same optical axis. Padding mirrors the old inline 32/24. */
+  .reading-column {
+    max-width: var(--md-max-width, 72ch);
+    margin: 0 auto;
+    padding: 24px 24px 64px;
+  }
+
+  /* ── .reader-toolbar ────────────────────────
+     Document-level chrome. Mounted above the markdown surface, inside the
+     reading column so its max-width aligns with the body text below. Quiet
+     by default — chips only pop on hover/focus/pressed. */
+  .reader-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 0 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 24px;
+    color: var(--text-tertiary);
+  }
+  .reader-toolbar__group {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .reader-toolbar__divider {
+    width: 1px;
+    height: 16px;
+    background: var(--border-subtle);
+    margin: 0 6px;
+  }
+  .reader-toolbar__spacer {
+    flex: 1;
+  }
+  .reader-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 24px;
+    padding: 0 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    border-radius: 5px;
+    cursor: pointer;
+    line-height: 1;
+    transition: var(--transition-hover);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .reader-chip:hover { background: var(--bg-surface-alpha-2); color: var(--text-primary); }
+  }
+  .reader-chip[aria-pressed="true"] {
+    background: var(--bg-surface-alpha-4);
+    color: var(--text-primary);
+  }
+  .reader-size {
+    min-width: 28px;
+    height: 24px;
+    padding: 0 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: var(--transition-hover);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .reader-size:hover { background: var(--bg-surface-alpha-2); color: var(--text-primary); }
+  }
+
+  /* ── .today-row ─────────────────────────────
+     Reveal row actions on hover OR keyboard focus, not just mouse. Uses
+     display swap so neither slot takes space when the other is hidden. */
+  .today-row__actions { display: none; }
+  .today-row:hover .today-row__meta,
+  .today-row:focus-within .today-row__meta { display: none; }
+  .today-row:hover .today-row__actions,
+  .today-row:focus-within .today-row__actions { display: inline-flex; }
+
+  /* ── .md-link ───────────────────────────────
+     Link styling inside MarkdownRenderer. Underline appears on hover
+     (fine pointers) AND on keyboard focus — no JS state churn. */
+  .md-link {
+    color: var(--accent-violet);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition:
+      border-color var(--motion-hover) var(--ease-default),
+      color        var(--motion-hover) var(--ease-default);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .md-link:hover {
+      color: var(--accent-hover);
+      border-bottom-color: currentColor;
+    }
+  }
+  .md-link:focus-visible {
+    border-bottom-color: currentColor;
+  }
+
+  /* ── .miller-row ────────────────────────────
+     Structure columns row. Hover on fine pointers only, dim state via
+     token (never opacity), focus ring via .focus-ring, active rail by
+     data-rail. No JS hover handlers needed. */
+  .miller-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: var(--row-h-cozy);
+    padding: 0 8px 0 10px;
+    background: transparent;
+    border: none;
+    border-left: 2px solid transparent;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    transition: background-color var(--motion-hover) var(--ease-default);
+  }
+  .miller-row[data-dim="true"] {
+    color: var(--text-quaternary);
+  }
+  .miller-row[data-rail="true"] {
+    background: var(--bg-surface-alpha-4);
+    border-left-color: var(--accent-brand);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .miller-row:hover:not([data-rail="true"]) {
+      background: var(--bg-surface-alpha-2);
+    }
+  }
+
+  /* ── .icon-btn ──────────────────────────────
+     Hover/active/pressed treatments for <IconButton />. Hover is gated on
+     fine pointers so taps don't leave a stuck state. Pressed state is
+     keyed on aria-pressed so screen readers and CSS agree. */
+  @media (hover: hover) and (pointer: fine) {
+    .icon-btn:hover {
+      background-color: var(--bg-surface-alpha-4);
+      color: var(--text-primary);
+    }
+  }
+  .icon-btn:active {
+    transform: scale(0.94);
+  }
+  .icon-btn[aria-pressed="true"] {
+    background-color: var(--bg-surface-alpha-4);
+    color: var(--text-primary);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .icon-btn:active { transform: none; }
+  }
+
+  /* ── .skip-link ─────────────────────────────
+     Visually hidden until keyboard-focused, then anchors to top-left.
+     Sits outside the app-shell flow — no layout cost when unfocused. */
+  .skip-link {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: var(--z-modal, 1000);
+    padding: 8px 12px;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border: 1px solid var(--border-standard);
+    border-radius: var(--radius-comfortable);
+    font-size: 13px;
+    font-weight: 510;
+    text-decoration: none;
+    box-shadow: var(--shadow-elevated);
+    transform: translateY(-200%);
+    transition: transform var(--duration-fast) var(--ease-default);
+  }
+  .skip-link:focus-visible {
+    transform: translateY(0);
+  }
+
+  /* ── .hit-44 ───────────────────────────────
+     Expand the tap area of a compact icon button to 44px on coarse
+     pointers without affecting desktop visual size. Pair with a
+     `position: relative` ancestor. */
+  .hit-44 {
+    position: relative;
+  }
+  @media (pointer: coarse) {
+    .hit-44::before {
+      content: "";
+      position: absolute;
+      inset: 50% 50%;
+      width: 44px;
+      height: 44px;
+      transform: translate(-50%, -50%);
+      /* Transparent, but captures pointer events above the visual glyph. */
+    }
+  }
+
   /* ── Scrollbar — 6px, thin, theme-aware ── */
   .scrollbar-thin {
     scrollbar-width: thin;
@@ -1449,3 +1672,29 @@ button:active, [role="button"]:active {
 @media (prefers-reduced-motion: reduce) {
   .icon-stack > span { transition: none; }
 }
+
+/* ── highlight.js syntax highlighting ──
+   Two themes (atom-one-light, atom-one-dark) are loaded at runtime by
+   MarkdownRenderer and toggled via <link disabled> based on data-theme. */
+.markdown-content pre code.hljs {
+  background: transparent;
+  padding: 0;
+}
+
+/* ── Reader preferences — apply to the markdown preview only. ── */
+.markdown-content {
+  font-family: var(--md-font, ui-sans-serif, system-ui);
+  font-size: calc(var(--md-size, 15px) * var(--md-zoom, 1));
+  line-height: var(--md-line-height, 1.6);
+  direction: var(--md-dir, ltr);
+  max-width: var(--md-max-width, 72ch);
+  margin: 0 auto;
+}
+.markdown-content strong { font-weight: var(--md-weight, 600); }
+
+/* ── Heading copy-link hover reveal ── */
+.markdown-content h1:hover .copy-heading,
+.markdown-content h2:hover .copy-heading,
+.markdown-content h3:hover .copy-heading,
+.markdown-content h4:hover .copy-heading { opacity: 0.6; }
+.markdown-content .copy-heading:hover { opacity: 1 !important; }

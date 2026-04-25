@@ -16,6 +16,7 @@ import {
   type CSSProperties,
 } from "react";
 import type { Graph, GraphNode } from "@/lib/vault-graph";
+import { IconButton } from "@/components/ui/IconButton";
 
 export interface LinkRow {
   path: string;
@@ -252,35 +253,17 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
           >
             {data.env.title}
           </h2>
-          <button
-            type="button"
+          <IconButton
             aria-label="Open file in sheet"
             onClick={() => onOpen(path)}
-            style={{
-              width: 24,
-              height: 24,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "none",
-              borderRadius: 6,
-              background: "transparent",
-              cursor: "pointer",
-              color: "var(--text-tertiary)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "var(--bg-surface-alpha-2)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-            }}
+            style={{ border: "none" }}
           >
             <svg width={14} height={14} viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
               <path d="M5 3h6v6" />
               <path d="M11 3l-7 7" />
               <path d="M3 7v4h4" />
             </svg>
-          </button>
+          </IconButton>
         </div>
       </div>
 
@@ -390,7 +373,7 @@ function LinkSection({
               key={r.path}
               type="button"
               onClick={() => onNavigate(r.path)}
-              className="app-row"
+              className="app-row focus-ring"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -403,8 +386,6 @@ function LinkSection({
                 gap: 8,
                 textAlign: "left",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-surface-alpha-2)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <svg width={12} height={12} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={1.5} style={{ color: "var(--text-quaternary)", flexShrink: 0 }}>
                 <path d="M3 2h4l2 2v6H3z" />

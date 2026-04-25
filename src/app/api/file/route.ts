@@ -7,6 +7,7 @@ import { readVaultFile, resolveLink, getVaultPath } from "@/lib/vault-reader";
 import { readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { log } from "@/lib/log";
+import { invalidateVaultTreeCache } from "@/app/api/vault/tree/route";
 
 // ─── GET /api/file?path=wiki/work/open.md ─────────────────────────────
 // Returns raw markdown content + parsed metadata for a vault file
@@ -112,6 +113,7 @@ export async function PUT(request: NextRequest) {
     if (content !== undefined && typeof content === "string") {
       // Full content write
       await writeFile(absPath, content, "utf-8");
+      invalidateVaultTreeCache();
       return NextResponse.json({ success: true, path: relPath });
     } else if (typeof lineIndex === "number" && typeof newText === "string") {
       // Line-level edit (for task item inline editing)
@@ -129,6 +131,7 @@ export async function PUT(request: NextRequest) {
       const line = lines[lineIndex];
       lines[lineIndex] = line.replace(/(- \[[ x]\] )(.+)/, `$1${newText}`);
       await writeFile(absPath, lines.join("\n"), "utf-8");
+      invalidateVaultTreeCache();
       return NextResponse.json({ success: true, path: relPath, lineIndex });
     } else {
       return NextResponse.json({ error: "Provide 'content' or 'lineIndex'+'newText'" }, { status: 400 });
