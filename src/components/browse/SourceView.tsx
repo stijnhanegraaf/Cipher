@@ -30,22 +30,18 @@ export function SourceView({ content }: { content: string }) {
           EditorView.lineWrapping,
           markdown(),
           EditorView.theme({
+            // Outer .reading-column already supplies max-width + padding +
+            // centring. Keep only CodeMirror-specific typography here.
             "&": {
               background: "transparent",
               color: "var(--text-primary)",
-              height: "100%",
               fontSize: "calc(var(--md-size, 15px) * var(--md-zoom, 1))",
             },
             ".cm-scroller": {
               fontFamily: "var(--font-mono, ui-monospace, Menlo, monospace)",
               lineHeight: "var(--md-line-height, 1.6)",
-              padding: "32px 24px",
             },
-            ".cm-content": {
-              maxWidth: "var(--md-max-width, 72ch)",
-              margin: "0 auto",
-              padding: 0,
-            },
+            ".cm-content": { padding: 0 },
             ".cm-focused": { outline: "none" },
             ".cm-selectionBackground, ::selection": {
               backgroundColor: "var(--bg-surface-alpha-4)",
@@ -58,5 +54,5 @@ export function SourceView({ content }: { content: string }) {
     return () => { alive = false; view?.destroy(); };
   }, [content]);
 
-  return <div ref={hostRef} style={{ height: "100%", overflow: "auto" }} />;
+  return <div ref={hostRef} />;
 }

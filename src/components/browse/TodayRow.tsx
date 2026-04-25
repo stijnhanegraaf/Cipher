@@ -4,7 +4,7 @@
  * TodayRow — single task row with checkbox + meta. Toggles hit /api/toggle.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { PriorityGlyph } from "@/components/browse/PriorityGlyph";
 import { useSheet } from "@/lib/hooks/useSheet";
@@ -30,7 +30,6 @@ interface Props {
 export function TodayRow({ task, onToggle, pendingCheck = false, onAsk }: Props) {
   const router = useRouter();
   const sheet = useSheet();
-  const [hovered, setHovered] = useState(false);
 
   const openSheet = useCallback(() => sheet.open(task.path), [sheet, task.path]);
   const openFull = useCallback(() => router.push(`/file/${task.path}`), [router, task.path]);
@@ -57,9 +56,7 @@ export function TodayRow({ task, onToggle, pendingCheck = false, onAsk }: Props)
           openSheet();
         }
       }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="app-row focus-ring"
+      className="app-row focus-ring today-row"
       style={{
         display: "flex",
         alignItems: "center",
@@ -147,39 +144,38 @@ export function TodayRow({ task, onToggle, pendingCheck = false, onAsk }: Props)
         {task.text}
       </span>
 
-      {/* Meta / hover actions */}
-      {!hovered && (
-        <span
-          className="mono-label"
-          style={{
-            color: "var(--text-quaternary)",
-            letterSpacing: "0.02em",
-            flexShrink: 0,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {relTime(task.mtime)}
-        </span>
-      )}
-      {hovered && (
-        <span
-          style={{ display: "inline-flex", gap: 4, flexShrink: 0 }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <RowIconButton label="Open full" onClick={openFull}>
+      {/* Meta — hidden on hover/focus so the action buttons can take its place. */}
+      <span
+        className="mono-label today-row__meta"
+        style={{
+          color: "var(--text-quaternary)",
+          letterSpacing: "0.02em",
+          flexShrink: 0,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {relTime(task.mtime)}
+      </span>
+      {/* Actions — revealed via CSS on :hover AND :focus-within so keyboard
+          users can also see them. No React state, no re-render per hover. */}
+      <span
+        className="today-row__actions"
+        style={{ display: "inline-flex", gap: 4, flexShrink: 0 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <RowIconButton label="Open full" onClick={openFull}>
+          <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 17L17 7M7 7h10v10" />
+          </svg>
+        </RowIconButton>
+        {onAsk && (
+          <RowIconButton label="Ask about" onClick={handleAsk}>
             <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 17L17 7M7 7h10v10" />
+              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
             </svg>
           </RowIconButton>
-          {onAsk && (
-            <RowIconButton label="Ask about" onClick={handleAsk}>
-              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-              </svg>
-            </RowIconButton>
-          )}
-        </span>
-      )}
+        )}
+      </span>
     </div>
   );
 }

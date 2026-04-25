@@ -3,6 +3,7 @@
 import { memo, useEffect, useState } from "react";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { SourceView } from "./SourceView";
+import { ReaderToolbar } from "./ReaderToolbar";
 
 interface FileData { path: string; title: string; content: string }
 
@@ -27,9 +28,13 @@ interface Props {
   filePath: string;
   mode: "rendered" | "source";
   onNavigate: (target: string) => void;
+  onToggleMode: () => void;
+  /** Hide the in-column toolbar — used by the full-page view where the
+      toolbar belongs in the page chrome, not stacked with page chrome. */
+  showToolbar?: boolean;
 }
 
-export const MarkdownPreview = memo(function MarkdownPreview({ filePath, mode, onNavigate }: Props) {
+export const MarkdownPreview = memo(function MarkdownPreview({ filePath, mode, onNavigate, onToggleMode, showToolbar = true }: Props) {
   const [data, setData] = useState<FileData | null>(() => lruGet(filePath) ?? null);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,10 +57,18 @@ export const MarkdownPreview = memo(function MarkdownPreview({ filePath, mode, o
 
   if (error) return <div className="caption" style={{ padding: 24, color: "var(--status-danger, #c0392b)" }}>Couldn't load file: {error}</div>;
   if (!data) return <div className="caption" style={{ padding: 24, color: "var(--text-tertiary)" }}>Loading…</div>;
-  if (mode === "source") return <SourceView content={data.content} />;
   return (
-    <div className="markdown-content" style={{ maxWidth: "72ch", margin: "0 auto", padding: "32px 24px" }}>
-      <MarkdownRenderer content={data.content} onNavigate={onNavigate} />
+    <div className="reading-column">
+      {showToolbar && (
+        <ReaderToolbar filePath={filePath} mode={mode} onToggleMode={onToggleMode} />
+      )}
+      {mode === "source" ? (
+        <SourceView content={data.content} />
+      ) : (
+        <div className="markdown-content">
+          <MarkdownRenderer content={data.content} onNavigate={onNavigate} />
+        </div>
+      )}
     </div>
   );
 });

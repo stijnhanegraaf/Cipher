@@ -132,8 +132,6 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
         <PreviewHeader
           folderPath={currentFolder}
           filePath={currentFile}
-          mode={mode}
-          onToggleMode={() => setMode((m) => (m === "rendered" ? "source" : "rendered"))}
         />
         <div ref={treeBoxRef} style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
           <FileTree
@@ -164,6 +162,7 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
           folderPath={currentFolder}
           filePath={currentFile}
           mode={mode}
+          onToggleMode={() => setMode((m) => (m === "rendered" ? "source" : "rendered"))}
           onOpenFile={selectFile}
           onOpenFolder={selectFolder}
           onNavigate={navigateTo}

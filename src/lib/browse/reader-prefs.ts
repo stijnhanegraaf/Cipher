@@ -11,16 +11,21 @@ export interface ReaderPrefs {
   zoom: number;         // 0.75..1.5
 }
 
+// Crafted defaults — Instrument Serif at 17px/1.65 reads like a long-form
+// document. Sans is one click away in the ReaderToolbar.
 export const DEFAULT_PREFS: ReaderPrefs = {
-  fontFamily: "sans",
-  fontSize: 15,
+  fontFamily: "serif",
+  fontSize: 17,
   boldWeight: 600,
-  lineHeight: 1.6,
+  lineHeight: 1.65,
   direction: "ltr",
   pageWidth: "comfortable",
   customWidthPx: 768,
   zoom: 1,
 };
+
+export const FONT_SIZE_MIN = 13;
+export const FONT_SIZE_MAX = 22;
 
 const KEY = "cipher.reader-prefs.v1";
 

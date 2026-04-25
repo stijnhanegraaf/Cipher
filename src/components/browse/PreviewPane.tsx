@@ -10,12 +10,13 @@ interface Props {
   folderPath: string;
   filePath: string | null;
   mode: "rendered" | "source";
+  onToggleMode: () => void;
   onOpenFile: (p: string) => void;
   onOpenFolder: (p: string) => void;
   onNavigate: (target: string) => void;
 }
 
-export function PreviewPane({ filePath, mode, onNavigate }: Props) {
+export function PreviewPane({ filePath, mode, onToggleMode, onNavigate }: Props) {
   if (!filePath) {
     return (
       <div
@@ -35,7 +36,7 @@ export function PreviewPane({ filePath, mode, onNavigate }: Props) {
   }
   const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
   const kind = fileKindForExt(ext);
-  if (kind === "md") return <MarkdownPreview filePath={filePath} mode={mode} onNavigate={onNavigate} />;
+  if (kind === "md") return <MarkdownPreview filePath={filePath} mode={mode} onNavigate={onNavigate} onToggleMode={onToggleMode} />;
   if (kind === "image") return <ImagePreview filePath={filePath} />;
   if (kind === "pdf") return <PdfPreview filePath={filePath} />;
   return <GenericPreview filePath={filePath} />;

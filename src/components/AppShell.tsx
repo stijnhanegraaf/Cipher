@@ -164,6 +164,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell" style={{ color: "var(--text-primary)" }}>
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <aside className="chrome-panel chrome-panel--sidebar sidebar-container">
         <Sidebar
           onAsk={handleAsk}
@@ -187,7 +188,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         />
       </aside>
 
-      <main className="chrome-panel chrome-panel--main" style={{ display: "flex", flexDirection: "column" }}>
+      <main id="main-content" tabIndex={-1} className="chrome-panel chrome-panel--main" style={{ display: "flex", flexDirection: "column" }}>
         {children}
       </main>
 

@@ -297,14 +297,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                     e.preventDefault();
                     onNavigate(vaultPath);
                   }}
-                  className="text-accent-violet hover:text-accent-hover cursor-pointer transition-colors duration-150"
-                  style={{
-                    textDecoration: "none",
-                    borderBottom: "1px solid transparent",
-                    transition: "border-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = "currentColor"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = "transparent"; }}
+                  className="md-link focus-ring"
                 >
                   {wikiLinkIcon}
                   {children}
@@ -317,14 +310,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-accent-violet hover:text-accent-hover transition-colors duration-150"
-                style={{
-                  textDecoration: "none",
-                  borderBottom: "1px solid transparent",
-                  transition: "border-color var(--motion-hover) var(--ease-default), color var(--motion-hover) var(--ease-default)",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = "currentColor"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = "transparent"; }}
+                className="md-link focus-ring"
               >
                 {isWikiLink && wikiLinkIcon}
                 {children}

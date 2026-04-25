@@ -156,7 +156,7 @@ function Row({ node, style, dragHandle }: NodeRendererProps<NodeData>) {
       <span style={{ width: 12, display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--text-quaternary)" }}>
         {isFolder ? (
           <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"
-            style={{ transform: node.isOpen ? "rotate(90deg)" : "none", transition: "transform 120ms var(--ease-default, ease)" }}>
+            style={{ transform: node.isOpen ? "rotate(90deg)" : "none", transition: "transform var(--motion-hover) var(--ease-default)" }}>
             <polyline points="9 6 15 12 9 18" />
           </svg>
         ) : null}
