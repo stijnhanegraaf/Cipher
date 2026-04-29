@@ -39,6 +39,10 @@ const CALENDARS = [
 const VAULT_ROOT = path.join(__dirname, '../Obsidian/wiki');
 const JOURNAL_DIR = path.join(VAULT_ROOT, 'journal');
 
+// Section markers for merge-driver compatibility
+const CALDAV_START_MARKER = '<!-- caldav:start -->';
+const CALDAV_END_MARKER = '<!-- caldav:end -->';
+
 function loadContext() {
   try { return JSON.parse(fs.readFileSync(CONTEXT_FILE, 'utf8')); } catch { return {}; }
 }
@@ -305,17 +309,9 @@ async function fetchCalendar(cal, rangeStart, rangeEnd) {
   });
 }
 
-/**
- * Write an event occurrence into the vault as a daily note entry.
- * Uses provenance frontmatter to mark the event as untrusted.
- */
-function writeEventToVault(event) {
-  const dateStr = formatDateCET(event.startDate);
-  const notePath = path.join(JOURNAL_DIR, `${dateStr}.md`);
-
+function formatEventEntry(event) {
   const timeStr = event.isAllDay ? 'all-day' : formatTimeCET(event.startDate);
-  const entryLines = [
-    ``,
+  return [
     `---`,
     `source: caldav`,
     `trust: untrusted`,
@@ -323,37 +319,105 @@ function writeEventToVault(event) {
     `calendar: ${event.calendar}`,
     `time: ${timeStr}`,
     `---`,
-    ``,
     `- [ ] ${event.summary}`
-  ];
+  ].join('\n');
+}
+
+function buildCaldavSection(entries) {
+  if (entries.length === 0) return '';
+  return [
+    '',
+    CALDAV_START_MARKER,
+    '### Calendar',
+    '',
+    ...entries.map(e => formatEventEntry(e)),
+    '',
+    CALDAV_END_MARKER,
+  ].join('\n');
+}
+
+function stripExistingCaldavSection(content) {
+  const startIdx = content.indexOf(CALDAV_START_MARKER);
+  const endIdx = content.indexOf(CALDAV_END_MARKER);
+  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+    const before = content.slice(0, startIdx);
+    const after = content.slice(endIdx + CALDAV_END_MARKER.length);
+    // Clean up any double newlines left behind
+    return (before + after).replace(/\n{3,}/g, '\n\n');
+  }
+  return content;
+}
+
+/**
+ * Write an event occurrence into the vault as a daily note entry.
+ * Uses provenance frontmatter to mark the event as untrusted.
+ * Wraps calendar content in <!-- caldav:start/end --> markers for merge-driver compatibility.
+ */
+function writeEventToVault(event) {
+  const dateStr = formatDateCET(event.startDate);
+  const notePath = path.join(JOURNAL_DIR, `${dateStr}.md`);
 
   let existing = '';
   try { existing = fs.readFileSync(notePath, 'utf8'); } catch { /* file doesn't exist */ }
 
   if (existing) {
-    // Append after the Work section or at the end
-    const parts = existing.split(/\n## /);
-    if (parts.length > 1) {
-      // Find Work section and append there
-      let found = false;
-      const newParts = parts.map((part, idx) => {
-        if (idx === 0) return part;
-        if (part.startsWith('Work')) {
-          found = true;
-          return part + '\n' + entryLines.join('\n');
-        }
-        return '## ' + part;
-      });
-      if (found) {
-        fs.writeFileSync(notePath, newParts.join('\n'));
-      } else {
-        fs.writeFileSync(notePath, existing + '\n' + entryLines.join('\n'));
-      }
+    // Strip any existing caldav section first, then rebuild with all events
+    const cleanContent = stripExistingCaldavSection(existing);
+    const newEntry = formatEventEntry(event);
+    
+    // Check if there's already a caldav section in the clean content (shouldn't be, but safety)
+    const startIdx = cleanContent.indexOf(CALDAV_START_MARKER);
+    const endIdx = cleanContent.indexOf(CALDAV_END_MARKER);
+
+    if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+      // Replace existing caldav section
+      const before = cleanContent.slice(0, startIdx);
+      const after = cleanContent.slice(endIdx + CALDAV_END_MARKER.length);
+      const caldavContent = cleanContent.slice(startIdx + CALDAV_START_MARKER.length, endIdx).trim();
+      const newCaldavSection = [
+        '',
+        CALDAV_START_MARKER,
+        caldavContent,
+        '',
+        newEntry,
+        '',
+        CALDAV_END_MARKER,
+      ].join('\n');
+      fs.writeFileSync(notePath, (before + newCaldavSection + after).replace(/\n{3,}/g, '\n\n'));
     } else {
-      fs.writeFileSync(notePath, existing + '\n' + entryLines.join('\n'));
+      // No existing caldav section — append after Work section or at end
+      const entryLines = [
+        '',
+        CALDAV_START_MARKER,
+        '### Calendar',
+        '',
+        newEntry,
+        '',
+        CALDAV_END_MARKER,
+      ];
+      const parts = cleanContent.split(/\n## /);
+      if (parts.length > 1) {
+        let found = false;
+        const newParts = parts.map((part, idx) => {
+          if (idx === 0) return part;
+          if (part.startsWith('Work')) {
+            found = true;
+            return part + '\n' + entryLines.join('\n');
+          }
+          return '## ' + part;
+        });
+        if (found) {
+          fs.writeFileSync(notePath, newParts.join('\n'));
+        } else {
+          fs.writeFileSync(notePath, cleanContent + '\n' + entryLines.join('\n'));
+        }
+      } else {
+        fs.writeFileSync(notePath, cleanContent + '\n' + entryLines.join('\n'));
+      }
     }
   } else {
-    // Create new daily note
+    // Create new daily note with caldav section inside Work
+    const caldavSection = buildCaldavSection([event]);
     const note = [
       `---`,
       `date: ${dateStr}`,
@@ -367,7 +431,7 @@ function writeEventToVault(event) {
       `## Highlights`,
       ``,
       `## Work`,
-      entryLines.join('\n'),
+      caldavSection,
       ``,
       `## Life`,
       ``,
