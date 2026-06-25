@@ -4,15 +4,13 @@
  * /file/[...path] page — full-page vault file view with TOC + edit mode.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { PageShell, PageAction } from "@/components/PageShell";
 import { Breadcrumbs, MarkdownRenderer } from "@/components/ui";
 import { useSheet } from "@/lib/hooks/useSheet";
 import { useVault } from "@/lib/hooks/useVault";
-import type { FileEnvelope } from "@/lib/types/file-envelope";
-
-type FileData = FileEnvelope;
+import { useFileContent } from "@/lib/hooks/useFileContent";
 
 /**
  * FileFullPage — full-route file view at /file/[...path].
@@ -25,33 +23,7 @@ export function FileFullPage({ path }: { path: string }) {
   const router = useRouter();
   const vault = useVault();
   const sheet = useSheet();
-  const [data, setData] = useState<FileData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body?.error || `File fetch failed (${res.status})`);
-        }
-        const json = await res.json();
-        if (!cancelled) setData(json);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load file");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [path]);
+  const { data, loading, error } = useFileContent(path);
 
   const openObsidian = useCallback(() => {
     const vaultName = vault.name || "Obsidian";
