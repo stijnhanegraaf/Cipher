@@ -20,8 +20,8 @@ interface Props {
 
 const FALLBACK_HINTS = [
   "summarise this week",
-  "what's Alice up to",
-  "notes on Q3 plan",
+  "what changed recently",
+  "what should I focus on",
 ];
 
 export function ChatEmptyState({ onSubmit, banner }: Props) {
