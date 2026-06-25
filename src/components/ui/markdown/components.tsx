@@ -13,9 +13,72 @@ import React from "react";
 import type { Components } from "react-markdown";
 import { CheckboxIndicator } from "../StatusDot";
 import { CodeBlock } from "../CodeBlock";
+import { Callout } from "../Callout";
 import { parseWikiTarget } from "@/lib/markdown/wikilink";
+import { parseCallout } from "@/lib/markdown/callout";
 import { MermaidBlock } from "./MermaidBlock";
 import { textToId, wikiLinkIcon, CopyHeadingLink } from "./CopyHeadingLink";
+
+/**
+ * Extract a flat string from the first text run in React children.
+ * react-markdown wraps each blockquote line in a <p>; the first child
+ * of blockquote is thus a <p> whose children contain the opening text.
+ * We recurse into the first valid element only — enough to read the
+ * `[!type]` marker without walking the whole tree.
+ */
+function firstLineText(children: React.ReactNode): string {
+  let text = "";
+  React.Children.forEach(children, (child) => {
+    if (text) return; // only first child
+    if (typeof child === "string") {
+      text = child;
+    } else if (typeof child === "number") {
+      text = String(child);
+    } else if (React.isValidElement(child)) {
+      const props = child.props as { children?: React.ReactNode };
+      text = firstLineText(props.children);
+    }
+  });
+  return text;
+}
+
+/**
+ * Strip the callout marker (`[!type][-+]? optional title`) from the
+ * first paragraph's children, returning the remainder text, or null
+ * if the first paragraph is entirely consumed.
+ */
+function stripMarkerFromFirstPara(children: React.ReactNode): React.ReactNode {
+  const arr = React.Children.toArray(children);
+  if (!arr.length) return children;
+
+  const firstEl = arr[0];
+  if (!React.isValidElement(firstEl)) return children;
+
+  // Extract first-para text children, minus the marker prefix
+  const paraProps = firstEl.props as { children?: React.ReactNode };
+  const paraChildren = React.Children.toArray(paraProps.children);
+
+  // Find the first text node that contains the marker
+  let markerStripped = false;
+  const newParaChildren = paraChildren.map((c) => {
+    if (!markerStripped && typeof c === "string") {
+      // Strip the `[!type][-+]? title` prefix (with optional leading >)
+      const stripped = c.replace(/^\s*>?\s*\[![^\]]+\][-+]?\s*/, "").trimStart();
+      markerStripped = true;
+      return stripped;
+    }
+    return c;
+  }).filter((c) => c !== "");
+
+  // If first paragraph is now empty, drop it from the body
+  const newPara =
+    newParaChildren.length === 0
+      ? null
+      : React.cloneElement(firstEl, {}, ...newParaChildren);
+
+  const rest = arr.slice(1);
+  return newPara ? [newPara, ...rest] : rest;
+}
 
 export interface MarkdownComponentOptions {
   onNavigate?: (path: string) => void;
@@ -233,12 +296,21 @@ export function createMarkdownComponents({ onNavigate }: MarkdownComponentOption
     // ── Code block (pre) — CodeBlock adds the hover-reveal copy button ──
     pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
 
-    // ── Blockquote ──
-    blockquote: ({ children }) => (
-      <blockquote>
-        {children}
-      </blockquote>
-    ),
+    // ── Blockquote — detects Obsidian callouts ──
+    blockquote: ({ children }) => {
+      // Extract the first line to check for callout syntax
+      const firstLine = firstLineText(children);
+      const meta = parseCallout(firstLine);
+
+      // No callout marker — render as normal blockquote (zero regression)
+      if (!meta) {
+        return <blockquote>{children}</blockquote>;
+      }
+
+      // Callout: strip the marker from the first paragraph, pass body to <Callout>
+      const body = stripMarkerFromFirstPara(children);
+      return <Callout meta={meta} body={body} />;
+    },
 
     // ── Horizontal rule ──
     hr: () => <hr />,

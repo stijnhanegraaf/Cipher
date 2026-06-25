@@ -229,6 +229,14 @@
   --hue-warning:    var(--status-warning);    /* warning kind        */
   --hue-success:    var(--success);           /* done / positive     */
   --hue-danger:     var(--status-blocked);    /* blocked / negative  */
+  /* Callout-specific hues (Task 3) — alias existing semantic tokens */
+  --hue-abstract:   var(--hue-question);      /* abstract / summary (blue) */
+  --hue-info:       var(--hue-question);      /* info (blue)         */
+  --hue-tip:        var(--hue-success);       /* tip / hint (green)  */
+  --hue-failure:    var(--hue-danger);        /* failure / fail      */
+  --hue-bug:        var(--hue-danger);        /* bug (red)           */
+  --hue-example:    var(--hue-idea);          /* example (amber)     */
+  --hue-quote:      var(--text-tertiary);     /* quote (neutral)     */
 
   /* Link-state hues */
   --link:           var(--accent-violet);
@@ -1758,6 +1766,43 @@
   .typeset .callout--warning  { --sc: var(--hue-warning); }
   .typeset .callout--success  { --sc: var(--hue-success); }
   .typeset .callout--danger   { --sc: var(--hue-danger); }
+  /* Callout types added in Task 3 */
+  .typeset .callout--abstract { --sc: var(--hue-abstract); }
+  .typeset .callout--info     { --sc: var(--hue-info); }
+  .typeset .callout--tip      { --sc: var(--hue-tip); }
+  .typeset .callout--failure  { --sc: var(--hue-failure); }
+  .typeset .callout--bug      { --sc: var(--hue-bug); }
+  .typeset .callout--example  { --sc: var(--hue-example); }
+  .typeset .callout--quote    { --sc: var(--hue-quote); }
+
+  /* ── Foldable callout (<details>/<summary>) ─────────────────────── */
+  /* details element reuses the .callout base styling above */
+  .typeset details.callout {
+    display: block; /* override flex for details — summary + body stack naturally */
+  }
+  .typeset details.callout > summary.callout__title {
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  .typeset details.callout > summary.callout__title::-webkit-details-marker {
+    display: none;
+  }
+  /* Chevron rotates when open */
+  .typeset details.callout > summary.callout__title .callout__chevron {
+    transition: transform var(--dur-expand) var(--ease-signature);
+  }
+  .typeset details.callout[open] > summary.callout__title .callout__chevron {
+    transform: rotate(180deg);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .typeset details.callout > summary.callout__title .callout__chevron {
+      transition: none;
+    }
+  }
+  .typeset details.callout > .callout__body {
+    margin-top: var(--space-1);
+  }
 }
 
 /* ─────────────────────────────────────────────
