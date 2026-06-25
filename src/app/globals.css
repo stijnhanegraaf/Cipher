@@ -9,62 +9,62 @@
 /* ── Custom Properties: Dark Mode (PRIMARY) ── */
 :root {
   /* Background surfaces */
-  --bg-marketing:       #08090a;
-  --bg-panel:           #0f1011;
-  --bg-surface:         #191a1b;
-  --bg-elevated:        #28282c;
-  --bg-surface-alpha-2: rgba(255,255,255,0.02);
-  --bg-surface-alpha-4: rgba(255,255,255,0.04);
-  --bg-surface-alpha-5: rgba(255,255,255,0.05);
+  --bg-marketing:       oklch(13.895% 0.0029 246.26);
+  --bg-panel:           oklch(17.233% 0.0026 247.98);
+  --bg-surface:         oklch(21.711% 0.0025 247.94);
+  --bg-elevated:        oklch(27.845% 0.0073 285.92);
+  --bg-surface-alpha-2: oklch(100% 0 0 / 0.02);
+  --bg-surface-alpha-4: oklch(100% 0 0 / 0.04);
+  --bg-surface-alpha-5: oklch(100% 0 0 / 0.05);
 
   /* Text */
-  --text-primary:       #f7f8f8;
-  --text-secondary:     #d0d6e0;
-  --text-tertiary:      #8a8f98;
-  --text-quaternary:    #62666d;
+  --text-primary:       oklch(97.837% 0.0011 197.14);
+  --text-secondary:     oklch(87.444% 0.0152 260.73);
+  --text-tertiary:      oklch(64.881% 0.0146 262.36);
+  --text-quaternary:    oklch(50.918% 0.0121 261.77);
 
   /* Brand & Accent */
-  --accent-brand:       #8C8FEE; /* warmed +4° (craft pass) */
-  --accent-violet:      #7170ff;
-  --accent-hover:       #828fff;
-  --accent-security:    #7a7fad;
+  --accent-brand:       oklch(68.812% 0.1384 280.74); /* warmed +4° (craft pass) */
+  --accent-violet:      oklch(62.251% 0.2069 278.85);
+  --accent-hover:       oklch(69.058% 0.1637 276.24);
+  --accent-security:    oklch(61% 0.0699 279.3);
 
   /* Status */
-  --success:            #10b981;
-  --success-pill:       #10b981;
+  --success:            oklch(69.587% 0.1491 162.48);
+  --success-pill:       oklch(69.587% 0.1491 162.48);
 
   /* Status — single source of truth. All views should derive from these. */
-  --status-open:         #3b82f6;
-  --status-in-progress:  #f59e0b;
-  --status-done:         #10b981;
-  --status-blocked:      #ef4444;
-  --status-warning:      #f59e0b;
+  --status-open:         oklch(62.308% 0.188 259.81);
+  --status-in-progress:  oklch(76.859% 0.1647 70.08);
+  --status-done:         oklch(69.587% 0.1491 162.48);
+  --status-blocked:      oklch(63.683% 0.2078 25.33);
+  --status-warning:      oklch(76.859% 0.1647 70.08);
 
   /* Text-on-brand — for text rendered over brand-colored backgrounds.
      Brand indigo is dark enough in both themes that white is always correct. */
-  --text-on-brand:       #ffffff;
+  --text-on-brand:       oklch(100% 0 0);
 
   /* Tooltip surface — tighter contrast than panels. */
-  --bg-tooltip:          #0d0e0f;
+  --bg-tooltip:          oklch(16.304% 0.0027 247.99);
 
   /* Glass — translucent background-tinted surface for floating chrome
      (chat input, scrolled top bar). Theme-aware via bg-marketing. */
   --bg-glass:            color-mix(in srgb, var(--bg-marketing) 85%, transparent);
 
   /* Borders */
-  --border-subtle:      rgba(255,255,255,0.05);
-  --border-standard:    rgba(255,255,255,0.08);
-  --border-solid-primary:   #23252a;
-  --border-solid-secondary: #34343a;
-  --border-solid-tertiary:  #3e3e44;
-  --line-tint:          #141516;
-  --line-tertiary:      #18191a;
+  --border-subtle:      oklch(100% 0 0 / 0.05);
+  --border-standard:    oklch(100% 0 0 / 0.08);
+  --border-solid-primary:   oklch(26.45% 0.0098 268.31);
+  --border-solid-secondary: oklch(32.737% 0.0105 285.81);
+  --border-solid-tertiary:  oklch(36.611% 0.0102 285.88);
+  --line-tint:          oklch(19.504% 0.0026 247.96);
+  --line-tertiary:      oklch(21.274% 0.0025 247.94);
 
   /* Overlay */
-  --overlay:            rgba(0,0,0,0.85);
+  --overlay:            oklch(0% 0 0 / 0.85);
 
   /* Selection */
-  --selection-bg:       rgba(94,106,210,0.3);
+  --selection-bg:       oklch(56.738% 0.1585 275.21 / 0.3);
 
   /* Shadows */
   --shadow-ring:        rgba(0,0,0,0.2) 0px 0px 0px 1px;
@@ -126,7 +126,7 @@
   --surface-raised:   color-mix(in srgb, var(--bg-marketing) 98%, white);
 
   /* ── Craft pass — warmed accent ──────────── */
-  --accent-brand-warm: #A78BFA;
+  --accent-brand-warm: oklch(70.897% 0.1592 293.54);
   --accent-soft:       color-mix(in srgb, var(--accent-brand) 6%, var(--bg-surface));
 
   /* ── Craft pass — motion tokens ──────────── */
@@ -192,49 +192,49 @@
 
 /* ── Custom Properties: Light Mode ────────── */
 .light {
-  --bg-marketing:       #f7f8f8;
-  --bg-panel:           #f3f4f5;
-  --bg-surface:         #fbfbfc;
-  --bg-elevated:        #ffffff;
-  --bg-surface-alpha-2: rgba(0,0,0,0.02);
-  --bg-surface-alpha-4: rgba(0,0,0,0.04);
-  --bg-surface-alpha-5: rgba(0,0,0,0.05);
+  --bg-marketing:       oklch(97.837% 0.0011 197.14);
+  --bg-panel:           oklch(96.667% 0.0017 247.84);
+  --bg-surface:         oklch(98.837% 0.0013 286.38);
+  --bg-elevated:        oklch(100% 0 0);
+  --bg-surface-alpha-2: oklch(0% 0 0 / 0.02);
+  --bg-surface-alpha-4: oklch(0% 0 0 / 0.04);
+  --bg-surface-alpha-5: oklch(0% 0 0 / 0.05);
 
-  --text-primary:       #08090a;
-  --text-secondary:     #62666d;
-  --text-tertiary:      #8a8f98;
-  --text-quaternary:    #b0b4bc;
+  --text-primary:       oklch(13.895% 0.0029 246.26);
+  --text-secondary:     oklch(50.918% 0.0121 261.77);
+  --text-tertiary:      oklch(64.881% 0.0146 262.36);
+  --text-quaternary:    oklch(76.919% 0.0122 264.5);
 
-  --accent-brand:       #6E6AD6; /* warmed +5° (craft pass) */
-  --accent-violet:      #5e6ad2;
-  --accent-hover:       #4c58b8;
-  --accent-security:    #7a7fad;
+  --accent-brand:       oklch(58.15% 0.1609 281.83); /* warmed +5° (craft pass) */
+  --accent-violet:      oklch(56.738% 0.1585 275.21);
+  --accent-hover:       oklch(50.234% 0.1505 274.3);
+  --accent-security:    oklch(61% 0.0699 279.3);
 
-  --success:            #10b981;
-  --success-pill:       #10b981;
+  --success:            oklch(69.587% 0.1491 162.48);
+  --success-pill:       oklch(69.587% 0.1491 162.48);
 
   /* Status — same hues as dark; light-mode surfaces already contrast well. */
-  --status-open:         #2563eb;
-  --status-in-progress:  #d97706;
-  --status-done:         #059669;
-  --status-blocked:      #dc2626;
-  --status-warning:      #d97706;
+  --status-open:         oklch(54.615% 0.2152 262.88);
+  --status-in-progress:  oklch(66.584% 0.1574 58.32);
+  --status-done:         oklch(59.597% 0.1274 163.23);
+  --status-blocked:      oklch(57.71% 0.2152 27.33);
+  --status-warning:      oklch(66.584% 0.1574 58.32);
 
-  --text-on-brand:       #ffffff;  /* brand bg is dark indigo in both themes */
-  --bg-tooltip:          #1a1b1c;  /* inverted tooltip in light mode */
+  --text-on-brand:       oklch(100% 0 0);  /* brand bg is dark indigo in both themes */
+  --bg-tooltip:          oklch(22.145% 0.0025 247.94);  /* inverted tooltip in light mode */
   --bg-glass:            color-mix(in srgb, var(--bg-marketing) 85%, transparent);
 
-  --border-subtle:      rgba(0,0,0,0.05);
-  --border-standard:    rgba(0,0,0,0.08);
-  --border-solid-primary:   #e6e6e6;
-  --border-solid-secondary:#d0d6e0;
-  --border-solid-tertiary: #e6e6e6;
-  --line-tint:          #e6e6e6;
-  --line-tertiary:      #ebebeb;
+  --border-subtle:      oklch(0% 0 0 / 0.05);
+  --border-standard:    oklch(0% 0 0 / 0.08);
+  --border-solid-primary:   oklch(92.494% 0 0);
+  --border-solid-secondary:oklch(87.444% 0.0152 260.73);
+  --border-solid-tertiary: oklch(92.494% 0 0);
+  --line-tint:          oklch(92.494% 0 0);
+  --line-tertiary:      oklch(94.007% 0 0);
 
-  --overlay:            rgba(0,0,0,0.5);
+  --overlay:            oklch(0% 0 0 / 0.5);
 
-  --selection-bg:       rgba(94,106,210,0.2);
+  --selection-bg:       oklch(56.738% 0.1585 275.21 / 0.2);
 
   --shadow-ring:        rgba(0,0,0,0.08) 0px 0px 0px 1px;
   --shadow-elevated:    rgba(0,0,0,0.12) 0px 2px 4px;
@@ -247,7 +247,7 @@
   --shadow-chrome:
     0 1px 2px color-mix(in srgb, black 15%, transparent),
     0 8px 24px color-mix(in srgb, black 10%, transparent);
-  --accent-brand-warm: #8B5CF6;
+  --accent-brand-warm: oklch(60.563% 0.2189 292.72);
   --accent-soft:       color-mix(in srgb, var(--accent-brand) 6%, var(--bg-surface));
   --surface-chrome:    var(--bg-marketing);
   --surface-recessed:  color-mix(in srgb, var(--bg-marketing) 98%, black);
