@@ -85,14 +85,14 @@ function Chip({
       border: "color-mix(in srgb, var(--text-quaternary) 20%, transparent)",
     },
     warning: {
-      background: "color-mix(in srgb, var(--hue-yellow, orange) 12%, transparent)",
-      color: "color-mix(in srgb, var(--hue-yellow, orange) 70%, var(--text-primary))",
-      border: "color-mix(in srgb, var(--hue-yellow, orange) 25%, transparent)",
+      background: "color-mix(in srgb, var(--hue-warning) 12%, transparent)",
+      color: "color-mix(in srgb, var(--hue-warning) 70%, var(--text-primary))",
+      border: "color-mix(in srgb, var(--hue-warning) 25%, transparent)",
     },
     danger: {
-      background: "color-mix(in srgb, var(--hue-red, red) 12%, transparent)",
-      color: "color-mix(in srgb, var(--hue-red, red) 70%, var(--text-primary))",
-      border: "color-mix(in srgb, var(--hue-red, red) 25%, transparent)",
+      background: "color-mix(in srgb, var(--hue-danger) 12%, transparent)",
+      color: "color-mix(in srgb, var(--hue-danger) 70%, var(--text-primary))",
+      border: "color-mix(in srgb, var(--hue-danger) 25%, transparent)",
     },
   };
   const style = colorMap[color];
