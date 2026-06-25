@@ -72,7 +72,7 @@ const COMMANDS: Command[] = [
     label: "/files",
     hint: "Browse the file tree",
     keywords: ["files", "tree", "browse"],
-    run: ({ router }) => router.push("/browse"),
+    run: ({ router }) => router.push("/files"),
   },
   {
     id: "search",
