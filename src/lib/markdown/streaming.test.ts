@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { closeOpenFences, sanitizeStreamingMarkdown } from "./streaming";
+import {
+  closeOpenFences,
+  sanitizeStreamingMarkdown,
+  CITATION_SENTINEL_OPEN,
+  CITATION_SENTINEL_CLOSE,
+} from "./streaming";
 
 // ─── closeOpenFences ────────────────────────────────────────────────────────
 
@@ -38,9 +43,9 @@ describe("closeOpenFences", () => {
 
 // ─── sanitizeStreamingMarkdown ───────────────────────────────────────────────
 
-// Sentinel constants matching implementation
-const CITE_OPEN = "";
-const CITE_CLOSE = "";
+// Alias imported sentinel constants so test references below remain readable
+const CITE_OPEN = CITATION_SENTINEL_OPEN;
+const CITE_CLOSE = CITATION_SENTINEL_CLOSE;
 
 describe("sanitizeStreamingMarkdown – active:true", () => {
   it("7: dangling ** trimmed, content without trailing emphasis marker", () => {
@@ -109,19 +114,30 @@ describe("sanitizeStreamingMarkdown – active:true", () => {
     expect(result).toBe(raw);
   });
 
-  it("16: monotonic-prefix: sanitizing prefixes never removes earlier-rendered content", () => {
-    // A progressively growing string that ends with an unterminated **
-    const full = "Hello **world** this is **bold text and more content here";
-    // Feed progressively longer prefixes; what was stable in slice k
-    // should still be present in slice k+1
-    for (let k = 10; k < full.length - 1; k++) {
-      const shorter = sanitizeStreamingMarkdown(full.slice(0, k), { active: true });
-      const longer = sanitizeStreamingMarkdown(full.slice(0, k + 1), { active: true });
-      // The stable prefix (first half of shorter output, trimming the trailing
-      // unstable region) must still appear in the longer output.
-      // We check that the first 5 chars of shorter appear in longer.
-      if (shorter.length >= 5) {
-        expect(longer).toContain(shorter.slice(0, 5));
+  it("16: monotonic-prefix: stable leading region never regresses as more text streams in", () => {
+    // Realistic final string covering bold, partial-then-complete **emphasis**,
+    // a [^1] citation, and an opening-then-closing code fence.
+    // The sanitizer only edits the tail (the unresolved region); content
+    // that was already stable must never disappear or change as more tokens arrive.
+    const full =
+      "Here is **bold** text and a note [^1] then partial **emph" +
+      "asis** and finally:\n```ts\nconst x = 1;\n```\ndone";
+
+    const outputs: string[] = [];
+    for (let k = 1; k <= full.length; k++) {
+      outputs.push(sanitizeStreamingMarkdown(full.slice(0, k), { active: true }));
+    }
+
+    // For every adjacent pair (earlier, later), the leading 60% of the earlier
+    // output must be a prefix of the later output.  This is the STABLE-PREFIX
+    // invariant: the sanitizer only mutates the tail, never the head.
+    for (let i = 0; i < outputs.length - 1; i++) {
+      const earlier = outputs[i];
+      const later = outputs[i + 1];
+      const stableLen = Math.floor(earlier.length * 0.6);
+      if (stableLen > 0) {
+        const stableRegion = earlier.slice(0, stableLen);
+        expect(later.startsWith(stableRegion)).toBe(true);
       }
     }
   });
