@@ -1443,6 +1443,337 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background-color: var(--text-tertiary);
   }
+
+  /* ════════════════════════════════════════════════════════════════
+     PER-HUE CHIP SYSTEM
+     One base hue per entity (tag / note-kind / link-state). A single
+     .chip helper color-mixes bg/text/border from --sc for BOTH themes.
+     Adding a colour = adding ONE --hue-* token. No hand-picked states.
+     Mixing happens against the existing bg and text tokens, which
+     already invert per theme, so light & dark fall out for free.
+     ════════════════════════════════════════════════════════════════ */
+
+  /* Base hues — reuse Cipher's existing semantic tokens where one
+     already exists; only NEW hues are introduced here. Each is a
+     single source colour; the .chip helper derives every state. */
+  :root {
+    --hue-tag:        var(--accent-violet);     /* generic tags        */
+    --hue-note:       var(--accent-brand);      /* note / doc kind     */
+    --hue-idea:       #d9a441;                  /* idea / amber kind    */
+    --hue-question:   var(--status-open);       /* question (blue)     */
+    --hue-warning:    var(--status-warning);    /* warning kind        */
+    --hue-success:    var(--success);           /* done / positive     */
+    --hue-danger:     var(--status-blocked);    /* blocked / negative  */
+
+    /* Link-state hues (consumed by .typeset links below) */
+    --link:           var(--accent-violet);     /* the link hue token  */
+    --link-visited:   color-mix(in oklab, var(--accent-violet) 62%, var(--text-tertiary));
+
+    /* Chip mix ratios — tuned once, used everywhere. */
+    --chip-bg-mix:     14%;   /* hue into surface for the fill        */
+    --chip-bg-mix-hi:  22%;   /* hover/active fill                    */
+    --chip-border-mix: 34%;   /* hue into border                      */
+    --chip-text-mix:   72%;   /* hue toward text for readable label   */
+  }
+
+  /* Dark mode wants a touch more fill to read against deep-gray. */
+  :root,
+  [data-theme="dark"] {
+    --chip-bg-mix:     16%;
+    --chip-bg-mix-hi:  26%;
+    --chip-border-mix: 30%;
+  }
+
+  .light,
+  [data-theme="light"] {
+    --chip-bg-mix:     12%;
+    --chip-bg-mix-hi:  20%;
+    --chip-border-mix: 38%;
+  }
+
+  /* ── .chip ──────────────────────────────────────────────────────
+     Consumer sets a local --sc (single colour). Everything derives.
+     Usage:  <span class="chip" style="--sc: var(--hue-idea)">idea</span> */
+  .chip {
+    --sc: var(--hue-tag);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 20px;
+    padding: 0 var(--space-2);
+    font-size: 0.6875rem;
+    font-weight: 510;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    border-radius: var(--radius-full);
+    color:        color-mix(in oklab, var(--sc) var(--chip-text-mix), var(--text-primary));
+    background:   color-mix(in oklab, var(--sc) var(--chip-bg-mix),  var(--bg-surface));
+    border: 1px solid
+                  color-mix(in oklab, var(--sc) var(--chip-border-mix), transparent);
+    transition: var(--transition-hover);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .chip:hover {
+      background: color-mix(in oklab, var(--sc) var(--chip-bg-mix-hi), var(--bg-surface));
+    }
+  }
+
+  .chip[aria-pressed="true"],
+  .chip[data-selected="true"] {
+    background: color-mix(in oklab, var(--sc) var(--chip-bg-mix-hi), var(--bg-surface));
+    border-color: color-mix(in oklab, var(--sc) calc(var(--chip-border-mix) + 18%), transparent);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .chip[aria-pressed="true"]:hover,
+    .chip[data-selected="true"]:hover {
+      background: color-mix(in oklab, var(--sc) calc(var(--chip-bg-mix-hi) + 6%), var(--bg-surface));
+    }
+  }
+
+  .chip:focus-visible {
+    outline: 2px solid var(--accent-brand);
+    outline-offset: 2px;
+  }
+
+  button.chip:active,
+  .chip[role="button"]:active {
+    transform: translateY(1px);
+  }
+
+  @media (pointer: coarse) {
+    button.chip,
+    .chip[role="button"] { min-height: 44px; padding: 0 var(--space-3); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chip { transition: none; }
+    button.chip:active,
+    .chip[role="button"]:active { transform: none; }
+  }
+
+  /* ════════════════════════════════════════════════════════════════
+     TYPESET — the reader's core surface. Generous register.
+     Scope: .typeset (added alongside .markdown-content on the renderer
+     container). Respects reader-pref vars (--md-size/-line-height/etc.)
+     already set on .markdown-content; only adds scale, rhythm & themed
+     surfaces. Dark code is intentional (deep-gray, not pure black).
+     ════════════════════════════════════════════════════════════════ */
+
+  .typeset {
+    /* one signature reading link hue, overridable per-surface */
+    --link: var(--accent-violet);
+    /* code surface stays deep-gray in BOTH themes (not --bg-surface) */
+    --code-bg:     #15161a;
+    --code-border: rgba(255, 255, 255, 0.08);
+    --code-fg:     #e6e7ea;
+  }
+
+  /* ── Heading scale: rem-based, slight negative tracking, balanced ──
+     Sizes are rem so they scale with root, independent of --md-size
+     body adjustments. Hierarchy via size+colour, NOT heavy weight. */
+  .typeset h1,
+  .typeset h2,
+  .typeset h3,
+  .typeset h4 {
+    text-wrap: balance;
+    letter-spacing: -0.018em;
+    color: var(--text-primary);
+  }
+  .typeset h1 { font-size: 1.875rem; line-height: 1.18; margin: 2rem 0 1rem;   font-weight: 620; }
+  .typeset h2 { font-size: 1.5rem;   line-height: 1.22; margin: 2rem 0 1rem;   font-weight: 600; letter-spacing: -0.016em; }
+  .typeset h3 { font-size: 1.1875rem;line-height: 1.3;  margin: 1.5rem 0 .5rem;font-weight: 600; letter-spacing: -0.012em; }
+  .typeset h4 { font-size: 1rem;     line-height: 1.4;  margin: 1.25rem 0 .375rem; font-weight: 600; letter-spacing: -0.008em; }
+  .typeset h5 { font-size: 0.875rem; line-height: 1.4;  margin: 1rem 0 .25rem;  font-weight: 600; color: var(--text-primary); }
+  .typeset h6 { font-size: 0.75rem;  line-height: 1.4;  margin: 1rem 0 .25rem;  font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-tertiary); }
+
+  /* First/last child margins zeroed so the surface sits flush */
+  .typeset > :first-child { margin-top: 0; }
+  .typeset > :last-child  { margin-bottom: 0; }
+
+  /* Paragraph rhythm (comfortable line-height comes from --md-line-height) */
+  .typeset p { margin: 0 0 1rem; color: var(--text-secondary); }
+
+  /* ── Lists with muted markers ─────────────────────────────────── */
+  .typeset ul,
+  .typeset ol { margin: 0 0 1rem; padding-left: 1.4em; }
+  .typeset li { color: var(--text-secondary); margin: 0.25rem 0; }
+  .typeset ul > li { list-style: disc; }
+  .typeset ol > li { list-style: decimal; }
+  .typeset li::marker { color: var(--text-quaternary); }
+  .typeset li > ul,
+  .typeset li > ol { margin: 0.25rem 0 0.25rem; }
+
+  /* ── Links — themed via color-mix toward the --link hue ───────── */
+  .typeset a {
+    color: var(--link);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in oklab, var(--link) 30%, transparent);
+    transition: var(--transition-hover);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .typeset a:hover {
+      color: color-mix(in oklab, var(--link) 78%, var(--text-primary));
+      border-bottom-color: currentColor;
+    }
+  }
+  .typeset a:visited { color: var(--link-visited); }
+  .typeset a:focus-visible {
+    outline: 2px solid var(--accent-brand);
+    outline-offset: 2px;
+    border-radius: var(--radius-micro);
+    border-bottom-color: transparent;
+  }
+
+  /* ── Inline code ──────────────────────────────────────────────── */
+  .typeset :not(pre) > code {
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+    font-size: 0.875em;
+    padding: 0.15em 0.4em;
+    border-radius: var(--radius-small);
+    background: var(--bg-surface-alpha-4);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+  }
+
+  /* ── Fenced code blocks — DARK in both themes, hover-reveal copy ─ */
+  .typeset pre {
+    position: relative;
+    background: var(--code-bg);
+    color: var(--code-fg);
+    border: 1px solid var(--code-border);
+    border-radius: var(--radius-card);
+    padding: 1rem 1.125rem;
+    margin: 0 0 1rem;
+    overflow-x: auto;
+    line-height: 1.6;
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+  }
+  .typeset pre code {
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+    font-size: 0.8125rem;
+    background: transparent;
+    padding: 0;
+    border: 0;
+    color: inherit;
+  }
+
+  /* Hover-revealed copy button */
+  .code-copy {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 24px;
+    padding: 0 var(--space-2);
+    font-size: 0.6875rem;
+    font-weight: 510;
+    color: var(--code-fg);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: var(--radius-small);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--motion-hover) var(--ease-default),
+                background-color var(--motion-hover) var(--ease-default);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .typeset pre:hover .code-copy { opacity: 1; }
+    .code-copy:hover { background: rgba(255, 255, 255, 0.12); }
+  }
+  .typeset pre:focus-within .code-copy { opacity: 1; }
+  .code-copy:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--accent-brand);
+    outline-offset: 2px;
+  }
+  .code-copy[data-copied="true"] { color: var(--success); }
+  @media (pointer: coarse) { .code-copy { opacity: 1; min-height: 44px; } }
+  @media (prefers-reduced-motion: reduce) { .code-copy { transition: none; } }
+
+  /* ── Tables — horizontally scrollable, focus-visible outline ──── */
+  .typeset .table-scroll {
+    overflow-x: auto;
+    scrollbar-gutter: stable;
+    margin: 0 0 1rem;
+    border-radius: var(--radius-card);
+  }
+  .typeset .table-scroll:focus-visible {
+    outline: 2px solid var(--accent-brand);
+    outline-offset: 2px;
+    border-radius: var(--radius-card);
+  }
+  .typeset table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  .typeset thead { border-bottom: 1px solid var(--border-standard); }
+  .typeset th {
+    text-align: left;
+    padding: var(--space-2) var(--space-3);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-quaternary);
+  }
+  .typeset td {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+  }
+
+  /* ── Blockquote ───────────────────────────────────────────────── */
+  .typeset blockquote {
+    margin: 0 0 1rem;
+    padding: var(--space-2) var(--space-4);
+    border-left: 2px solid color-mix(in oklab, var(--accent-brand) 60%, transparent);
+    background: color-mix(in oklab, var(--accent-brand) 6%, transparent);
+    color: var(--text-secondary);
+    border-radius: 0 var(--radius-small) var(--radius-small) 0;
+  }
+  .typeset blockquote > :first-child { margin-top: 0; }
+  .typeset blockquote > :last-child  { margin-bottom: 0; }
+
+  /* ── Horizontal rule & images ─────────────────────────────────── */
+  .typeset hr {
+    border: 0;
+    height: 1px;
+    background: var(--border-subtle);
+    margin: 1.5rem 0;
+  }
+  .typeset img { max-width: 100%; border-radius: var(--radius-comfortable); }
+
+  /* ── Callout-ready base (Phase 1 callouts get a home here) ─────── */
+  .typeset .callout {
+    --sc: var(--hue-note);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: 0 0 1rem;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid color-mix(in oklab, var(--sc) var(--chip-border-mix), transparent);
+    border-left: 3px solid color-mix(in oklab, var(--sc) 60%, transparent);
+    border-radius: var(--radius-card);
+    background: color-mix(in oklab, var(--sc) var(--chip-bg-mix), var(--bg-surface));
+    color: var(--text-secondary);
+  }
+  .typeset .callout__title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    color: color-mix(in oklab, var(--sc) var(--chip-text-mix), var(--text-primary));
+  }
+  .typeset .callout > :last-child { margin-bottom: 0; }
+  .typeset .callout--note     { --sc: var(--hue-note); }
+  .typeset .callout--idea     { --sc: var(--hue-idea); }
+  .typeset .callout--question { --sc: var(--hue-question); }
+  .typeset .callout--warning  { --sc: var(--hue-warning); }
+  .typeset .callout--success  { --sc: var(--hue-success); }
+  .typeset .callout--danger   { --sc: var(--hue-danger); }
 }
 
 /* ─────────────────────────────────────────────
@@ -1809,6 +2140,21 @@ button:active, [role="button"]:active {
   .icon-stack > span { transition: none; }
 }
 
+/* ── Signature keyframes — top-level (not layer-shadowed) ── */
+@keyframes chip-pop {
+  from { transform: scale(0.92); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+@keyframes code-copied {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(-1px); }
+  100% { transform: translateY(0); }
+}
+.code-copy[data-copied="true"] { animation: code-copied 200ms var(--ease-default); }
+@media (prefers-reduced-motion: reduce) {
+  .code-copy[data-copied="true"] { animation: none; }
+}
+
 /* ── highlight.js syntax highlighting ──
    Two themes (atom-one-light, atom-one-dark) are loaded at runtime by
    MarkdownRenderer and toggled via <link disabled> based on data-theme. */
@@ -1816,6 +2162,13 @@ button:active, [role="button"]:active {
   background: transparent;
   padding: 0;
 }
+
+/* Force dark code surface in light mode: neutralize the light hljs theme's
+   background so --code-bg (deep-gray) shows through. Token colours still
+   read well on a dark ground — this is the "dark in both themes" guarantee. */
+.typeset pre code.hljs,
+.typeset pre code.hljs * { background: transparent !important; }
+.typeset pre code.hljs { color: var(--code-fg); }
 
 /* ── Reader preferences — apply to the markdown preview only. ── */
 .markdown-content {

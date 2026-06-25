@@ -14,6 +14,7 @@ import remarkUnwrapImages from "remark-unwrap-images";
 import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
 import { CheckboxIndicator, StatusDot } from "./StatusDot";
+import { CodeBlock } from "./CodeBlock";
 import { buildObsidianUri } from "@/lib/obsidian-uri";
 import { parseWikiTarget } from "@/lib/markdown/wikilink";
 
@@ -166,7 +167,7 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
   useEffect(() => { ensureHljsCss(); }, []);
 
   return (
-    <div className={`markdown-content ${className || ""}`}>
+    <div className={`markdown-content typeset ${className || ""}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath, remarkUnwrapImages]}
         rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: true, ignoreMissing: true }]] as unknown as Parameters<typeof ReactMarkdown>[0]["rehypePlugins"]}
@@ -175,11 +176,7 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
           h1: ({ children }) => {
             const id = `heading-${textToId(children)}`;
             return (
-              <h1
-                id={id}
-                className="heading-2 text-text-primary"
-                style={{ margin: "32px 0 16px" }}
-              >
+              <h1 id={id}>
                 {children}
                 <CopyHeadingLink id={id} />
               </h1>
@@ -188,11 +185,7 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
           h2: ({ children }) => {
             const id = `heading-${textToId(children)}`;
             return (
-              <h2
-                id={id}
-                className="heading-2 text-text-primary"
-                style={{ margin: "32px 0 16px" }}
-              >
+              <h2 id={id}>
                 {children}
                 <CopyHeadingLink id={id} />
               </h2>
@@ -201,11 +194,7 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
           h3: ({ children }) => {
             const id = `heading-${textToId(children)}`;
             return (
-              <h3
-                id={id}
-                className="heading-3 text-text-primary"
-                style={{ margin: "24px 0 8px" }}
-              >
+              <h3 id={id}>
                 {children}
                 <CopyHeadingLink id={id} />
               </h3>
@@ -214,11 +203,7 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
           h4: ({ children }) => {
             const id = `heading-${textToId(children)}`;
             return (
-              <h4
-                id={id}
-                className="body-emphasis text-text-primary"
-                style={{ margin: "20px 0 6px" }}
-              >
+              <h4 id={id}>
                 {children}
                 <CopyHeadingLink id={id} />
               </h4>
@@ -227,11 +212,7 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
           h5: ({ children }) => {
             const id = `heading-${textToId(children)}`;
             return (
-              <h5
-                id={id}
-                className="small-semibold text-text-primary"
-                style={{ margin: "16px 0 4px" }}
-              >
+              <h5 id={id}>
                 {children}
               </h5>
             );
@@ -239,11 +220,7 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
           h6: ({ children }) => {
             const id = `heading-${textToId(children)}`;
             return (
-              <h6
-                id={id}
-                className="caption-medium text-text-tertiary"
-                style={{ margin: "16px 0 4px" }}
-              >
+              <h6 id={id}>
                 {children}
               </h6>
             );
@@ -251,14 +228,14 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
 
           // ── Paragraph ──
           p: ({ children }) => (
-            <p className="small text-text-secondary" style={{ margin: "0 0 16px" }}>
+            <p>
               {children}
             </p>
           ),
 
           // ── Bold ──
           strong: ({ children }) => (
-            <strong className="text-text-primary" style={{ fontWeight: 590 }}>
+            <strong className="text-text-primary">
               {children}
             </strong>
           ),
@@ -338,7 +315,7 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
 
           // ── Bullet lists ──
           ul: ({ children }) => (
-            <ul className="flex flex-col gap-1.5 p-0 m-0 mb-4 list-none">
+            <ul>
               {children}
             </ul>
           ),
@@ -351,7 +328,7 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
             if (isTask) {
               return (
                 <li
-                  className={`small flex items-start m-0 list-none ${checked ? "text-text-quaternary" : "text-text-secondary"}`}
+                  className={`flex items-start m-0 list-none ${checked ? "text-text-quaternary" : "text-text-secondary"}`}
                 >
                   <CheckboxIndicator checked={!!checked} />
                   <span className="flex-1" style={checked ? { textDecoration: "line-through" } : undefined}>
@@ -361,30 +338,17 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
               );
             }
 
-            // Regular list item
+            // Regular list item — native ::marker styled via .typeset li::marker
             return (
-              <li className="small text-text-secondary flex items-start list-none relative pl-4">
-                <span
-                  className="absolute left-0 shrink-0"
-                  style={{
-                    top: "9px",
-                    width: "4px",
-                    height: "4px",
-                    borderRadius: "50%",
-                    backgroundColor: "var(--text-quaternary)",
-                  }}
-                />
-                <span className="flex-1">{children}</span>
+              <li>
+                {children}
               </li>
             );
           },
 
           // ── Ordered lists ──
           ol: ({ children }) => (
-            <ol
-              className="flex flex-col gap-1.5 p-0 m-0 mb-4 list-none"
-              style={{ counterReset: "markdown-ol" }}
-            >
+            <ol>
               {children}
             </ol>
           ),
@@ -409,95 +373,45 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
               );
             }
             return (
-              <code
-                className="mono-caption"
-                style={{
-                  fontSize: "0.875em",
-                  backgroundColor: "var(--bg-surface-alpha-4)",
-                  padding: "0.15em 0.4em",
-                  borderRadius: 4,
-                  color: "var(--text-primary)",
-                }}
-                {...props}
-              >
+              <code className="mono-caption" {...props}>
                 {children}
               </code>
             );
           },
 
-          // ── Code block (pre) ──
-          pre: ({ children }) => (
-            <pre
-              className="text-text-primary mono-caption overflow-x-auto"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                padding: "16px 20px",
-                borderRadius: 8,
-                border: "1px solid var(--border-standard)",
-                lineHeight: 1.6,
-                margin: "0 0 16px",
-              }}
-            >
-              {children}
-            </pre>
-          ),
+          // ── Code block (pre) — CodeBlock adds the hover-reveal copy button ──
+          pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
 
           // ── Blockquote ──
           blockquote: ({ children }) => (
-            <blockquote
-              className="text-text-secondary"
-              style={{
-                borderLeft: "2px solid var(--accent-brand)",
-                margin: "0 0 16px",
-                padding: "8px 16px",
-                backgroundColor: "color-mix(in srgb, var(--accent-brand) 6%, transparent)",
-              }}
-            >
+            <blockquote>
               {children}
             </blockquote>
           ),
 
           // ── Horizontal rule ──
-          hr: () => (
-            <hr
-              style={{
-                border: "none",
-                height: "1px",
-                background: "var(--border-subtle)",
-                margin: "24px 0",
-              }}
-            />
-          ),
+          hr: () => <hr />,
 
           // ── Table ──
           table: ({ children }) => (
-            <div className="overflow-x-auto mb-4">
-              <table className="w-full caption-large" style={{ borderCollapse: "collapse" }}>
+            <div className="table-scroll" tabIndex={0} role="group" aria-label="Table, scroll horizontally">
+              <table>
                 {children}
               </table>
             </div>
           ),
           thead: ({ children }) => (
-            <thead style={{ borderBottom: "1px solid var(--border-standard)" }}>
+            <thead>
               {children}
             </thead>
           ),
           th: ({ children }) => (
-            <th
-              className="micro uppercase tracking-[0.08em] text-text-quaternary"
-              style={{ textAlign: "left", padding: "8px 12px" }}
-            >
+            <th>
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td
-              className="caption-large text-text-secondary"
-              style={{
-                padding: "8px 12px",
-                borderBottom: "1px solid var(--border-subtle)",
-              }}
-            >
+            <td>
               {children}
             </td>
           ),
