@@ -17,62 +17,9 @@ import { CheckboxIndicator, StatusDot } from "./StatusDot";
 import { CodeBlock } from "./CodeBlock";
 import { buildObsidianUri } from "@/lib/obsidian-uri";
 import { parseWikiTarget } from "@/lib/markdown/wikilink";
-
-// ── highlight.js theme CSS (vendored locally) ──
-let hljsCssLoaded = false;
-function ensureHljsCss() {
-  if (hljsCssLoaded || typeof document === "undefined") return;
-  const mk = (href: string, theme: "light" | "dark"): HTMLLinkElement => {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = href;
-    link.setAttribute("data-hljs-theme", theme);
-    document.head.appendChild(link);
-    return link;
-  };
-  const light = mk("/vendor/hljs/atom-one-light.css", "light");
-  const dark = mk("/vendor/hljs/atom-one-dark.css", "dark");
-  const sync = () => {
-    const d = document.documentElement.getAttribute("data-theme") === "dark";
-    light.disabled = d;
-    dark.disabled = !d;
-  };
-  sync();
-  const observer = new MutationObserver(sync);
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-  hljsCssLoaded = true;
-}
-
-// ── Mermaid block ──
-// Dynamically imports mermaid and renders the SVG on mount / code change.
-function MermaidBlock({ code }: { code: string }) {
-  const ref = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const mod = await import("mermaid");
-        const mermaid = (mod as unknown as { default?: unknown }).default ?? mod;
-        // Using `as any` because mermaid's types aren't perfectly loose.
-        (mermaid as unknown as { initialize: (o: object) => void }).initialize({
-          startOnLoad: false,
-          securityLevel: "loose",
-        });
-        const id = `m-${Math.random().toString(36).slice(2)}`;
-        const { svg } = await (mermaid as unknown as {
-          render: (id: string, code: string) => Promise<{ svg: string }>;
-        }).render(id, code);
-        if (alive && ref.current) ref.current.innerHTML = svg;
-      } catch (err) {
-        if (alive && ref.current) {
-          ref.current.innerHTML = `<pre style="color:var(--status-danger,#c0392b);padding:12px">${String(err).replace(/[<>&]/g, "")}</pre>`;
-        }
-      }
-    })();
-    return () => { alive = false; };
-  }, [code]);
-  return <div ref={ref} className="mermaid-block" style={{ margin: "0 0 16px" }} />;
-}
+import { ensureHljsCss } from "./markdown/hljs-theme";
+import { MermaidBlock } from "./markdown/MermaidBlock";
+import { textToId, wikiLinkIcon, CopyHeadingLink } from "./markdown/CopyHeadingLink";
 
 // Re-export for backward compatibility with existing imports.
 export { CheckboxIndicator, StatusDot };
@@ -100,56 +47,6 @@ function preprocessWikiLinksDataAttr(markdown: string): string {
     const url = `vault://${linkText}`;
     return `[${linkText}](${url})`;
   });
-}
-
-// ─── Helper: extract text content from React children for heading IDs ──
-function textToId(children: React.ReactNode): string {
-  let text = "";
-  React.Children.forEach(children, (child) => {
-    if (typeof child === "string") text += child;
-    else if (typeof child === "number") text += child;
-    else if (React.isValidElement(child)) text += textToId((child.props as { children?: React.ReactNode }).children);
-  });
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
-
-const wikiLinkIcon = (
-  <svg
-    className="inline-block w-3 h-3 mr-[3px] align-[-1px]"
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-    strokeWidth={2}
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-  </svg>
-);
-
-function CopyHeadingLink({ id }: { id: string }) {
-  const copy = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (typeof window === "undefined") return;
-    const href = `${window.location.pathname}${window.location.search}#${id}`;
-    const full = `${window.location.origin}${href}`;
-    navigator.clipboard?.writeText(full).catch(() => {});
-  };
-  return (
-    <a
-      href={`#${id}`}
-      onClick={copy}
-      className="copy-heading"
-      aria-label="Copy link to heading"
-      style={{
-        marginLeft: 6, opacity: 0,
-        transition: "opacity 120ms var(--ease-default, ease)",
-        textDecoration: "none",
-        color: "var(--text-quaternary)",
-        fontSize: "0.8em",
-      }}
-    >
-      🔗
-    </a>
-  );
 }
 
 export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRendererProps) {

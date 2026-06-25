@@ -39,6 +39,7 @@
   --status-done:         oklch(69.587% 0.1491 162.48);
   --status-blocked:      oklch(63.683% 0.2078 25.33);
   --status-warning:      oklch(76.859% 0.1647 70.08);
+  --status-danger:       oklch(54.335% 0.174 29.697);  /* error/destructive red (was #c0392b) */
 
   /* Text-on-brand — for text rendered over brand-colored backgrounds.
      Brand indigo is dark enough in both themes that white is always correct. */
@@ -280,6 +281,7 @@
   --status-done:         oklch(59.597% 0.1274 163.23);
   --status-blocked:      oklch(57.71% 0.2152 27.33);
   --status-warning:      oklch(66.584% 0.1574 58.32);
+  --status-danger:       oklch(54.335% 0.174 29.697);  /* error/destructive red (was #c0392b) */
 
   --text-on-brand:       oklch(100% 0 0);  /* brand bg is dark indigo in both themes */
   --bg-tooltip:          oklch(22.145% 0.0025 247.94);  /* inverted tooltip in light mode */
