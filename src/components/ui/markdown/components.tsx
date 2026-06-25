@@ -9,12 +9,13 @@
  * (the async vault:// link handler).
  */
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { Components } from "react-markdown";
 import { CheckboxIndicator } from "../StatusDot";
 import { CodeBlock } from "../CodeBlock";
 import { Callout } from "../Callout";
 import { parseWikiTarget } from "@/lib/markdown/wikilink";
+import { slugifyHeading, type AnchorValidation } from "@/lib/markdown/anchors";
 import { parseCallout, stripCalloutLine } from "@/lib/markdown/callout";
 import { MermaidBlock } from "./MermaidBlock";
 import { textToId, wikiLinkIcon, CopyHeadingLink } from "./CopyHeadingLink";
@@ -90,7 +91,92 @@ function stripMarkerFromFirstPara(
 }
 
 export interface MarkdownComponentOptions {
-  onNavigate?: (path: string) => void;
+  onNavigate?: (path: string, anchor?: string) => void;
+}
+
+// ─── WikiLink ─────────────────────────────────────────────────────────────────
+
+/**
+ * WikiLink — stateful wiki-link anchor component.
+ *
+ * Pre-fetches `/api/resolve` on mount to determine anchor validity, then:
+ * - Applies `md-link--broken-anchor` styling when the anchor is invalid.
+ * - On click: navigates to the resolved path, passing the anchor slug
+ *   (heading slug or block id with `^` prefix) to onNavigate so the
+ *   sheet can scroll-to and highlight the target.
+ */
+function WikiLink({
+  raw,
+  children,
+  onNavigate,
+}: {
+  raw: string;
+  children: React.ReactNode;
+  onNavigate: (path: string, anchor?: string) => void;
+}) {
+  // Resolved destination path (without anchor) and anchor validation result.
+  // null = not yet resolved; undefined = resolution failed.
+  const [resolvedPath, setResolvedPath] = useState<string | null | undefined>(undefined);
+  const [anchorInfo, setAnchorInfo] = useState<AnchorValidation | null>(null);
+  const fetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+
+    const { target } = parseWikiTarget(raw);
+    // Pass the full raw (including anchor) so the route can validate it.
+    fetch(`/api/resolve?path=${encodeURIComponent(raw)}`, { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          resolved: string | null;
+          anchor?: AnchorValidation;
+        };
+        // Strip the re-appended anchor from the resolved path so we can
+        // pass path and anchor separately to onNavigate.
+        const basePath = data.resolved ? data.resolved.split("#")[0] : null;
+        setResolvedPath(basePath ?? target);
+        if (data.anchor) setAnchorInfo(data.anchor);
+      })
+      .catch(() => {
+        // Resolve failed — fall back to raw target, no anchor info.
+        setResolvedPath(target);
+      });
+  }, [raw]);
+
+  const isBrokenAnchor =
+    anchorInfo !== null && anchorInfo.kind !== "none" && !anchorInfo.valid;
+
+  function handleClick(e: React.MouseEvent) {
+    e.preventDefault();
+    const { target } = parseWikiTarget(raw);
+    const dest = resolvedPath ?? target;
+
+    // Build the anchor slug to pass to onNavigate (sheet.open).
+    let anchorSlug: string | undefined;
+    if (anchorInfo && anchorInfo.kind !== "none" && anchorInfo.valid) {
+      if (anchorInfo.kind === "block") {
+        // Pass block id with `^` prefix so DetailPage can differentiate.
+        anchorSlug = `^${anchorInfo.value}`;
+      } else {
+        // Heading: pass the slug form that matches the rendered heading id.
+        anchorSlug = slugifyHeading(anchorInfo.value);
+      }
+    }
+    onNavigate(dest, anchorSlug);
+  }
+
+  return (
+    <a
+      href="#"
+      onClick={handleClick}
+      className={`md-link focus-ring${isBrokenAnchor ? " md-link--broken-anchor" : ""}`}
+    >
+      {wikiLinkIcon}
+      {children}
+    </a>
+  );
 }
 
 export function createMarkdownComponents({ onNavigate }: MarkdownComponentOptions): Components {
@@ -182,36 +268,14 @@ export function createMarkdownComponents({ onNavigate }: MarkdownComponentOption
       const isVaultLink = href?.startsWith("vault://");
       const isWikiLink = isObsidianLink || isVaultLink;
 
-      // For vault:// links with onNavigate, intercept the click
+      // For vault:// links with onNavigate, use WikiLink for anchor validation
+      // + broken-anchor styling + block/heading scroll on navigation.
       if (isVaultLink && onNavigate && href) {
         const raw = decodeURIComponent(href.replace("vault://", ""));
         return (
-          <a
-            href="#"
-            onClick={async (e) => {
-              e.preventDefault();
-              const { target } = parseWikiTarget(raw);
-              let dest = target;
-              try {
-                const res = await fetch(`/api/resolve?path=${encodeURIComponent(target)}`, { cache: "no-store" });
-                if (res.ok) {
-                  const data = (await res.json()) as { resolved: string | null };
-                  if (data.resolved) dest = data.resolved;
-                }
-              } catch {
-                /* fall back to raw target; DetailPage shows a friendly 404 */
-              }
-              // Note: onNavigate is typed as (path: string) => void and the
-              // underlying sheet.open uses separate anchorSlug param. Passing
-              // "path#anchor" as a single string would encode the # in ?sheet=
-              // and break the anchor lookup. Anchor navigation is deferred to Phase 1.
-              onNavigate(dest);
-            }}
-            className="md-link focus-ring"
-          >
-            {wikiLinkIcon}
+          <WikiLink raw={raw} onNavigate={onNavigate}>
             {children}
-          </a>
+          </WikiLink>
         );
       }
 

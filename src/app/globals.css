@@ -1360,6 +1360,22 @@
     border-bottom-color: currentColor;
   }
 
+  /* ── .md-link--broken-anchor ─────────────────
+     Applied to a wiki-link whose anchor (^block or #Heading) was validated
+     and found to be missing in the target file. Muted color + dashed
+     underline signal the broken anchor without hiding the link destination.
+     Token-only: no raw colors. */
+  .md-link--broken-anchor {
+    color: var(--text-tertiary);
+    border-bottom: 1px dashed var(--text-quaternary);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .md-link--broken-anchor:hover {
+      color: var(--text-secondary);
+      border-bottom-color: var(--text-tertiary);
+    }
+  }
+
   /* ── .miller-row ────────────────────────────
      Structure columns row. Hover on fine pointers only, dim state via
      token (never opacity), focus ring via .focus-ring, active rail by

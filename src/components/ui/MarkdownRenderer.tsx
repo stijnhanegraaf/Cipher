@@ -26,7 +26,7 @@ export { CheckboxIndicator, StatusDot };
 interface MarkdownRendererProps {
   content: string;
   className?: string;
-  onNavigate?: (path: string) => void;
+  onNavigate?: (path: string, anchor?: string) => void;
 }
 
 export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRendererProps) {

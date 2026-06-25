@@ -271,15 +271,37 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
         setLoading(false);
       })
       // Scroll to anchor (if any) once content is rendered, then flash a
-      // 2s brand-tinted highlight on the landed heading so the user sees
-      // where the deep-link dropped them.
+      // 2s brand-tinted highlight on the landed heading/block so the user
+      // sees where the deep-link dropped them.
       .then(() => {
         if (!anchor) return;
-        const id = `heading-${anchor}`;
         // Two rAF ticks so MarkdownRenderer has painted.
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
-            const el = scrollRef.current?.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null;
+            const container = scrollRef.current;
+            if (!container) return;
+
+            let el: HTMLElement | null = null;
+
+            if (anchor.startsWith("^")) {
+              // Block anchor: find the rendered element whose text ends with
+              // the Obsidian block marker ` ^<id>`.
+              const blockId = anchor.slice(1);
+              const markerRe = new RegExp(`\\^${CSS.escape(blockId)}\\s*$`);
+              // Walk all block-level candidates and find the one carrying the marker.
+              const candidates = container.querySelectorAll("p, li, td, th, h1, h2, h3, h4, h5, h6");
+              for (const node of candidates) {
+                if (markerRe.test((node as HTMLElement).innerText ?? "")) {
+                  el = node as HTMLElement;
+                  break;
+                }
+              }
+            } else {
+              // Heading anchor: use the existing `id="heading-<slug>"` convention.
+              const id = `heading-${anchor}`;
+              el = container.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null;
+            }
+
             if (!el) return;
             el.scrollIntoView({ block: "start", behavior: "smooth" });
             // Retrigger animation each time the path/anchor combination
