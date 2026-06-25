@@ -3,7 +3,6 @@
 /** Renders BrowseData in the chat-summary variant. */
 
 import { motion } from "framer-motion";
-import { springs } from "@/lib/motion";
 import { Badge } from "@/components/ui";
 
 interface BrowseItem {
@@ -54,7 +53,7 @@ export function BrowseView({ data }: { data: BrowseData }) {
         </div>
       ) : (
         <div className="flex flex-col gap-1">
-          {data.items.map((item, i) => (
+          {data.items.map((item) => (
             <motion.div
               key={item.name}
               initial={{ opacity: 0, y: 4 }}

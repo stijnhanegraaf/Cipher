@@ -40,6 +40,7 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
 
   useEffect(() => {
     if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync controlled form fields to props on dialog open
     setPath(vault.path || "");
     setError(null);
     setBrowseOpen(false);
@@ -71,6 +72,7 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- triggers async fetch that sets fs; cannot call loadFs() during render
     if (open && browseOpen && !fs) loadFs();
   }, [open, browseOpen, fs, loadFs]);
 
@@ -277,7 +279,7 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
 }
 
 function BrowseView({
-  fs, error, onNavigate, onBack, onPick, onConnect, busy,
+  fs, error, onNavigate, onBack, onConnect, busy,
 }: {
   fs: FsResponse | null;
   error: string | null;

@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PageShell, PageAction } from "@/components/PageShell";
+import { PageShell } from "@/components/PageShell";
 import { TodayRow } from "@/components/browse/TodayRow";
 import type { TodayPayload, TodayTask } from "@/lib/today-builder";
 
@@ -153,16 +153,16 @@ export function TodayPage() {
   const handleAsk = useCallback((query: string) => router.push(`/chat?q=${encodeURIComponent(query)}`), [router]);
 
   // ── Derived. ───────────────────────────────────────────────────────
-  const now = new Date();
+  // dateLabel computed once on mount; captures current date at render time.
   const dateLabel = useMemo(() =>
-    now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
-  , []); // reconcile on first render only
+    new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
+  , []); // stable: date does not change while the page is open
   const subtitle = data
     ? `${dateLabel} · ${data.counts.today} open${data.counts.blocked > 0 ? ` · ${data.counts.blocked} blocked` : ""}`
     : dateLabel;
 
-  const todayList = data?.today ?? [];
-  const upNextList = data?.upNext ?? [];
+  const todayList = useMemo(() => data?.today ?? [], [data]);
+  const upNextList = useMemo(() => data?.upNext ?? [], [data]);
   const upNextVisible = showMore ? upNextList : upNextList.slice(0, UP_NEXT_CAP);
   const upNextHiddenCount = upNextList.length - upNextVisible.length;
 
@@ -197,7 +197,7 @@ export function TodayPage() {
       {!loading && error && (
         <div style={{ padding: 32 }}>
           <p className="caption-large" style={{ color: "var(--status-blocked)", marginBottom: 8 }}>
-            Couldn't load today
+            Couldn&#39;t load today
           </p>
           <p className="small" style={{ color: "var(--text-tertiary)", marginBottom: 16 }}>{error}</p>
           {error.toLowerCase().includes("no vault") && (

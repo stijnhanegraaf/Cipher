@@ -46,17 +46,7 @@ interface SimNode extends GraphNode {
   phase: number;
 }
 
-// Deterministic 8-slot folder palette. Dark/light variants resolved at draw-time.
-const FOLDER_SLOTS = [
-  { dark: "#818CF8", light: "#6366F1" }, // indigo
-  { dark: "#C4B5FD", light: "#A78BFA" }, // violet
-  { dark: "#6EE7B7", light: "#34D399" }, // emerald
-  { dark: "#FBBF24", light: "#F59E0B" }, // amber
-  { dark: "#F472B6", light: "#EC4899" }, // pink
-  { dark: "#67E8F9", light: "#06B6D4" }, // cyan
-  { dark: "#94A3B8", light: "#64748B" }, // slate
-  { dark: "#FCA5A5", light: "#F87171" }, // rose
-] as const;
+// Folder slot palette removed (was FOLDER_SLOTS) — slots are now assigned inline at draw-time.
 
 function folderSlot(folder: string): number {
   const key = folder.split("/")[0] || "root";
@@ -90,8 +80,6 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
-  const [legendFilter, setLegendFilter] = useState<number | null>(null);
-  const [legendHover, setLegendHover] = useState<number | null>(null);
 
   // View transform (pan + zoom). stored in a ref so the animation loop
   // can read it without triggering re-renders.
@@ -138,17 +126,6 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     return set;
   }, [graph.nodes, visibleFolders, orphansOnly, searchTerm]);
 
-  // Map each slot to the human-readable folder names that landed in it.
-  const slotLabels = useMemo(() => {
-    const map = new Map<number, Set<string>>();
-    for (const n of graph.nodes) {
-      const s = folderSlot(n.folder);
-      const label = n.folder.split("/")[0] || "root";
-      if (!map.has(s)) map.set(s, new Set());
-      map.get(s)!.add(label);
-    }
-    return map;
-  }, [graph.nodes]);
 
   const focusLinks = useMemo(() => {
     if (!focusId) return null;
@@ -751,8 +728,6 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       ctx.beginPath();
       ctx.arc(nx, ny, displayR, 0, Math.PI * 2);
 
-      const isOrphan = n.degree === 0;
-
       if (hovered || selected) {
         ctx.fillStyle = colAccent;
         ctx.shadowColor = colAccent;
@@ -849,7 +824,6 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         ctx.font = '500 13px Inter, system-ui, sans-serif';
         const metrics = ctx.measureText(label);
         const padX = 10;
-        const padY = 6;
         const boxW = metrics.width + padX * 2;
         const boxH = 26;
         // Prefer right of node; flip to left if it would clip the canvas.
@@ -878,7 +852,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         ctx.fillText(label, boxX + padX, boxY + boxH / 2 + 0.5);
       }
     }
-  }, [hoveredId, selectedId, activeIds, focusId, legendFilter, legendHover]);
+  }, [hoveredId, selectedId, activeIds, focusId]);
 
   // Keep drawRef pointing at the latest draw so the rAF loop (which is
   // created once per `graph` change) always renders with current state.
@@ -903,7 +877,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         startedAt: now,
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [hoveredId]);
 
   function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -1052,6 +1026,30 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     return () => mq.removeEventListener("change", sync);
   }, []);
 
+  const fitToView = useCallback(() => {
+    const container = containerRef.current;
+    const nodes = simNodesRef.current;
+    if (!container || nodes.length === 0) return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const n of nodes) {
+      minX = Math.min(minX, n.x - n.radius);
+      minY = Math.min(minY, n.y - n.radius);
+      maxX = Math.max(maxX, n.x + n.radius);
+      maxY = Math.max(maxY, n.y + n.radius);
+    }
+    const bw = maxX - minX;
+    const bh = maxY - minY;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    const pad = 40;
+    const scale = Math.min((w - pad * 2) / bw, (h - pad * 2) / bh, 2);
+    viewRef.current = {
+      scale,
+      tx: w / 2 - ((minX + maxX) / 2) * scale,
+      ty: h / 2 - ((minY + maxY) / 2) * scale,
+    };
+  }, []);
+
   // Keyboard: + / - zoom, arrows pan, f fit, Esc reset.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1076,31 +1074,7 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focusId, exitFocus]);
-
-  const fitToView = useCallback(() => {
-    const container = containerRef.current;
-    const nodes = simNodesRef.current;
-    if (!container || nodes.length === 0) return;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const n of nodes) {
-      minX = Math.min(minX, n.x - n.radius);
-      minY = Math.min(minY, n.y - n.radius);
-      maxX = Math.max(maxX, n.x + n.radius);
-      maxY = Math.max(maxY, n.y + n.radius);
-    }
-    const bw = maxX - minX;
-    const bh = maxY - minY;
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    const pad = 40;
-    const scale = Math.min((w - pad * 2) / bw, (h - pad * 2) / bh, 2);
-    viewRef.current = {
-      scale,
-      tx: w / 2 - ((minX + maxX) / 2) * scale,
-      ty: h / 2 - ((minY + maxY) / 2) * scale,
-    };
-  }, []);
+  }, [focusId, exitFocus, fitToView]);
 
   return (
     <div

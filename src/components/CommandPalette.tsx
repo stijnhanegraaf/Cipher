@@ -62,6 +62,8 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const [mounted, setMounted] = useState(false);
+  // Captured once on mount for file recency scoring — lazy useState avoids calling Date.now() on every render.
+  const [now] = useState<number>(() => Date.now());
 
   const router = useRouter();
   const sheet = useSheet();
@@ -107,12 +109,14 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
   }, [router, sheet, pushRecent, index.files]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount flag to avoid SSR hydration mismatch
     setMounted(true);
   }, []);
 
   // Reset query every time the palette reopens — no stale filter from the previous session.
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset query on open; palette is controlled by open prop
       setQuery("");
       // Focus the input on next tick so it works even if the element was freshly mounted.
       const t = setTimeout(() => inputRef.current?.focus(), 0);
@@ -177,7 +181,6 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
 
     const DAY = 24 * 60 * 60 * 1000;
     const WEEK = 7 * DAY;
-    const now = Date.now();
     const recentMap = new Map(recentEntries.map((e) => [e.path, e]));
 
     const fileBonus = (path: string) => {
@@ -225,7 +228,7 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
       results.push({ kind: "fallback-chat", query: bodyTrim });
     }
     return results;
-  }, [query, body, prefix, actions, index.entities, index.projects, index.files, pins, recentEntries, openFilePath, sheetHeadings]);
+  }, [query, body, prefix, actions, index.entities, index.projects, index.files, pins, recentEntries, openFilePath, sheetHeadings, now]);
 
   const listItems: PaletteResult[] = query.trim() === "" ? emptyResults : typedResults;
   const { activeIndex, setActiveIndex, listProps, itemProps } = useListNavigation({

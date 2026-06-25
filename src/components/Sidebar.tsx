@@ -57,7 +57,7 @@ interface NavItem {
   activeWhen?: () => boolean;
 }
 
-export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, activeKind, recentQueries = [], onRemoveRecent, onClearRecents, onOpenPin }: SidebarProps) {
+export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, activeKind, recentQueries = [], onRemoveRecent, onOpenPin }: SidebarProps) {
   const vault = useVault();
   const router = useRouter();
   const pathname = usePathname();

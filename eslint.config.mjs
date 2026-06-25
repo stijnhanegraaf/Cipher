@@ -6,6 +6,16 @@ import cipherDesign from "./eslint-plugin-cipher-design/index.mjs";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // Honor underscore-prefixed identifiers as intentionally unused placeholders.
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        caughtErrorsIgnorePattern: "^_",
+      }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

@@ -6,7 +6,6 @@
  * palette opens are instant.
  */
 import { NextResponse } from "next/server";
-import { join } from "path";
 import {
   getVaultPath,
   getEntityIndex,

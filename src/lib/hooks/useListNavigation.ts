@@ -51,6 +51,7 @@ export function useListNavigation<T>({
   // Clamp active index when the list shrinks.
   useEffect(() => {
     if (items.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clamp index when list shrinks; derived value depends on prior state
       setActiveIndex(0);
       return;
     }

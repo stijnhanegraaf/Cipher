@@ -12,7 +12,7 @@ const TTL_MS = 60 * 1000;
 /**
  * `GET /api/vault/folders?q=<substring>` — folder autocomplete for the pin dialog.
  *
- * Walks every non-hidden directory up to depth 5 and caches per-vault
+ * Walks every non-hidden directory up to depth 12 and caches per-vault
  * for 60s. Filters by case-insensitive substring, sorts shortest-first,
  * caps at 20 results. Always 200: `{ folders: [] }` when no vault is
  * connected.

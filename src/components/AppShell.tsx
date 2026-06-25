@@ -6,7 +6,7 @@
  */
 
 import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { DetailPage } from "@/components/DetailPage";
 import { HintChip } from "@/components/HintChip";
@@ -41,35 +41,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const vault = useVault();
   const sheet = useSheet();
 
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [connectOpen, setConnectOpen] = useState(false);
-  const [recentQueries, setRecentQueries] = useState<string[]>([]);
-
-  // Nudge the user to connect a vault on first run when none is active.
-  useEffect(() => {
-    if (!vault.loading && !vault.connected && !connectOpen) {
-      const dismissed = sessionStorage.getItem("cipher-vault-nudge-dismissed");
-      if (!dismissed) setConnectOpen(true);
+  const [connectOpen, setConnectOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const dismissed = sessionStorage.getItem("cipher-vault-nudge-dismissed");
+    return !dismissed;
+  });
+  const [recentQueries, setRecentQueries] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem("cipher-recent");
+      return stored ? (JSON.parse(stored) as string[]) : [];
+    } catch {
+      return [];
     }
-  }, [vault.loading, vault.connected, connectOpen]);
+  });
+
+  // Close connect dialog when vault connects after mount.
+  useEffect(() => {
+    if (!vault.loading && vault.connected)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- close dialog on external vault-connect completion
+      setConnectOpen(false);
+  }, [vault.loading, vault.connected]);
 
   // Any component can request the connect dialog by firing this event.
   useEffect(() => {
     const handler = () => setConnectOpen(true);
     window.addEventListener("cipher:open-vault-connect", handler);
     return () => window.removeEventListener("cipher:open-vault-connect", handler);
-  }, []);
-
-  // Load recent queries from localStorage on mount.
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("cipher-recent");
-      if (stored) setRecentQueries(JSON.parse(stored));
-    } catch {}
   }, []);
 
   // Remove a single recent query (and persist).
@@ -159,7 +161,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         },
       }] : []),
     ];
-  }, [router, handleToggleTheme, vault.connected, vault.disconnect]);
+  }, [router, handleToggleTheme, vault]);
 
   // Active-state hint for sidebar — route-driven only, no view kind.
   const activeKind = null;

@@ -35,6 +35,7 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(EXPAND_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate tree expand state from localStorage on mount only
       if (raw) setExpand(JSON.parse(raw));
     } catch {}
     try {
@@ -65,6 +66,7 @@ export function BrowsePage({ folderPath: _initialFolder, filePath: _initialFile 
   const currentFolder = (pathname ?? "/files").replace(/^\/files\/?/, "");
   const currentFile = searchParams.get("file");
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- reset view mode to rendered whenever the active file changes
   useEffect(() => { setMode("rendered"); }, [currentFile]);
 
   useEffect(() => {

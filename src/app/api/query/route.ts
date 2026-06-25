@@ -2,6 +2,7 @@
  * GET /api/query — health/describe for the query endpoint.
  * POST /api/query — detects intent, builds a ViewModel from the vault.
  */
+import { existsSync } from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
 import { detectIntent } from "@/lib/intent-detector";
 import { buildView } from "@/lib/view-builder";
@@ -28,8 +29,7 @@ export async function GET() {
 
     const { getVaultPath } = await import("@/lib/vault-reader");
     const vaultPath = getVaultPath();
-    const { existsSync } = require('fs');
-    const vaultConnected = existsSync(vaultPath);
+    const vaultConnected = existsSync(vaultPath ?? "");
 
     return NextResponse.json({
       version: "v1",
@@ -119,7 +119,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response);
   } catch (error) {
     log.error("query", "POST error", error);
-    const detail = error instanceof Error ? error.message : "Something went wrong processing your query.";
     return NextResponse.json(
       {
         version: "v1",

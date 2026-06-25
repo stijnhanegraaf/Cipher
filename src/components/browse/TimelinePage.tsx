@@ -113,7 +113,7 @@ export function TimelinePage() {
       {loading && <div style={{ padding: 32, color: "var(--text-quaternary)" }}>Loading…</div>}
       {!loading && error && (
         <div style={{ padding: 32 }}>
-          <p className="caption-large" style={{ color: "var(--status-blocked)" }}>Couldn't load timeline</p>
+          <p className="caption-large" style={{ color: "var(--status-blocked)" }}>Couldn&#39;t load timeline</p>
           <p className="small" style={{ color: "var(--text-tertiary)" }}>{error}</p>
         </div>
       )}

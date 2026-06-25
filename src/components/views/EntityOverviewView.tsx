@@ -5,7 +5,7 @@
 import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
 import { EntityOverviewData, ViewModel } from "@/lib/view-models";
-import { EntityHeader, SectionBlock, LinkList, TimelineMini, MarkdownRenderer } from "@/components/ui";
+import { EntityHeader, SectionBlock, LinkList, TimelineMini } from "@/components/ui";
 
 const entityEmoji: Record<string, string> = {
   company: "🏢",

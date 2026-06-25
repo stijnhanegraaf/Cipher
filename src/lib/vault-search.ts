@@ -16,9 +16,8 @@ function rootOrEmpty(): string {
 export async function listVaultFiles(dirRelPath: string, extension = ".md"): Promise<string[]> {
   const root = rootOrEmpty();
   if (!root) return [];
-  const base = dirRelPath ? `${dirRelPath}` : "";
   const rels = await walkFiles(join(root, dirRelPath), { extensions: [extension] });
-  return base ? rels.map((r) => `${base}/${r}`) : rels;
+  return dirRelPath ? rels.map((r) => `${dirRelPath}/${r}`) : rels;
 }
 
 // ─── Full-text search across vault ────────────────────────────────────
@@ -71,7 +70,6 @@ export async function searchVault(
 
     const content = file.content.toLowerCase();
     const headingText = file.sections.map(s => s.heading.toLowerCase()).join(" ");
-    const combined = content + " " + headingText;
 
     let score = 0;
     for (const term of terms) {

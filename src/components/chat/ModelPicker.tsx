@@ -420,7 +420,7 @@ export function ModelPicker({ current, onChange }: Props) {
 
           {health && !health.ok && !health.needsKey && activeProvider === "ollama-local" && (
             <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
-              Ollama isn't running. Start it in Terminal:
+              Ollama isn&#39;t running. Start it in Terminal:
               <code style={{ display: "block", marginTop: 4, padding: "4px 6px", fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--bg-surface)", borderRadius: 4, color: "var(--text-secondary)" }}>
                 ollama serve
               </code>
@@ -430,7 +430,7 @@ export function ModelPicker({ current, onChange }: Props) {
                 rel="noreferrer"
                 style={{ display: "inline-block", marginTop: 6, color: "var(--text-quaternary)", textDecoration: "underline" }}
               >
-                Don't have Ollama? Download it here
+                Don&#39;t have Ollama? Download it here
               </a>
             </div>
           )}

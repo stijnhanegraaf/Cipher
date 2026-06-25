@@ -3,7 +3,7 @@
  * projects / research for the corresponding browse_* view types.
  */
 
-import type { ViewModel, BrowseIndexData } from "../view-models";
+import type { ViewModel } from "../view-models";
 import { getEntityIndex, getProjectIndex, getResearchProjects } from "../vault-reader";
 import { uid } from "./shared";
 

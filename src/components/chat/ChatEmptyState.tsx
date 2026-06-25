@@ -30,6 +30,7 @@ export function ChatEmptyState({ onSubmit, banner }: Props) {
 
   useEffect(() => {
     if (!vault.connected) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch populates hints; fallback reset on disconnect
       setHints(FALLBACK_HINTS);
       return;
     }

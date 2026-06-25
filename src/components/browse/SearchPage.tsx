@@ -77,7 +77,7 @@ export function SearchPage() {
       )}
       {!loading && q && data && grouped.length === 0 && (
         <p className="small" style={{ color: "var(--text-quaternary)", padding: 32 }}>
-          No matches for "{q}".
+          No matches for &quot;{q}&quot;.
         </p>
       )}
       {!loading && grouped.map((g) => (

@@ -30,7 +30,6 @@ export function hexToOklchString(input: string): string {
   if (
     trimmed.startsWith("var(") ||
     trimmed.startsWith("color-mix(") ||
-    trimmed.startsWith("oklch(") ||
     trimmed.startsWith("oklch(")
   ) {
     return input;

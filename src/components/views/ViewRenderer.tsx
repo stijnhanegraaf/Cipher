@@ -157,7 +157,7 @@ interface ViewRendererProps {
  * bar (kind · freshness · sources-disclosure · Obsidian link), actions as ghost
  * buttons inline above meta. Reads as a Linear comment, not a card.
  */
-export function ViewRenderer({ view, index = 0, onNavigate, onToggle, onAsk, variant = "card" }: ViewRendererProps) {
+export function ViewRenderer({ view, index: _index = 0, onNavigate, onToggle, onAsk, variant = "card" }: ViewRendererProps) {
   const { name: vaultName } = useVault();
   const Component = viewComponents[view.type];
 

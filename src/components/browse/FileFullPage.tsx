@@ -93,7 +93,7 @@ export function FileFullPage({ path }: { path: string }) {
         {error && (
           <div>
             <p className="caption-large" style={{ color: "var(--status-blocked)", marginBottom: 8 }}>
-              Couldn't load file
+              Couldn&#39;t load file
             </p>
             <p className="small" style={{ color: "var(--text-tertiary)" }}>{error}</p>
           </div>

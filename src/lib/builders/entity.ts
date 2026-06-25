@@ -14,7 +14,7 @@ import {
   getVaultLayout,
   type EntityData,
 } from "../vault-reader";
-import { uid, stripLinks, sourceRef, normalizeLinks, nameFromPath } from "./shared";
+import { uid, sourceRef, normalizeLinks, nameFromPath } from "./shared";
 
 
 /**

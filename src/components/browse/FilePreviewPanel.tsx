@@ -214,7 +214,7 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
     return (
       <aside style={frameStyle} aria-label="File preview (error)">
         <span className="caption-large" style={{ color: "var(--text-quaternary)" }}>
-          Couldn't load file metadata.
+          Couldn&#39;t load file metadata.
         </span>
       </aside>
     );

@@ -81,7 +81,6 @@ interface MarkdownRendererProps {
   content: string;
   className?: string;
   onNavigate?: (path: string) => void;
-  vaultName?: string;
 }
 
 // ─── Wiki-link preprocessor ────────────────────────────────────────
@@ -153,15 +152,15 @@ function CopyHeadingLink({ id }: { id: string }) {
   );
 }
 
-export function MarkdownRenderer({ content, className, onNavigate, vaultName }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRendererProps) {
   // Preprocess wiki links before passing to react-markdown
   // When onNavigate is provided, use vault:// URLs instead of obsidian://
   const processedContent = useMemo(
     () =>
       onNavigate
         ? preprocessWikiLinksDataAttr(content)
-        : preprocessWikiLinks(content, vaultName),
-    [content, onNavigate, vaultName]
+        : preprocessWikiLinks(content),
+    [content, onNavigate]
   );
 
   useEffect(() => { ensureHljsCss(); }, []);
@@ -355,7 +354,7 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
 
           // ── Code inline + code block child ──
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          code: ({ className, children, node, ...props }: any) => {
+          code: ({ className, children, ...props }: any) => {
             const match = /language-(\w+)/.exec(className || "");
             const lang = match?.[1];
             // A language-xxx class means this code node lives inside a fenced

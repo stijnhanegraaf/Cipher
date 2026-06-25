@@ -8,6 +8,8 @@
  */
 
 import "server-only";
+import { existsSync, statSync, readFileSync, readdirSync } from "node:fs";
+import { homedir } from "node:os";
 import { readFile, stat } from "fs/promises";
 import { join } from "path";
 import { walkFiles } from "@/lib/fs/walk";
@@ -20,15 +22,14 @@ import { parseFrontmatter } from "@/lib/markdown/frontmatter";
 
 function detectInitialVaultPath(): string | null {
   if (process.env.VAULT_PATH) return process.env.VAULT_PATH;
-  const { existsSync } = require('fs');
-  const homedir = require('os').homedir();
+  const home = homedir();
   const candidates = [
     join(process.cwd(), '..', 'Obsidian'),
     join(process.cwd(), 'Obsidian'),
-    join(homedir, 'Obsidian'),
-    join(homedir, 'Documents', 'Obsidian'),
-    join(homedir, 'Projects', 'Obsidian'),
-    join(homedir, 'Developer', 'Obsidian'),
+    join(home, 'Obsidian'),
+    join(home, 'Documents', 'Obsidian'),
+    join(home, 'Projects', 'Obsidian'),
+    join(home, 'Developer', 'Obsidian'),
   ];
   for (const p of candidates) {
     try { if (existsSync(p)) return p; } catch { /* ignore */ }
@@ -81,7 +82,6 @@ export interface VaultLayout {
 const _layoutCache = new Map<string, VaultLayout>();
 
 function firstExistingFolder(root: string, candidates: string[]): string | null {
-  const { existsSync, statSync } = require('fs');
   for (const c of candidates) {
     try {
       const full = join(root, c);
@@ -92,7 +92,6 @@ function firstExistingFolder(root: string, candidates: string[]): string | null 
 }
 
 function firstExistingFile(root: string, candidates: string[]): string | null {
-  const { existsSync } = require('fs');
   for (const c of candidates) {
     try {
       if (existsSync(join(root, c))) return c;
@@ -122,7 +121,6 @@ export function getVaultLayout(): VaultLayout | null {
   const cached = _layoutCache.get(root);
   if (cached) return cached;
 
-  const { existsSync, statSync, readFileSync, readdirSync } = require('fs');
   const wikiPath = join(root, 'wiki');
   const hasWiki = (() => {
     try { return existsSync(wikiPath) && statSync(wikiPath).isDirectory(); } catch { return false; }
@@ -701,13 +699,6 @@ export async function parseEntity(file: ParsedFile): Promise<EntityData> {
 
 // ─── Research project parsing ─────────────────────────────────────────
 
-const RESEARCH_OUTPUT_FILES = [
-  "executive-summary.md",
-  "deep-dive.md",
-  "key-players.md",
-  "open-questions.md",
-] as const;
-
 /**
  * Read the four canonical research-project files from a directory.
  *
@@ -853,44 +844,6 @@ export async function resolveLink(linkPath: string): Promise<string | null> {
   } catch { /* fall through */ }
 
   return null;
-}
-
-/** Internal: invalidated by setVaultPath (already wired in this module). */
-function _invalidateResolverCaches() {
-  _basenameIndex.clear();
-}
-
-/** Join a layout-provided dir with a filename, handling null dirs gracefully. */
-function inDir(dir: string | null, ...parts: string[]): string | null {
-  if (!dir) return null;
-  return [dir, ...parts].filter(Boolean).join("/");
-}
-
-/** Try a list of candidate paths; return the first that readVaultFile() can open. */
-async function firstReadable(candidates: (string | null)[]): Promise<ParsedFile | null> {
-  for (const c of candidates) {
-    if (!c) continue;
-    const file = await readVaultFile(c);
-    if (file) return file;
-  }
-  return null;
-}
-
-/**
- * Build a list of candidate paths for a file that might live in either a
- * probed layout directory, a vault-root variant, or a legacy wiki/ path.
- * Used by all "read the canonical X file" helpers below.
- */
-function hubCandidates(dir: string | null, fileName: string): string[] {
-  const out: string[] = [];
-  const from = inDir(dir, fileName);
-  if (from) out.push(from);
-  // Root-level fallback (some vaults put system files at root).
-  out.push(fileName);
-  // wiki/ prefix fallback — if the layout didn't detect a specific dir
-  // but the vault still uses wiki/ structure, try the legacy paths.
-  if (!dir?.startsWith("wiki/")) out.push(`wiki/${fileName}`);
-  return out;
 }
 
 // ─── Re-exports from split modules ────────────────────────────────────

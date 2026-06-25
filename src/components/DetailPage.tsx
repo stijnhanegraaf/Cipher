@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import { MarkdownRenderer, Breadcrumbs } from "@/components/ui";
-import { scrollReveal, springs } from "@/lib/motion";
+import { scrollReveal } from "@/lib/motion";
 import { useRecentFiles } from "@/lib/hooks/useRecentFiles";
 import { useVault } from "@/lib/hooks/useVault";
 import { buildObsidianUri } from "@/lib/obsidian-uri";
@@ -764,7 +764,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
                               onMouseEnter={(e) => { e.currentTarget.style.background = theme.brand.violet; }}
                               onMouseLeave={(e) => { e.currentTarget.style.background = theme.brand.indigo; }}
                             >
-                              Search for "{fileName}"
+                              Search for &quot;{fileName}&quot;
                               <svg width={13} height={13} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                               </svg>

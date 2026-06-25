@@ -2161,10 +2161,6 @@ button:active, [role="button"]:active {
 }
 
 /* ── Signature keyframes — top-level (not layer-shadowed) ── */
-@keyframes chip-pop {
-  from { transform: scale(0.92); opacity: 0; }
-  to   { transform: scale(1);    opacity: 1; }
-}
 @keyframes code-copied {
   0%   { transform: translateY(0); }
   40%  { transform: translateY(-1px); }
@@ -2172,7 +2168,6 @@ button:active, [role="button"]:active {
 }
 .code-copy[data-copied="true"] { animation: code-copied var(--dur-expand) var(--ease-signature); }
 @media (prefers-reduced-motion: reduce) {
-  .chip-pop-enter { animation: none; opacity: 1; transform: none; }
   .code-copy[data-copied="true"] { animation: none; }
 }
 
