@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseCallout } from "./callout";
+import { parseCallout, stripCalloutLine } from "./callout";
 
 describe("parseCallout", () => {
   it("plain note", () => {
@@ -98,5 +98,41 @@ describe("parseCallout", () => {
       defaultOpen: false,
       title: null,
     });
+  });
+});
+
+describe("stripCalloutLine", () => {
+  it("titled callout: marker AND title are both stripped, leaving empty string", () => {
+    // This is the Obsidian-parity fix: `[!note] My Title` must not duplicate
+    // "My Title" in the body. The combined strip should return "".
+    expect(stripCalloutLine("[!note] My Title", "My Title")).toBe("");
+  });
+
+  it("titled callout with trailing body text: only marker+title prefix removed", () => {
+    // If the parser somehow emits body after the title in the same text node,
+    // preserve it. (Unusual but robustness check.)
+    expect(stripCalloutLine("[!warning] Heads up extra body", "Heads up")).toBe("extra body");
+  });
+
+  it("no title (null): only the marker prefix is stripped", () => {
+    expect(stripCalloutLine("[!note] body text here", null)).toBe("body text here");
+  });
+
+  it("no title, no body: empty string after strip", () => {
+    expect(stripCalloutLine("[!note]", null)).toBe("");
+  });
+
+  it("leading > is stripped along with the marker", () => {
+    expect(stripCalloutLine("> [!info] My Info", "My Info")).toBe("");
+  });
+
+  it("foldable marker with title stripped", () => {
+    expect(stripCalloutLine("[!note]- Hidden", "Hidden")).toBe("");
+  });
+
+  it("title not present in text: marker stripped, rest preserved unchanged", () => {
+    // If the text node does not start with the title after the marker
+    // (edge case: merged runs), we fall back to not truncating.
+    expect(stripCalloutLine("[!note] something else", "My Title")).toBe("something else");
   });
 });

@@ -152,6 +152,14 @@ function CalloutIcon({ type }: { type: CalloutType }) {
           <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
         </svg>
       );
+    default:
+      // Fallback: note icon (pencil/edit) — guards against unmapped types returning undefined
+      return (
+        <svg {...common}>
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      );
   }
 }
 

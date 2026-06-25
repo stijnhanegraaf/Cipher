@@ -15,7 +15,7 @@ import { CheckboxIndicator } from "../StatusDot";
 import { CodeBlock } from "../CodeBlock";
 import { Callout } from "../Callout";
 import { parseWikiTarget } from "@/lib/markdown/wikilink";
-import { parseCallout } from "@/lib/markdown/callout";
+import { parseCallout, stripCalloutLine } from "@/lib/markdown/callout";
 import { MermaidBlock } from "./MermaidBlock";
 import { textToId, wikiLinkIcon, CopyHeadingLink } from "./CopyHeadingLink";
 
@@ -43,29 +43,37 @@ function firstLineText(children: React.ReactNode): string {
 }
 
 /**
- * Strip the callout marker (`[!type][-+]? optional title`) from the
- * first paragraph's children, returning the remainder text, or null
- * if the first paragraph is entirely consumed.
+ * Strip the callout marker (`[!type][-+]? optional title`) AND the title text
+ * from the first paragraph's children, returning the remainder, or the tail
+ * paragraphs when the first paragraph is entirely consumed.
+ *
+ * `title` must be the `parseCallout().title` value (null when no custom title).
+ * When non-null, the title text is also removed from the first text node so
+ * that a line like `[!note] My Title` does not duplicate "My Title" in the body
+ * (Obsidian parity — the marker line is consumed entirely as the header).
+ *
+ * The marker regex is imported from callout.ts so it cannot drift.
  */
-function stripMarkerFromFirstPara(children: React.ReactNode): React.ReactNode {
+function stripMarkerFromFirstPara(
+  children: React.ReactNode,
+  title: string | null,
+): React.ReactNode {
   const arr = React.Children.toArray(children);
   if (!arr.length) return children;
 
   const firstEl = arr[0];
   if (!React.isValidElement(firstEl)) return children;
 
-  // Extract first-para text children, minus the marker prefix
+  // Extract first-para text children, minus the marker (and title) prefix
   const paraProps = firstEl.props as { children?: React.ReactNode };
   const paraChildren = React.Children.toArray(paraProps.children);
 
-  // Find the first text node that contains the marker
+  // Find the first text node that contains the marker and strip it
   let markerStripped = false;
   const newParaChildren = paraChildren.map((c) => {
     if (!markerStripped && typeof c === "string") {
-      // Strip the `[!type][-+]? title` prefix (with optional leading >)
-      const stripped = c.replace(/^\s*>?\s*\[![^\]]+\][-+]?\s*/, "").trimStart();
       markerStripped = true;
-      return stripped;
+      return stripCalloutLine(c, title);
     }
     return c;
   }).filter((c) => c !== "");
@@ -307,8 +315,8 @@ export function createMarkdownComponents({ onNavigate }: MarkdownComponentOption
         return <blockquote>{children}</blockquote>;
       }
 
-      // Callout: strip the marker from the first paragraph, pass body to <Callout>
-      const body = stripMarkerFromFirstPara(children);
+      // Callout: strip the marker (and title) from the first paragraph, pass body to <Callout>
+      const body = stripMarkerFromFirstPara(children, meta.title);
       return <Callout meta={meta} body={body} />;
     },
 

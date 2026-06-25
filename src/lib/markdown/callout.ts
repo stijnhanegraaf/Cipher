@@ -27,6 +27,35 @@ export interface Callout {
 
 const CALLOUT_RE = /^\s*>?\s*\[!([^\]]+)\]([-+]?)\s*(.*)\s*$/;
 
+/**
+ * The marker prefix regex — matches `[!type][-+]? ` (with optional leading `>`)
+ * at the start of a text node. Exported so render-layer helpers can reuse it
+ * without duplicating the pattern (Fix 2: single source of truth).
+ */
+export const CALLOUT_MARKER_RE = /^\s*>?\s*\[![^\]]+\][-+]?\s*/;
+
+/**
+ * Strip the callout marker prefix AND the optional title text from a raw
+ * first-paragraph string, returning the leftover body text (trimmed).
+ * Returns an empty string when the line is entirely consumed.
+ *
+ * `title` must be the exact string returned by `parseCallout().title` (already
+ * trimmed). When non-null we remove it from the text that remains after the
+ * marker, handling the common Obsidian single-line case:
+ *   `[!note] My Title`  →  marker stripped → `My Title` → title stripped → `""`
+ *
+ * Exported for unit-testing and to keep components.tsx free of inline regex.
+ */
+export function stripCalloutLine(text: string, title: string | null): string {
+  const withoutMarker = text.replace(CALLOUT_MARKER_RE, "");
+  if (title === null) return withoutMarker.trimStart();
+  // Remove the leading title text if present (handles the titled single-line case)
+  const afterTitle = withoutMarker.trimStart().startsWith(title)
+    ? withoutMarker.trimStart().slice(title.length).trimStart()
+    : withoutMarker.trimStart();
+  return afterTitle;
+}
+
 const CANONICAL_TYPES = new Set<CalloutType>([
   "note", "abstract", "info", "tip", "success", "question",
   "warning", "failure", "danger", "bug", "example", "quote",
