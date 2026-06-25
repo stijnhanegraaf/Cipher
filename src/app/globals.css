@@ -87,6 +87,23 @@
   /* Disabled opacity tier — apply to any non-interactive control. */
   --disabled-opacity: 0.4;
 
+  /* ── State surfaces — derived, never hand-picked ──────────────
+     color-mix(in oklab, …) so hover/active/selected track the base
+     surface in BOTH themes. REUSES existing base tokens; adds no new
+     base colors. These are SOLID derived surfaces (opaque) — use for
+     selected rows that must stay distinct under hover.
+     The alpha overlays --hover-row / --hover-control remain the right
+     tool when layering a translucent wash over an unknown background. */
+  --hover-surface:    color-mix(in oklab, var(--bg-surface) 92%, var(--text-primary));
+  --active-surface:   color-mix(in oklab, var(--bg-surface) 86%, var(--text-primary));
+  --selected-surface: color-mix(in oklab, var(--bg-surface) 88%, var(--accent-brand));
+  --selected-border:  color-mix(in oklab, var(--accent-brand) 45%, var(--border-standard));
+
+  /* Focus ring — one token, applied uniformly.
+     Brand at the theme's strongest legible alpha. */
+  --ring:        color-mix(in oklab, var(--accent-brand) 80%, transparent);
+  --ring-offset: var(--bg-marketing);
+
   /* Component-size tokens — reused across TodayRow, Palette, Kbd, hover actions. */
   --checkbox-size:         14px;
   --kbd-size:              16px;
@@ -252,6 +269,16 @@
   --surface-chrome:    var(--bg-marketing);
   --surface-recessed:  color-mix(in srgb, var(--bg-marketing) 98%, black);
   --surface-raised:    color-mix(in srgb, var(--bg-marketing) 98%, white);
+
+  /* State surfaces — light: mix toward text (dark) for hover/active,
+     toward brand for selected. Same recipe, theme-correct because the
+     base tokens differ. */
+  --hover-surface:    color-mix(in oklab, var(--bg-surface) 95%, var(--text-primary));
+  --active-surface:   color-mix(in oklab, var(--bg-surface) 90%, var(--text-primary));
+  --selected-surface: color-mix(in oklab, var(--bg-surface) 90%, var(--accent-brand));
+  --selected-border:  color-mix(in oklab, var(--accent-brand) 40%, var(--border-standard));
+  --ring:             color-mix(in oklab, var(--accent-brand) 70%, transparent);
+  --ring-offset:      var(--bg-marketing);
 }
 
 /* ── Tailwind v4 Theme Extensions ─────────── */
