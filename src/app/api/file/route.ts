@@ -5,9 +5,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readVaultFile, resolveLink, getVaultPath } from "@/lib/vault-reader";
 import { readFile, writeFile } from "fs/promises";
-import { join } from "path";
 import { log } from "@/lib/log";
 import { invalidateVaultTreeCache } from "@/app/api/vault/tree/route";
+import { safeJoin } from "@/lib/fs/safe-join";
 
 // ─── GET /api/file?path=wiki/work/open.md ─────────────────────────────
 // Returns raw markdown content + parsed metadata for a vault file
@@ -30,6 +30,11 @@ export async function GET(request: NextRequest) {
         { error: "Missing or invalid 'path' query parameter" },
         { status: 400 }
       );
+    }
+
+    const vaultRootForGet = getVaultPath();
+    if (vaultRootForGet && path.includes("..") && !safeJoin(vaultRootForGet, path)) {
+      return NextResponse.json({ error: "Invalid path" }, { status: 400 });
     }
 
     // Try reading the file directly first
@@ -108,7 +113,10 @@ export async function PUT(request: NextRequest) {
     if (!vaultRoot) {
       return NextResponse.json({ error: "No vault connected" }, { status: 409 });
     }
-    const absPath = join(vaultRoot, relPath);
+    const absPath = safeJoin(vaultRoot, relPath);
+    if (!absPath) {
+      return NextResponse.json({ error: "Invalid path" }, { status: 400 });
+    }
 
     if (content !== undefined && typeof content === "string") {
       // Full content write

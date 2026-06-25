@@ -13,6 +13,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // server-only throws when imported outside Next.js RSC context;
+      // replace with an empty shim so route handler tests can import server modules.
+      "server-only": fileURLToPath(new URL("./src/lib/fs/__mocks__/server-only.ts", import.meta.url)),
     },
   },
 });

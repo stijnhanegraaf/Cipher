@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "child_process";
 import { stat } from "fs/promises";
-import { join } from "path";
 import { getVaultPath } from "@/lib/vault-reader";
-
-function safeJoin(root: string, rel: string): string | null {
-  const abs = join(root, rel);
-  const normalisedRoot = root.endsWith("/") ? root : root + "/";
-  if (abs !== root && !abs.startsWith(normalisedRoot)) return null;
-  return abs;
-}
+import { safeJoin } from "@/lib/fs/safe-join";
 
 export async function POST(req: NextRequest) {
   if (process.platform !== "darwin") {

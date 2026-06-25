@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readdir, stat } from "fs/promises";
 import { join, extname } from "path";
 import { getVaultPath } from "@/lib/vault-reader";
+import { safeJoin } from "@/lib/fs/safe-join";
 
 interface TreeChild {
   name: string;
@@ -14,13 +15,6 @@ interface TreeChild {
 
 const CACHE = new Map<string, { at: number; data: TreeChild[] }>();
 const TTL_MS = 30_000;
-
-function safeJoin(root: string, rel: string): string | null {
-  const abs = join(root, rel);
-  const normalisedRoot = root.endsWith("/") ? root : root + "/";
-  if (abs !== root && !abs.startsWith(normalisedRoot)) return null;
-  return abs;
-}
 
 export async function GET(req: NextRequest) {
   const root = getVaultPath();
