@@ -3,10 +3,10 @@
  * layout folders, scores matches by term frequency + title bonus.
  */
 
-import { readdir } from "fs/promises";
 import { join } from "path";
 import type { SearchResult } from "./vault-reader";
 import { readVaultFile, getVaultLayout, getVaultPath } from "./vault-reader";
+import { walkFiles } from "@/lib/fs/walk";
 
 // Local root accessor to avoid coupling to the private VAULT_PATH_ helper.
 function rootOrEmpty(): string {
@@ -14,23 +14,11 @@ function rootOrEmpty(): string {
 }
 
 export async function listVaultFiles(dirRelPath: string, extension = ".md"): Promise<string[]> {
-  const absDir = join(rootOrEmpty(), dirRelPath);
-  try {
-    const entries = await readdir(absDir, { withFileTypes: true });
-    const files: string[] = [];
-    for (const entry of entries) {
-      const fullRel = join(dirRelPath, entry.name);
-      if (entry.isFile() && entry.name.endsWith(extension)) {
-        files.push(fullRel);
-      } else if (entry.isDirectory() && !entry.name.startsWith(".")) {
-        const sub = await listVaultFiles(fullRel, extension);
-        files.push(...sub);
-      }
-    }
-    return files;
-  } catch {
-    return [];
-  }
+  const root = rootOrEmpty();
+  if (!root) return [];
+  const base = dirRelPath ? `${dirRelPath}` : "";
+  const rels = await walkFiles(join(root, dirRelPath), { extensions: [extension] });
+  return base ? rels.map((r) => `${base}/${r}`) : rels;
 }
 
 // ─── Full-text search across vault ────────────────────────────────────

@@ -3,8 +3,9 @@
  * resolvable wiki-link is a directed edge. Cached per-vault.
  */
 import "server-only";
-import { readdir, stat } from "fs/promises";
-import { extname, join } from "path";
+import { stat } from "fs/promises";
+import { join } from "path";
+import { walkFiles } from "@/lib/fs/walk";
 import {
   getVaultPath,
   readVaultFile,
@@ -44,34 +45,6 @@ function cacheKey(root: string): string {
   return root;
 }
 
-// ─── Walk ────────────────────────────────────────────────────────────
-
-async function walkMd(root: string, maxDepth = 6): Promise<string[]> {
-  const out: string[] = [];
-  async function walk(absDir: string, rel: string, depth: number) {
-    if (depth > maxDepth) return;
-    let entries: Array<{ name: string; isFile: boolean; isDir: boolean }>;
-    try {
-      const raw = await readdir(absDir, { withFileTypes: true });
-      entries = raw
-        .filter((e) => !e.name.startsWith("."))
-        .map((e) => ({ name: e.name, isFile: e.isFile(), isDir: e.isDirectory() }));
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (entry.isDir) {
-        if (entry.name === "node_modules" || entry.name === ".git" || entry.name === ".obsidian") continue;
-        await walk(join(absDir, entry.name), rel ? `${rel}/${entry.name}` : entry.name, depth + 1);
-      } else if (entry.isFile && extname(entry.name).toLowerCase() === ".md") {
-        out.push(rel ? `${rel}/${entry.name}` : entry.name);
-      }
-    }
-  }
-  await walk(root, "", 0);
-  return out;
-}
-
 // ─── Build ───────────────────────────────────────────────────────────
 
 /**
@@ -92,7 +65,7 @@ export async function buildGraph(): Promise<Graph> {
   if (cached) return cached.graph;
 
   // Phase 1: enumerate all .md files.
-  const paths = await walkMd(root);
+  const paths = await walkFiles(root, { extensions: [".md"] });
 
   // Phase 2: build the node set. Title from frontmatter, folder from first segment.
   const nodesById = new Map<string, GraphNode>();

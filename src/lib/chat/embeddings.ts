@@ -13,11 +13,12 @@
  */
 
 import "server-only";
-import { readFile, writeFile, mkdir, rename, readdir, stat } from "fs/promises";
+import { readFile, writeFile, mkdir, rename, stat } from "fs/promises";
 import { join, dirname } from "path";
 import { getVaultPath } from "@/lib/vault-reader";
 import type { Embedder, EmbedderId } from "./providers/embeddings";
 import { log } from "@/lib/log";
+import { walkFiles } from "@/lib/fs/walk";
 
 export interface IndexChunk {
   id: string;          // `${path}#${headingSlug || windowIndex}`
@@ -194,27 +195,16 @@ function slugify(s: string): string {
 interface VaultFile { path: string; mtime: number }
 
 async function walkMarkdown(root: string): Promise<VaultFile[]> {
+  const rels = await walkFiles(root, { extensions: [".md"] });
   const out: VaultFile[] = [];
-  async function walk(abs: string, rel: string, depth: number) {
-    if (depth > 8) return;
-    let entries;
-    try { entries = await readdir(abs, { withFileTypes: true }); } catch { return; }
-    for (const e of entries) {
-      if (e.name.startsWith(".")) continue;
-      if (e.name === "node_modules") continue;
-      const nextAbs = join(abs, e.name);
-      const nextRel = rel ? `${rel}/${e.name}` : e.name;
-      if (e.isDirectory()) {
-        await walk(nextAbs, nextRel, depth + 1);
-      } else if (e.isFile() && e.name.toLowerCase().endsWith(".md")) {
-        try {
-          const s = await stat(nextAbs);
-          out.push({ path: nextRel, mtime: s.mtimeMs });
-        } catch { /* ignore */ }
-      }
+  for (const rel of rels) {
+    try {
+      const s = await stat(join(root, rel));
+      out.push({ path: rel, mtime: s.mtimeMs });
+    } catch {
+      /* ignore */
     }
   }
-  await walk(root, "", 0);
   return out;
 }
 

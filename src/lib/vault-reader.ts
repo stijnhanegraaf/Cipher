@@ -8,8 +8,9 @@
  */
 
 import "server-only";
-import { readFile, stat, readdir } from "fs/promises";
+import { readFile, stat } from "fs/promises";
 import { join } from "path";
+import { walkFiles } from "@/lib/fs/walk";
 
 // ─── Vault path (hot-swappable) ────────────────────────────────────────
 // Initialized from VAULT_PATH env var OR common user-home candidates.
@@ -780,31 +781,14 @@ async function buildBasenameIndex(root: string): Promise<Map<string, string[]>> 
   const cached = _basenameIndex.get(root);
   if (cached) return cached;
   const index = new Map<string, string[]>();
-  // Bounded walk: depth 5 is plenty for normal vaults (wiki/knowledge/entities/foo/bar.md).
-  async function walk(dir: string, relDir: string, depth: number) {
-    if (depth > 5) return;
-    let entries: Array<{ name: string; isFile: boolean; isDir: boolean }> = [];
-    try {
-      const rawEntries = await readdir(join(root, relDir || "."), { withFileTypes: true });
-      entries = rawEntries
-        .filter((e) => !e.name.startsWith("."))
-        .map((e) => ({ name: e.name, isFile: e.isFile(), isDir: e.isDirectory() }));
-    } catch { return; }
-    for (const entry of entries) {
-      const nextRel = relDir ? `${relDir}/${entry.name}` : entry.name;
-      if (entry.isFile && entry.name.toLowerCase().endsWith(".md")) {
-        const base = entry.name.slice(0, -3).toLowerCase();
-        const list = index.get(base);
-        if (list) list.push(nextRel);
-        else index.set(base, [nextRel]);
-      } else if (entry.isDir) {
-        // Skip node_modules, .git, .obsidian etc.
-        if (entry.name === "node_modules" || entry.name === ".git" || entry.name === ".obsidian") continue;
-        await walk(join(root, nextRel), nextRel, depth + 1);
-      }
-    }
+  const rels = await walkFiles(root, { extensions: [".md"], maxDepth: 5 });
+  for (const rel of rels) {
+    const name = rel.slice(rel.lastIndexOf("/") + 1);
+    const base = name.slice(0, -3).toLowerCase();
+    const list = index.get(base);
+    if (list) list.push(rel);
+    else index.set(base, [rel]);
   }
-  await walk(root, "", 0);
   _basenameIndex.set(root, index);
   return index;
 }
