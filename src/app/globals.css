@@ -664,7 +664,7 @@
 
   /* Focus ring — keyboard visible, mouse hidden */
   *:focus-visible {
-    outline: 2px solid var(--accent-brand);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
     border-radius: var(--radius-comfortable);
   }
@@ -762,9 +762,9 @@
     }
   }
 
-  /* Uniform focus ring (reuses --accent-brand, matching .focus-ring) */
+  /* Uniform focus ring (reuses --ring, matching .focus-ring) */
   .chip:focus-visible {
-    outline: 2px solid var(--accent-brand);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
 
@@ -905,7 +905,7 @@
   .app-row:focus-visible,
   .filter-chip:focus-visible,
   .welcome-chip:focus-visible {
-    outline: 2px solid var(--accent-brand);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
     border-radius: inherit;
   }
@@ -1467,6 +1467,77 @@
     background-color: var(--text-tertiary);
   }
 
+  /* ── Selection that survives hover ──────────────────────────
+     A selected row stays visually distinct even while hovered.
+     Pattern: hover paints --hover-surface; [data-active]/[aria-selected]
+     paints --selected-surface and WINS because it also responds to hover
+     with the active surface (not the hover surface). Apply .state-row to
+     any row/button that can be both hovered AND selected. */
+  .state-row {
+    background-color: transparent;
+    transition:
+      background-color var(--motion-hover) var(--ease-default),
+      color            var(--motion-hover) var(--ease-default),
+      transform        var(--motion-hover) var(--ease-default);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .state-row:hover {
+      background-color: var(--hover-surface);
+    }
+  }
+  .state-row:active {
+    background-color: var(--active-surface);
+  }
+  /* Active/selected wins over hover — listed AFTER :hover so it overrides
+     at equal specificity, and re-asserts itself on its own :hover. */
+  .state-row[data-active="true"],
+  .state-row[aria-selected="true"],
+  .state-row[aria-current="page"] {
+    background-color: var(--selected-surface);
+    box-shadow: inset 2px 0 0 0 var(--selected-border);
+  }
+  .state-row[data-active="true"]:hover,
+  .state-row[aria-selected="true"]:hover,
+  .state-row[aria-current="page"]:hover {
+    background-color: color-mix(in oklab, var(--selected-surface) 88%, var(--text-primary));
+  }
+
+  /* ── 1px press translate ────────────────────────────────────
+     Standalone press affordance for elements that should NOT scale
+     (rows, cards, list items) — distinct from the global button
+     scale(0.97). Composable: add .press to any clickable. */
+  .press {
+    transition: transform var(--motion-hover) var(--ease-out-gentle);
+  }
+  .press:active {
+    transform: translateY(1px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .press:active { transform: none; }
+  }
+
+  /* ── 44px minimum touch targets (coarse pointers only) ──────
+     WCAG 2.5.5 / Apple HIG. Desktop density is untouched. Two tools:
+       • .hit-44 (existing) — expands the HIT AREA via a pseudo-element,
+         no visual change. PREFER this for icon glyphs in dense rows.
+       • .tap-44 (below)   — grows the control's own box to 44×44.
+         Use for standalone touch buttons (FAB, mobile top-bar actions).
+
+     DOCUMENTED EXEMPTIONS (do NOT force 44px on these):
+       • small inline controls inside flowing text/markdown
+         (.md-link, inline code toggles) — sizing them breaks line layout;
+       • reader-toolbar micro chips (.reader-chip / .reader-size) which
+         live in a dense desktop-first toolbar and use .hit-44 if needed;
+       • table-cell affordances and inline pills (.pill, .badge-subtle, .chip)
+         whose size is semantic. Wrap their tappable parent in .hit-44 instead.
+     Opt OUT explicitly with [data-tap-exempt]. */
+  @media (pointer: coarse) {
+    .tap-44:not([data-tap-exempt]) {
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }
+
   /* ════════════════════════════════════════════════════════════════
      TYPESET — the reader's core surface. Generous register.
      Scope: .typeset (added alongside .markdown-content on the renderer
@@ -1531,7 +1602,7 @@
   }
   .typeset a:visited { color: var(--link-visited); }
   .typeset a:focus-visible {
-    outline: 2px solid var(--accent-brand);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
     border-radius: var(--radius-micro);
     border-bottom-color: transparent;
@@ -1599,7 +1670,7 @@
   .typeset pre:focus-within .code-copy { opacity: 1; }
   .code-copy:focus-visible {
     opacity: 1;
-    outline: 2px solid var(--accent-brand);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
   .code-copy[data-copied="true"] { color: var(--success); }
@@ -1614,7 +1685,7 @@
     border-radius: var(--radius-card);
   }
   .typeset .table-scroll:focus-visible {
-    outline: 2px solid var(--accent-brand);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
     border-radius: var(--radius-card);
   }
@@ -1691,24 +1762,62 @@
    GLOBAL OVERRIDES — Can't use @layer for these
    ───────────────────────────────────────────── */
 
-/* Scrollbar — Global thin style */
+/* Scrollbar — Global: thin, stable-gutter, hover-revealed, theme-aware.
+   Replaces the previous always-visible global thumb. Distinct hue per
+   theme via a single derived var so the two modes don't share one gray. */
+:root {
+  --scrollbar-thumb:       color-mix(in oklab, var(--text-quaternary) 55%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, var(--text-tertiary) 80%, transparent);
+}
+.light {
+  --scrollbar-thumb:       color-mix(in oklab, var(--text-tertiary) 38%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, var(--text-secondary) 55%, transparent);
+}
+
+/* Stable gutter: reserve space so content never reflows when the bar
+   appears. Applied to the scroll roots; safe on body + any [data-scroll]. */
+html,
+body,
+[data-scroll],
+.scroll-region {
+  scrollbar-gutter: stable;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent; /* hidden at rest */
+}
+html:hover,
+body:hover,
+*:hover {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* WebKit / Blink */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: var(--text-quaternary);
-  border-radius: 9999px;
+  background-color: transparent;            /* invisible at rest */
+  border: 2px solid transparent;            /* inset → 4px visible thumb in 8px gutter */
+  background-clip: padding-box;
+  border-radius: var(--radius-full);
+  transition: background-color var(--motion-hover) var(--ease-default);
 }
-::-webkit-scrollbar-thumb:hover {
-  background-color: var(--text-tertiary);
+*:hover::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
 }
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--text-quaternary) transparent;
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--scrollbar-thumb-hover);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Textarea */
@@ -1722,7 +1831,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 [role="button"]:focus-visible {
-  outline: 2px solid var(--accent-brand);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
   border-radius: var(--radius-comfortable);
 }

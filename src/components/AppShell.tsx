@@ -104,15 +104,17 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const handleToggleTheme = useCallback(() => {
     const html = document.documentElement;
     const isLight = html.classList.contains("light");
-    if (isLight) {
+    const next = isLight ? "dark" : "light";
+    if (next === "dark") {
       html.classList.remove("light");
       html.classList.add("dark");
-      localStorage.setItem("brain-theme", "dark");
     } else {
       html.classList.add("light");
       html.classList.remove("dark");
-      localStorage.setItem("brain-theme", "light");
     }
+    localStorage.setItem("brain-theme", next);
+    // Sync meta theme-color to the RESOLVED theme (not just OS).
+    (window as Window & { __setThemeColor?: (t: string) => void }).__setThemeColor?.(next);
   }, []);
 
   // ── Sidebar handlers. ──────────────────────────────────────────────
