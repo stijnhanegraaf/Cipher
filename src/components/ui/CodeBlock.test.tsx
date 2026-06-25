@@ -7,7 +7,7 @@ import { CodeBlock } from "./CodeBlock";
 
 describe("CodeBlock copy button", () => {
   it("copies the CODE TEXT — not the Copy button label — when clicked", async () => {
-    const writeText = vi.fn((_text: string) => Promise.resolve());
+    const writeText = vi.fn(() => Promise.resolve());
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
       configurable: true,
@@ -35,7 +35,7 @@ describe("CodeBlock copy button", () => {
 
   it('shows "Copied" on the button immediately after copying', async () => {
     vi.useFakeTimers();
-    const writeText = vi.fn((_text: string) => Promise.resolve());
+    const writeText = vi.fn(() => Promise.resolve());
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
       configurable: true,
