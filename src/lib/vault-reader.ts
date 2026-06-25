@@ -834,12 +834,21 @@ export async function resolveLink(linkPath: string): Promise<string | null> {
     const key = (lastSegment.endsWith(".md") ? lastSegment.slice(0, -3) : lastSegment).toLowerCase();
     const hits = index.get(key);
     if (hits && hits.length > 0) {
-      // For nested paths (e.g. "knowledge/research/lenses/contrarian"),
-      // prefer hits that match the full path structure.
+      // For nested paths, prefer hits that match the full path structure.
       const fullKey = trimmed.toLowerCase().replace(/\.md$/, "");
-      const structuralMatch = hits.find(h => h.toLowerCase().includes(fullKey));
+      const structuralMatch = hits.find((h) => h.toLowerCase().includes(fullKey));
       const best = structuralMatch || [...hits].sort((a, b) => a.length - b.length)[0];
       return anchor ? best + "#" + anchor : best;
+    }
+    // Normalized fallback: treat spaces and hyphens as equivalent so a
+    // display-text link like "Q3 Plan" matches a file named "q3-plan.md".
+    const normalize = (s: string) => s.toLowerCase().replace(/[\s-]+/g, " ").trim();
+    const wanted = normalize(key);
+    for (const [k, paths] of index) {
+      if (paths.length > 0 && normalize(k) === wanted) {
+        const best = [...paths].sort((a, b) => a.length - b.length)[0];
+        return anchor ? best + "#" + anchor : best;
+      }
     }
   } catch { /* fall through */ }
 

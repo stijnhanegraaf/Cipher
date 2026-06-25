@@ -15,6 +15,7 @@ import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
 import { CheckboxIndicator, StatusDot } from "./StatusDot";
 import { buildObsidianUri } from "@/lib/obsidian-uri";
+import { parseWikiTarget } from "@/lib/markdown/wikilink";
 
 // ── highlight.js theme CSS (vendored locally) ──
 let hljsCssLoaded = false;
@@ -275,13 +276,28 @@ export function MarkdownRenderer({ content, className, onNavigate, vaultName }: 
 
             // For vault:// links with onNavigate, intercept the click
             if (isVaultLink && onNavigate && href) {
-              const vaultPath = decodeURIComponent(href.replace("vault://", ""));
+              const raw = decodeURIComponent(href.replace("vault://", ""));
               return (
                 <a
                   href="#"
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.preventDefault();
-                    onNavigate(vaultPath);
+                    const { target } = parseWikiTarget(raw);
+                    let dest = target;
+                    try {
+                      const res = await fetch(`/api/resolve?path=${encodeURIComponent(target)}`, { cache: "no-store" });
+                      if (res.ok) {
+                        const data = (await res.json()) as { resolved: string | null };
+                        if (data.resolved) dest = data.resolved;
+                      }
+                    } catch {
+                      /* fall back to raw target; DetailPage shows a friendly 404 */
+                    }
+                    // Note: onNavigate is typed as (path: string) => void and the
+                    // underlying sheet.open uses separate anchorSlug param. Passing
+                    // "path#anchor" as a single string would encode the # in ?sheet=
+                    // and break the anchor lookup. Anchor navigation is deferred to Phase 1.
+                    onNavigate(dest);
                   }}
                   className="md-link focus-ring"
                 >
