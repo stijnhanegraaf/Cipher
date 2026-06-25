@@ -14,6 +14,7 @@ import remarkUnwrapImages from "remark-unwrap-images";
 import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
 import { CheckboxIndicator, StatusDot } from "./StatusDot";
+import { buildObsidianUri } from "@/lib/obsidian-uri";
 
 // ── highlight.js theme CSS (vendored locally) ──
 let hljsCssLoaded = false;
@@ -78,15 +79,15 @@ interface MarkdownRendererProps {
   content: string;
   className?: string;
   onNavigate?: (path: string) => void;
+  vaultName?: string;
 }
 
 // ─── Wiki-link preprocessor ────────────────────────────────────────
-// Converts [[wiki links]] to [wiki links](obsidian://open?vault=Obsidian&file=PATH)
+// Converts [[wiki links]] to [wiki links](obsidian://open?vault=<name>&file=PATH)
 // before react-markdown processes the content.
-function preprocessWikiLinks(markdown: string): string {
+function preprocessWikiLinks(markdown: string, vaultName?: string): string {
   return markdown.replace(/\[\[([^\]]+)\]\]/g, (_match, linkText: string) => {
-    const encoded = encodeURIComponent(linkText);
-    const url = `obsidian://open?vault=Obsidian&file=${encoded}`;
+    const url = buildObsidianUri(vaultName, linkText);
     return `[${linkText}](${url})`;
   });
 }
@@ -150,15 +151,15 @@ function CopyHeadingLink({ id }: { id: string }) {
   );
 }
 
-export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, className, onNavigate, vaultName }: MarkdownRendererProps) {
   // Preprocess wiki links before passing to react-markdown
   // When onNavigate is provided, use vault:// URLs instead of obsidian://
   const processedContent = useMemo(
     () =>
       onNavigate
         ? preprocessWikiLinksDataAttr(content)
-        : preprocessWikiLinks(content),
-    [content, onNavigate]
+        : preprocessWikiLinks(content, vaultName),
+    [content, onNavigate, vaultName]
   );
 
   useEffect(() => { ensureHljsCss(); }, []);

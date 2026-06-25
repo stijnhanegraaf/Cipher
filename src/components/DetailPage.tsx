@@ -12,6 +12,8 @@ import { motion, AnimatePresence, useInView } from "framer-motion";
 import { MarkdownRenderer, Breadcrumbs } from "@/components/ui";
 import { scrollReveal, springs } from "@/lib/motion";
 import { useRecentFiles } from "@/lib/hooks/useRecentFiles";
+import { useVault } from "@/lib/hooks/useVault";
+import { buildObsidianUri } from "@/lib/obsidian-uri";
 import { log } from "@/lib/log";
 import { slugify } from "@/lib/slug";
 
@@ -243,6 +245,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const { push: pushRecent } = useRecentFiles();
+  const vault = useVault();
 
   useEffect(() => {
     if (path) pushRecent(path);
@@ -363,7 +366,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
   const showToc = data && data.sections.length >= 4;
 
   // Obsidian URL for "Open in Obsidian" link
-  const obsidianUrl = `obsidian://open?vault=Obsidian&file=${encodeURIComponent(path)}`;
+  const obsidianUrl = buildObsidianUri(vault.name, path);
 
   // ─── Save function ────────────────────────────────────────────────
   // Throws on non-ok so callers (e.g. exitEditMode with save=true) can stay
