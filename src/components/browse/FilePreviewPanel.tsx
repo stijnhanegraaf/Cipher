@@ -18,6 +18,7 @@ import {
 import type { Graph, GraphNode } from "@/lib/vault-graph";
 import { IconButton } from "@/components/ui/IconButton";
 import type { FileEnvelope } from "@/lib/types/file-envelope";
+import { extractTags } from "@/lib/markdown/tags";
 
 export interface LinkRow {
   path: string;
@@ -39,19 +40,6 @@ interface PreviewData {
   wordCount: number;
   snippetHeading: string;
   snippet: string;
-}
-
-function deriveTags(env: FileEnvelope): string[] {
-  const out = new Set<string>();
-  const fmTags = env.frontmatter?.["tags"];
-  if (Array.isArray(fmTags)) {
-    for (const t of fmTags) if (typeof t === "string" && t.trim()) out.add(t.trim());
-  }
-  // Inline #tags from content — basic pattern, word-boundary bounded.
-  const inlineRe = /(^|\s)#([A-Za-z0-9_\-/]+)/g;
-  let m: RegExpExecArray | null;
-  while ((m = inlineRe.exec(env.content)) !== null) out.add(m[2]);
-  return Array.from(out);
 }
 
 function wordCountOf(env: FileEnvelope): number {
@@ -121,7 +109,7 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
         const { heading, snippet } = snippetOf(env);
         const built: PreviewData = {
           env,
-          tags: deriveTags(env),
+          tags: extractTags(env.content, env.frontmatter ?? {}),
           wordCount: wordCountOf(env),
           snippetHeading: heading,
           snippet,

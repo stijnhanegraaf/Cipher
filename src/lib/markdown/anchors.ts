@@ -95,8 +95,11 @@ export function slugifyHeading(text: string): string {
  * Build a boolean mask over `lines` where `true` means the line is inside a
  * fenced code block (``` or ~~~).  The fence-open line itself is marked true
  * (it is not a heading), as is the fence-close line.
+ *
+ * Exported so that other pure markdown utils (e.g. tags.ts) can reuse the
+ * same fence-exclusion logic without duplicating it.
  */
-function buildFenceMask(lines: string[]): boolean[] {
+export function buildFenceMask(lines: string[]): boolean[] {
   const mask: boolean[] = new Array(lines.length).fill(false);
   let inFence = false;
   let fenceChar = "";
