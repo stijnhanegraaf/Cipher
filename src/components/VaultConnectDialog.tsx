@@ -103,6 +103,7 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
             style={{
               position: "fixed",
               inset: 0,
+              // eslint-disable-next-line cipher-design/no-raw-color -- modal overlay at 0.55 opacity; no token at this alpha exists
               background: "rgba(0,0,0,0.55)",
               zIndex: 400,
               backdropFilter: "blur(4px)",

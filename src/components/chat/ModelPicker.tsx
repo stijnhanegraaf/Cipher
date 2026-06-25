@@ -279,6 +279,7 @@ export function ModelPicker({ current, onChange }: Props) {
                       fontWeight: active ? 500 : 400,
                       cursor: active ? "default" : "pointer",
                       fontSize: 11,
+                      // eslint-disable-next-line cipher-design/no-raw-color -- drop-shadow with no equivalent shadow token; pure black alpha overlay
                       boxShadow: active ? "0 1px 2px rgba(0,0,0,0.2)" : "none",
                       transition: "background var(--motion-hover) var(--ease-default)",
                     }}
