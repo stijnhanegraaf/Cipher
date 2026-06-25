@@ -117,7 +117,7 @@ describe("slugifyHeading", () => {
     expect(slugifyHeading("Hello, World!")).toBe("hello-world");
   });
 
-  it("collapses multiple hyphens", () => {
+  it("collapses multiple hyphens (multiple spaces)", () => {
     expect(slugifyHeading("foo  bar")).toBe("foo-bar");
   });
 
@@ -125,8 +125,10 @@ describe("slugifyHeading", () => {
     expect(slugifyHeading("  Hello  ")).toBe("hello");
   });
 
-  it("handles heading with numbers", () => {
-    expect(slugifyHeading("Section 1.2")).toBe("section-12");
+  it("handles heading with numbers (dot is a separator)", () => {
+    // Under the unified algorithm dots (non-alphanumeric) become hyphens,
+    // matching the DOM id that textToId produces for the same text.
+    expect(slugifyHeading("Section 1.2")).toBe("section-1-2");
   });
 
   it("handles already-slug text", () => {
@@ -135,6 +137,17 @@ describe("slugifyHeading", () => {
 
   it("handles empty string", () => {
     expect(slugifyHeading("")).toBe("");
+  });
+
+  // Regression: underscore is treated as a separator (converted to `-`), not
+  // kept as a word character.  This ensures the slug matches the DOM id that
+  // textToId produces for the same heading text.
+  it("converts underscores to hyphens (matches DOM id)", () => {
+    expect(slugifyHeading("My_Heading")).toBe("my-heading");
+  });
+
+  it("collapses adjacent underscore+space into a single hyphen", () => {
+    expect(slugifyHeading("foo _ bar")).toBe("foo-bar");
   });
 });
 

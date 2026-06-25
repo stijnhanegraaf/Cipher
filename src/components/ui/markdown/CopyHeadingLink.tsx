@@ -1,8 +1,15 @@
 "use client";
 
 import React from "react";
+import { slugifyHeading } from "@/lib/markdown/anchors";
 
 // ─── Helper: extract text content from React children for heading IDs ──
+/**
+ * Converts React children to a heading DOM id fragment by extracting the flat
+ * text and passing it through `slugifyHeading` — the single source of truth
+ * for heading slug normalization.  This ensures the DOM id assigned here
+ * always matches the slug that WikiLink computes when building scroll targets.
+ */
 export function textToId(children: React.ReactNode): string {
   let text = "";
   React.Children.forEach(children, (child) => {
@@ -10,7 +17,7 @@ export function textToId(children: React.ReactNode): string {
     else if (typeof child === "number") text += child;
     else if (React.isValidElement(child)) text += textToId((child.props as { children?: React.ReactNode }).children);
   });
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  return slugifyHeading(text);
 }
 
 export const wikiLinkIcon = (

@@ -115,7 +115,9 @@ function WikiLink({
   onNavigate: (path: string, anchor?: string) => void;
 }) {
   // Resolved destination path (without anchor) and anchor validation result.
-  // null = not yet resolved; undefined = resolution failed.
+  // undefined = initial state (resolution not yet attempted);
+  // null = resolution was attempted but the API returned no valid path;
+  // string = resolved vault path (anchor stripped).
   const [resolvedPath, setResolvedPath] = useState<string | null | undefined>(undefined);
   const [anchorInfo, setAnchorInfo] = useState<AnchorValidation | null>(null);
   const fetchedRef = useRef(false);
@@ -124,9 +126,13 @@ function WikiLink({
     if (fetchedRef.current) return;
     fetchedRef.current = true;
 
+    const controller = new AbortController();
     const { target } = parseWikiTarget(raw);
     // Pass the full raw (including anchor) so the route can validate it.
-    fetch(`/api/resolve?path=${encodeURIComponent(raw)}`, { cache: "no-store" })
+    fetch(`/api/resolve?path=${encodeURIComponent(raw)}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
       .then(async (res) => {
         if (!res.ok) return;
         const data = (await res.json()) as {
@@ -139,10 +145,15 @@ function WikiLink({
         setResolvedPath(basePath ?? target);
         if (data.anchor) setAnchorInfo(data.anchor);
       })
-      .catch(() => {
-        // Resolve failed — fall back to raw target, no anchor info.
+      .catch((err: unknown) => {
+        // Ignore aborts (component unmounted); only set state on real failures.
+        if (err instanceof DOMException && err.name === "AbortError") return;
         setResolvedPath(target);
       });
+
+    return () => {
+      controller.abort();
+    };
   }, [raw]);
 
   const isBrokenAnchor =
