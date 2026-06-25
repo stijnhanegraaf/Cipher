@@ -229,6 +229,16 @@
   --chip-bg-mix-hi:  26%;
   --chip-border-mix: 30%;
   --chip-text-mix:   72%;
+
+  /* ── Code surface tokens (intentionally dark in BOTH themes) ──
+     Code blocks stay deep-gray in light and dark alike; these are NOT
+     overridden in .light. Raw hex/rgba ONLY here, per DESIGN.md §3. */
+  --code-bg:            oklch(20.087% 0.0081 274.50);
+  --code-border:        oklch(100% 0 0 / 0.08);
+  --code-fg:            oklch(92.806% 0.0042 271.37);
+  --code-copy-bg:       oklch(100% 0 0 / 0.06);
+  --code-copy-border:   oklch(100% 0 0 / 0.10);
+  --code-copy-bg-hover: oklch(100% 0 0 / 0.12);
 }
 
 /* ── Custom Properties: Light Mode ────────── */
@@ -1445,115 +1455,6 @@
   }
 
   /* ════════════════════════════════════════════════════════════════
-     PER-HUE CHIP SYSTEM
-     One base hue per entity (tag / note-kind / link-state). A single
-     .chip helper color-mixes bg/text/border from --sc for BOTH themes.
-     Adding a colour = adding ONE --hue-* token. No hand-picked states.
-     Mixing happens against the existing bg and text tokens, which
-     already invert per theme, so light & dark fall out for free.
-     ════════════════════════════════════════════════════════════════ */
-
-  /* Base hues — reuse Cipher's existing semantic tokens where one
-     already exists; only NEW hues are introduced here. Each is a
-     single source colour; the .chip helper derives every state. */
-  :root {
-    --hue-tag:        var(--accent-violet);     /* generic tags        */
-    --hue-note:       var(--accent-brand);      /* note / doc kind     */
-    --hue-idea:       #d9a441;                  /* idea / amber kind    */
-    --hue-question:   var(--status-open);       /* question (blue)     */
-    --hue-warning:    var(--status-warning);    /* warning kind        */
-    --hue-success:    var(--success);           /* done / positive     */
-    --hue-danger:     var(--status-blocked);    /* blocked / negative  */
-
-    /* Link-state hues (consumed by .typeset links below) */
-    --link:           var(--accent-violet);     /* the link hue token  */
-    --link-visited:   color-mix(in oklab, var(--accent-violet) 62%, var(--text-tertiary));
-
-    /* Chip mix ratios — tuned once, used everywhere. */
-    --chip-bg-mix:     14%;   /* hue into surface for the fill        */
-    --chip-bg-mix-hi:  22%;   /* hover/active fill                    */
-    --chip-border-mix: 34%;   /* hue into border                      */
-    --chip-text-mix:   72%;   /* hue toward text for readable label   */
-  }
-
-  /* Dark mode wants a touch more fill to read against deep-gray. */
-  :root,
-  [data-theme="dark"] {
-    --chip-bg-mix:     16%;
-    --chip-bg-mix-hi:  26%;
-    --chip-border-mix: 30%;
-  }
-
-  .light,
-  [data-theme="light"] {
-    --chip-bg-mix:     12%;
-    --chip-bg-mix-hi:  20%;
-    --chip-border-mix: 38%;
-  }
-
-  /* ── .chip ──────────────────────────────────────────────────────
-     Consumer sets a local --sc (single colour). Everything derives.
-     Usage:  <span class="chip" style="--sc: var(--hue-idea)">idea</span> */
-  .chip {
-    --sc: var(--hue-tag);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    height: 20px;
-    padding: 0 var(--space-2);
-    font-size: 0.6875rem;
-    font-weight: 510;
-    line-height: 1;
-    letter-spacing: 0.01em;
-    white-space: nowrap;
-    border-radius: var(--radius-full);
-    color:        color-mix(in oklab, var(--sc) var(--chip-text-mix), var(--text-primary));
-    background:   color-mix(in oklab, var(--sc) var(--chip-bg-mix),  var(--bg-surface));
-    border: 1px solid
-                  color-mix(in oklab, var(--sc) var(--chip-border-mix), transparent);
-    transition: var(--transition-hover);
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .chip:hover {
-      background: color-mix(in oklab, var(--sc) var(--chip-bg-mix-hi), var(--bg-surface));
-    }
-  }
-
-  .chip[aria-pressed="true"],
-  .chip[data-selected="true"] {
-    background: color-mix(in oklab, var(--sc) var(--chip-bg-mix-hi), var(--bg-surface));
-    border-color: color-mix(in oklab, var(--sc) calc(var(--chip-border-mix) + 18%), transparent);
-  }
-  @media (hover: hover) and (pointer: fine) {
-    .chip[aria-pressed="true"]:hover,
-    .chip[data-selected="true"]:hover {
-      background: color-mix(in oklab, var(--sc) calc(var(--chip-bg-mix-hi) + 6%), var(--bg-surface));
-    }
-  }
-
-  .chip:focus-visible {
-    outline: 2px solid var(--accent-brand);
-    outline-offset: 2px;
-  }
-
-  button.chip:active,
-  .chip[role="button"]:active {
-    transform: translateY(1px);
-  }
-
-  @media (pointer: coarse) {
-    button.chip,
-    .chip[role="button"] { min-height: 44px; padding: 0 var(--space-3); }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .chip { transition: none; }
-    button.chip:active,
-    .chip[role="button"]:active { transform: none; }
-  }
-
-  /* ════════════════════════════════════════════════════════════════
      TYPESET — the reader's core surface. Generous register.
      Scope: .typeset (added alongside .markdown-content on the renderer
      container). Respects reader-pref vars (--md-size/-line-height/etc.)
@@ -1564,10 +1465,7 @@
   .typeset {
     /* one signature reading link hue, overridable per-surface */
     --link: var(--accent-violet);
-    /* code surface stays deep-gray in BOTH themes (not --bg-surface) */
-    --code-bg:     #15161a;
-    --code-border: rgba(255, 255, 255, 0.08);
-    --code-fg:     #e6e7ea;
+    /* code surface references :root tokens — dark in BOTH themes */
   }
 
   /* ── Heading scale: rem-based, slight negative tracking, balanced ──
@@ -1673,8 +1571,8 @@
     font-size: 0.6875rem;
     font-weight: 510;
     color: var(--code-fg);
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: var(--code-copy-bg);
+    border: 1px solid var(--code-copy-border);
     border-radius: var(--radius-small);
     cursor: pointer;
     opacity: 0;
@@ -1683,7 +1581,7 @@
   }
   @media (hover: hover) and (pointer: fine) {
     .typeset pre:hover .code-copy { opacity: 1; }
-    .code-copy:hover { background: rgba(255, 255, 255, 0.12); }
+    .code-copy:hover { background: var(--code-copy-bg-hover); }
   }
   .typeset pre:focus-within .code-copy { opacity: 1; }
   .code-copy:focus-visible {
