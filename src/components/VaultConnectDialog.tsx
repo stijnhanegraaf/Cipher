@@ -72,7 +72,7 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- triggers async fetch that sets fs; cannot call loadFs() during render
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadFs() only sets state after an async fetch (guarded by !fs so it runs once); not a synchronous render-loop.
     if (open && browseOpen && !fs) loadFs();
   }, [open, browseOpen, fs, loadFs]);
 
