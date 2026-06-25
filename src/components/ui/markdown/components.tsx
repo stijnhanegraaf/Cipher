@@ -18,6 +18,7 @@ import { parseWikiTarget } from "@/lib/markdown/wikilink";
 import { parseCallout, stripCalloutLine } from "@/lib/markdown/callout";
 import { MermaidBlock } from "./MermaidBlock";
 import { textToId, wikiLinkIcon, CopyHeadingLink } from "./CopyHeadingLink";
+import { Embed } from "./Embed";
 
 /**
  * Extract a flat string from the first text run in React children.
@@ -169,6 +170,14 @@ export function createMarkdownComponents({ onNavigate }: MarkdownComponentOption
 
     // ── Links ── (handles both regular links and wiki-link-converted links)
     a: ({ href, children }) => {
+      // embed:// sentinel — rendered by the Embed component, NOT an anchor.
+      // The preprocessor emits `[](embed://<urlencoded-inner>)` on its own
+      // line so react-markdown places it outside a <p> (no invalid nesting).
+      if (href?.startsWith("embed://")) {
+        const inner = decodeURIComponent(href.slice("embed://".length));
+        return <Embed inner={inner} onNavigate={onNavigate} />;
+      }
+
       const isObsidianLink = href?.startsWith("obsidian://");
       const isVaultLink = href?.startsWith("vault://");
       const isWikiLink = isObsidianLink || isVaultLink;

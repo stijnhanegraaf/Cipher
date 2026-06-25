@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { preprocessMarkdown } from "./preprocess";
+import { preprocessMarkdown, rewriteEmbeds } from "./preprocess";
 
 describe("preprocessMarkdown — interactive mode (vault:// links)", () => {
   it("converts [[Some Note]] to a vault:// link with the note as label", () => {
@@ -25,6 +25,56 @@ describe("preprocessMarkdown — interactive mode (vault:// links)", () => {
   it("leaves regular markdown links unchanged", () => {
     const input = "[regular link](https://example.com)";
     expect(preprocessMarkdown(input, { interactive: true })).toBe(input);
+  });
+});
+
+describe("rewriteEmbeds — ![[…]] to embed:// sentinel", () => {
+  it("rewrites ![[note]] to an embed:// link on its own line", () => {
+    const result = rewriteEmbeds("![[my note]]");
+    expect(result).toContain("[](embed://my%20note)");
+    // Must be on its own line (surrounded by newlines) to avoid <p> nesting.
+    expect(result).toMatch(/\n\[\]\(embed:\/\/my%20note\)\n/);
+  });
+
+  it("rewrites ![[note#Heading]] preserving the full inner text", () => {
+    const result = rewriteEmbeds("![[note#Section]]");
+    expect(result).toContain("embed://note%23Section");
+  });
+
+  it("rewrites ![[image.png]] to an embed:// token", () => {
+    const result = rewriteEmbeds("![[image.png]]");
+    expect(result).toContain("embed://image.png");
+  });
+
+  it("leaves plain wiki-links unchanged", () => {
+    const result = rewriteEmbeds("[[regular link]]");
+    expect(result).toBe("[[regular link]]");
+    expect(result).not.toContain("embed://");
+  });
+
+  it("leaves regular markdown unchanged", () => {
+    const result = rewriteEmbeds("This is plain text.");
+    expect(result).toBe("This is plain text.");
+  });
+
+  it("embed token does NOT contain stray [[ after rewrite", () => {
+    const result = rewriteEmbeds("![[note]]");
+    // The original ![[…]] is fully consumed; no stray [[ remains.
+    expect(result).not.toContain("![[");
+    expect(result).not.toContain("[[note]]");
+  });
+
+  it("full pipeline: embed rewrite runs BEFORE wiki-link rewrite (no double-match)", () => {
+    // ![[note]] should become an embed sentinel, not a vault:// link.
+    const result = preprocessMarkdown("![[note]]", { interactive: true });
+    expect(result).toContain("embed://note");
+    expect(result).not.toContain("vault://");
+  });
+
+  it("full pipeline: regular [[link]] after an embed still becomes vault:// link", () => {
+    const result = preprocessMarkdown("![[embed-note]] and [[wiki-link]]", { interactive: true });
+    expect(result).toContain("embed://embed-note");
+    expect(result).toContain("vault://wiki-link");
   });
 });
 

@@ -4,9 +4,11 @@
  * No React imports; node-testable.
  *
  * Pipeline order (matters for Task 5):
+ *   0. rewriteEmbeds  — ![[…]] → own-line `[](embed://…)` token
  *   1. rewriteWikiLinks — [[…]] → [label](vault://… | obsidian://…)
  *
- * Seam for Task 5: add rewriteEmbeds(![[…]]) as stage 0 before this.
+ * The embed stage runs BEFORE wiki-links so the leading `!` is consumed
+ * and the inner `[[…]]` is never re-matched by the wiki-link regex.
  */
 
 import { buildObsidianUri } from "@/lib/obsidian-uri";
@@ -18,6 +20,24 @@ export interface PreprocessOptions {
   /** Vault name used in obsidian:// links when interactive is false.
    *  Defaults to "Obsidian" when omitted (same default as buildObsidianUri). */
   vaultName?: string;
+}
+
+/**
+ * Rewrite `![[…]]` embed tokens to `[](embed://<urlencoded-inner>)` sentinel
+ * links on their OWN LINE so react-markdown doesn't nest them inside a `<p>`.
+ *
+ * The leading `!` is consumed here, so the subsequent `rewriteWikiLinks` pass
+ * never sees the inner `[[…]]` (no double-rewrite).
+ *
+ * Exported for unit testing; callers should use `preprocessMarkdown`.
+ */
+export function rewriteEmbeds(src: string): string {
+  // Replace each ![[…]] with a newline-isolated embed:// sentinel link.
+  // The surrounding newlines ensure react-markdown doesn't wrap it in a <p>
+  // as inline content.
+  return src.replace(/!\[\[([^\]]+)\]\]/g, (_m, inner: string) => {
+    return `\n[](embed://${encodeURIComponent(inner)})\n`;
+  });
 }
 
 /**
@@ -40,11 +60,10 @@ export function rewriteWikiLinks(src: string, opts: PreprocessOptions): string {
 }
 
 /**
- * Full preprocessing pipeline. Currently only wiki-link rewriting.
- * Stage for embed rewriting (![[…]]) will be inserted here in Task 5,
- * before rewriteWikiLinks, so the leading "!" is consumed first.
+ * Full preprocessing pipeline.
+ *   Stage 0: rewriteEmbeds  — ![[…]] → own-line embed:// sentinel
+ *   Stage 1: rewriteWikiLinks — [[…]] → vault:// or obsidian://
  */
 export function preprocessMarkdown(src: string, opts: PreprocessOptions): string {
-  // Task 5 seam: return rewriteEmbeds(rewriteWikiLinks(src, opts), opts);
-  return rewriteWikiLinks(src, opts);
+  return rewriteWikiLinks(rewriteEmbeds(src), opts);
 }
