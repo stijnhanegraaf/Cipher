@@ -16,7 +16,7 @@ import remarkUnwrapImages from "remark-unwrap-images";
 import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
 import { CheckboxIndicator, StatusDot } from "./StatusDot";
-import { buildObsidianUri } from "@/lib/obsidian-uri";
+import { preprocessMarkdown } from "@/lib/markdown/preprocess";
 import { ensureHljsCss } from "./markdown/hljs-theme";
 import { createMarkdownComponents } from "./markdown/components";
 
@@ -29,33 +29,13 @@ interface MarkdownRendererProps {
   onNavigate?: (path: string) => void;
 }
 
-// ─── Wiki-link preprocessor ────────────────────────────────────────
-// Converts [[wiki links]] to [wiki links](obsidian://open?vault=<name>&file=PATH)
-// before react-markdown processes the content.
-function preprocessWikiLinks(markdown: string, vaultName?: string): string {
-  return markdown.replace(/\[\[([^\]]+)\]\]/g, (_match, linkText: string) => {
-    const url = buildObsidianUri(vaultName, linkText);
-    return `[${linkText}](${url})`;
-  });
-}
-
-// Variant that uses vault:// URLs instead of obsidian:// URLs
-// so the link component can intercept clicks and call onNavigate
-function preprocessWikiLinksDataAttr(markdown: string): string {
-  return markdown.replace(/\[\[([^\]]+)\]\]/g, (_match, linkText: string) => {
-    const url = `vault://${linkText}`;
-    return `[${linkText}](${url})`;
-  });
-}
-
 export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRendererProps) {
-  // Preprocess wiki links before passing to react-markdown
-  // When onNavigate is provided, use vault:// URLs instead of obsidian://
+  // Preprocess wiki links before passing to react-markdown.
+  // interactive=true (has onNavigate) → vault:// links so the link component
+  // can intercept clicks and call onNavigate.
+  // interactive=false → obsidian:// deep links (vaultName defaults to "Obsidian").
   const processedContent = useMemo(
-    () =>
-      onNavigate
-        ? preprocessWikiLinksDataAttr(content)
-        : preprocessWikiLinks(content),
+    () => preprocessMarkdown(content, { interactive: !!onNavigate }),
     [content, onNavigate]
   );
 
