@@ -15,22 +15,7 @@ import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
 import { CheckboxIndicator, StatusDot } from "./StatusDot";
 
-let katexCssLoaded = false;
-function ensureKatexCss() {
-  if (katexCssLoaded || typeof document === "undefined") return;
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  // Pin to an exact version and include SRI; served from jsDelivr (fine for a local app).
-  link.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
-  link.integrity = "sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+";
-  link.crossOrigin = "anonymous";
-  document.head.appendChild(link);
-  katexCssLoaded = true;
-}
-
-// ── highlight.js theme CSS ──
-// Load one light + one dark stylesheet, keep exactly one active via the DOM
-// `link.disabled` property based on <html data-theme>.
+// ── highlight.js theme CSS (vendored locally) ──
 let hljsCssLoaded = false;
 function ensureHljsCss() {
   if (hljsCssLoaded || typeof document === "undefined") return;
@@ -42,8 +27,8 @@ function ensureHljsCss() {
     document.head.appendChild(link);
     return link;
   };
-  const light = mk("https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/atom-one-light.min.css", "light");
-  const dark = mk("https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/atom-one-dark.min.css", "dark");
+  const light = mk("/vendor/hljs/atom-one-light.css", "light");
+  const dark = mk("/vendor/hljs/atom-one-dark.css", "dark");
   const sync = () => {
     const d = document.documentElement.getAttribute("data-theme") === "dark";
     light.disabled = d;
@@ -176,7 +161,7 @@ export function MarkdownRenderer({ content, className, onNavigate }: MarkdownRen
     [content, onNavigate]
   );
 
-  useEffect(() => { ensureKatexCss(); ensureHljsCss(); }, []);
+  useEffect(() => { ensureHljsCss(); }, []);
 
   return (
     <div className={`markdown-content ${className || ""}`}>
