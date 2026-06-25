@@ -205,6 +205,30 @@
   --z-overlay:   300;
   --z-modal:     400;
   --z-toast:     500;
+
+  /* ── Per-hue chip base tokens (Task 3) ─────
+     Each is a single source colour; .chip derives every state via
+     color-mix. Reuses existing semantic tokens where a match exists;
+     only genuinely-new hues are raw hex (--hue-idea).
+     ──────────────────────────────────────────── */
+  --hue-tag:        var(--accent-violet);     /* generic tags        */
+  --hue-note:       var(--accent-brand);      /* note / doc kind     */
+  --hue-idea:       #d9a441;                  /* idea / amber kind   */
+  --hue-question:   var(--status-open);       /* question (blue)     */
+  --hue-warning:    var(--status-warning);    /* warning kind        */
+  --hue-success:    var(--success);           /* done / positive     */
+  --hue-danger:     var(--status-blocked);    /* blocked / negative  */
+
+  /* Link-state hues */
+  --link:           var(--accent-violet);
+  --link-visited:   color-mix(in oklab, var(--accent-violet) 62%, var(--text-tertiary));
+
+  /* Chip mix ratios — dark theme (primary).
+     Locked to match src/lib/color/chip.ts RATIOS.dark */
+  --chip-bg-mix:     16%;
+  --chip-bg-mix-hi:  26%;
+  --chip-border-mix: 30%;
+  --chip-text-mix:   72%;
 }
 
 /* ── Custom Properties: Light Mode ────────── */
@@ -279,6 +303,13 @@
   --selected-border:  color-mix(in oklab, var(--accent-brand) 40%, var(--border-standard));
   --ring:             color-mix(in oklab, var(--accent-brand) 70%, transparent);
   --ring-offset:      var(--bg-marketing);
+
+  /* Chip mix ratios — light theme overrides.
+     Locked to match src/lib/color/chip.ts RATIOS.light */
+  --chip-bg-mix:     12%;
+  --chip-bg-mix-hi:  20%;
+  --chip-border-mix: 38%;
+  --chip-text-mix:   72%;
 }
 
 /* ── Tailwind v4 Theme Extensions ─────────── */
@@ -655,6 +686,83 @@
    COMPONENTS LAYER — Linear-precise patterns
    ───────────────────────────────────────────── */
 @layer components {
+  /* ════════════════════════════════════════════════════════════════
+     PER-HUE CHIP SYSTEM (Task 3)
+     One base hue per entity (tag / note-kind / link-state). A single
+     .chip helper color-mixes bg/text/border from --sc for BOTH themes.
+     Adding a colour = adding ONE --hue-* token. No hand-picked states.
+     Mix ratios locked to src/lib/color/chip.ts — change both together.
+     ════════════════════════════════════════════════════════════════ */
+
+  /* ── .chip ──────────────────────────────────────────────────────
+     Consumer sets a local --sc (single colour). Everything derives.
+     Usage:  <span class="chip" style="--sc: var(--hue-idea)">idea</span>
+             <span class="chip" style="--sc:#3aa0ff">custom</span>
+     The --chip-*-mix ratios are defined per-theme in :root / .light. */
+  .chip {
+    --sc: var(--hue-tag);                       /* sensible default    */
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 20px;
+    padding: 0 var(--space-2);
+    font-size: 0.6875rem;        /* 11px — chrome register, restrained */
+    font-weight: 510;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    border-radius: var(--radius-full);
+    color:        color-mix(in oklab, var(--sc) var(--chip-text-mix),   var(--text-primary));
+    background:   color-mix(in oklab, var(--sc) var(--chip-bg-mix),    var(--bg-surface));
+    border: 1px solid
+                  color-mix(in oklab, var(--sc) var(--chip-border-mix), transparent);
+    transition: var(--transition-hover);
+  }
+
+  /* Hover changes BACKGROUND only (motion grammar). Fine pointers only. */
+  @media (hover: hover) and (pointer: fine) {
+    .chip:hover {
+      background: color-mix(in oklab, var(--sc) var(--chip-bg-mix-hi), var(--bg-surface));
+    }
+  }
+
+  /* active-survives-hover: a selected chip stays distinct even on hover */
+  .chip[aria-pressed="true"],
+  .chip[data-selected="true"] {
+    background:   color-mix(in oklab, var(--sc) var(--chip-bg-mix-hi), var(--bg-surface));
+    border-color: color-mix(in oklab, var(--sc) calc(var(--chip-border-mix) + 18%), transparent);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .chip[aria-pressed="true"]:hover,
+    .chip[data-selected="true"]:hover {
+      background: color-mix(in oklab, var(--sc) calc(var(--chip-bg-mix-hi) + 6%), var(--bg-surface));
+    }
+  }
+
+  /* Uniform focus ring (reuses --accent-brand, matching .focus-ring) */
+  .chip:focus-visible {
+    outline: 2px solid var(--accent-brand);
+    outline-offset: 2px;
+  }
+
+  /* 1px press translate (interactive chips only) */
+  button.chip:active,
+  .chip[role="button"]:active {
+    transform: translateY(1px);
+  }
+
+  /* 44px touch targets only under coarse pointers */
+  @media (pointer: coarse) {
+    button.chip,
+    .chip[role="button"] { min-height: 44px; padding: 0 var(--space-3); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chip { transition: none; }
+    button.chip:active,
+    .chip[role="button"]:active { transform: none; }
+  }
+
   /* ── Cards ──────────────────────────────── */
   .card {
     background: var(--bg-surface-alpha-2);
