@@ -10,14 +10,9 @@ import { PageShell, PageAction } from "@/components/PageShell";
 import { Breadcrumbs, MarkdownRenderer } from "@/components/ui";
 import { useSheet } from "@/lib/hooks/useSheet";
 import { useVault } from "@/lib/hooks/useVault";
+import type { FileEnvelope } from "@/lib/types/file-envelope";
 
-interface FileData {
-  path: string;
-  title: string;
-  frontmatter: Record<string, unknown>;
-  content: string;
-  sections: Array<{ heading: string; level: number; body: string }>;
-}
+type FileData = FileEnvelope;
 
 /**
  * FileFullPage — full-route file view at /file/[...path].

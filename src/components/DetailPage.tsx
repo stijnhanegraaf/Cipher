@@ -16,43 +16,12 @@ import { useVault } from "@/lib/hooks/useVault";
 import { buildObsidianUri } from "@/lib/obsidian-uri";
 import { log } from "@/lib/log";
 import { slugify } from "@/lib/slug";
-
-// Theme-aware token indirection — values point to CSS custom properties
-// defined in globals.css, so light/dark mode switching is automatic.
-const theme = {
-  bg: {
-    marketing: "var(--bg-marketing)",
-    panel: "var(--bg-panel)",
-    surface: "var(--bg-surface)",
-    secondary: "var(--bg-elevated)",
-  },
-  text: {
-    primary: "var(--text-primary)",
-    secondary: "var(--text-secondary)",
-    tertiary: "var(--text-tertiary)",
-    quaternary: "var(--text-quaternary)",
-  },
-  brand: {
-    indigo: "var(--accent-brand)",
-    violet: "var(--accent-violet)",
-    hover: "var(--accent-hover)",
-  },
-  border: {
-    subtle: "var(--border-subtle)",
-    standard: "var(--border-standard)",
-    solid: "var(--border-solid-primary)",
-  },
-};
+import { theme } from "@/components/detail/detail-theme";
+import type { FileEnvelope } from "@/lib/types/file-envelope";
 
 // ─── Types ────────────────────────────────────────────────────────────
 
-interface FileData {
-  path: string;
-  title: string;
-  frontmatter: Record<string, unknown>;
-  content: string;
-  sections: { heading: string; level: number; body: string }[];
-}
+type FileData = FileEnvelope;
 
 interface DetailPageProps {
   path: string;

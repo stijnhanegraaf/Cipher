@@ -17,6 +17,7 @@ import {
 } from "react";
 import type { Graph, GraphNode } from "@/lib/vault-graph";
 import { IconButton } from "@/components/ui/IconButton";
+import type { FileEnvelope } from "@/lib/types/file-envelope";
 
 export interface LinkRow {
   path: string;
@@ -30,20 +31,6 @@ interface Props {
   outlinkRows: LinkRow[];
   onOpen: (path: string) => void;
   onNavigate: (path: string) => void;
-}
-
-interface FileSection {
-  heading: string;
-  level: number;
-  body: string;
-}
-
-interface FileEnvelope {
-  path: string;
-  title: string;
-  frontmatter: Record<string, unknown>;
-  content: string;
-  sections: FileSection[];
 }
 
 interface PreviewData {
