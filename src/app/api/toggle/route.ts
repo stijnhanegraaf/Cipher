@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile, writeFile } from "fs/promises";
 import { getVaultPath } from "@/lib/vault-reader";
 import { safeJoin } from "@/lib/fs/safe-join";
+import { invalidateAfterWrite } from "@/lib/cache/write-invalidation";
 
 /**
  * `POST /api/toggle` — flip a markdown checkbox in a vault file.
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     await writeFile(absPath, lines.join("\n"), "utf-8");
+    invalidateAfterWrite();
 
     return NextResponse.json({
       success: true,

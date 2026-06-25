@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readVaultFile, resolveLink, getVaultPath } from "@/lib/vault-reader";
 import { readFile, writeFile } from "fs/promises";
 import { log } from "@/lib/log";
-import { invalidateVaultTreeCache } from "@/app/api/vault/tree/route";
+import { invalidateAfterWrite } from "@/lib/cache/write-invalidation";
 import { safeJoin } from "@/lib/fs/safe-join";
 
 // ─── GET /api/file?path=wiki/work/open.md ─────────────────────────────
@@ -121,7 +121,7 @@ export async function PUT(request: NextRequest) {
     if (content !== undefined && typeof content === "string") {
       // Full content write
       await writeFile(absPath, content, "utf-8");
-      invalidateVaultTreeCache();
+      invalidateAfterWrite();
       return NextResponse.json({ success: true, path: relPath });
     } else if (typeof lineIndex === "number" && typeof newText === "string") {
       // Line-level edit (for task item inline editing)
@@ -139,7 +139,7 @@ export async function PUT(request: NextRequest) {
       const line = lines[lineIndex];
       lines[lineIndex] = line.replace(/(- \[[ x]\] )(.+)/, `$1${newText}`);
       await writeFile(absPath, lines.join("\n"), "utf-8");
-      invalidateVaultTreeCache();
+      invalidateAfterWrite();
       return NextResponse.json({ success: true, path: relPath, lineIndex });
     } else {
       return NextResponse.json({ error: "Provide 'content' or 'lineIndex'+'newText'" }, { status: 400 });
