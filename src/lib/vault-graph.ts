@@ -12,6 +12,7 @@ import {
   resolveLink,
   extractLinks,
 } from "./vault-reader";
+import { extractMentionSnippet } from "@/lib/markdown/backlinks";
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -131,4 +132,71 @@ export async function buildGraph(): Promise<Graph> {
  */
 export function invalidateGraphCache(): void {
   _graphCache.clear();
+}
+
+// ─── Backlinks ────────────────────────────────────────────────────────────────
+
+export interface Backlink {
+  /** vault-relative .md path of the linking note */
+  sourcePath: string;
+  /** node.title (frontmatter title or basename) */
+  sourceTitle: string;
+  /** context snippet from the source note around the [[link]] */
+  snippet: string;
+}
+
+/**
+ * Backlinks (inbound linked-mentions) for a vault file, each with a
+ * context snippet pulled from the source note around the [[link]].
+ *
+ * Uses the cached graph edges (buildGraph) to find sources, then reads
+ * each source's content once and runs extractMentionSnippet against the
+ * target's basename. Sorted by source mtime desc. Returns [] when the
+ * path has no inbound edges or no vault is connected.
+ */
+export async function getBacklinks(targetPath: string): Promise<Backlink[]> {
+  try {
+    const root = getVaultPath();
+    if (!root) return [];
+
+    const graph = await buildGraph();
+
+    // Find all edges pointing at targetPath
+    const inbound = graph.edges.filter((e) => e.target === targetPath);
+    if (inbound.length === 0) return [];
+
+    // Build a lookup of node metadata (title, mtime) from the graph
+    const nodeMap = new Map(graph.nodes.map((n) => [n.id, n]));
+
+    // Derive the target basename for snippet extraction (no extension)
+    const targetBasename = targetPath.split("/").pop()?.replace(/\.md$/i, "") ?? targetPath;
+
+    const results: Backlink[] = [];
+
+    for (const edge of inbound) {
+      const file = await readVaultFile(edge.source);
+      if (!file) continue;
+
+      const node = nodeMap.get(edge.source);
+      const sourceTitle = node?.title ?? edge.source.split("/").pop()?.replace(/\.md$/i, "") ?? edge.source;
+      const snippet = extractMentionSnippet(file.content, targetBasename);
+
+      results.push({
+        sourcePath: edge.source,
+        sourceTitle,
+        snippet,
+      });
+    }
+
+    // Sort by source mtime descending (most recently modified first)
+    results.sort((a, b) => {
+      const mtimeA = nodeMap.get(a.sourcePath)?.mtime ?? 0;
+      const mtimeB = nodeMap.get(b.sourcePath)?.mtime ?? 0;
+      return mtimeB - mtimeA;
+    });
+
+    return results;
+  } catch {
+    return [];
+  }
 }

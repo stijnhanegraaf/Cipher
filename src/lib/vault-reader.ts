@@ -14,6 +14,7 @@ import { readFile, stat } from "fs/promises";
 import { join } from "path";
 import { walkFiles } from "@/lib/fs/walk";
 import { parseFrontmatter } from "@/lib/markdown/frontmatter";
+import { WIKILINK_RE } from "@/lib/markdown/wikilink";
 
 // ─── Vault path (hot-swappable) ────────────────────────────────────────
 // Initialized from VAULT_PATH env var OR common user-home candidates.
@@ -554,12 +555,10 @@ export function parseTable(text: string): TableData {
  */
 export function extractLinks(text: string): ObsidianLink[] {
   const links: ObsidianLink[] = [];
-  // Character class [^\]\\|] correctly excludes ], \, and | so an escaped
-  // pipe inside a Markdown table (e.g. [[work/work\|Work]]) terminates the
-  // path at `work/work` instead of letting the trailing `\` leak into the
-  // captured path. Safety net: strip any residual trailing backslash from
-  // both path and label.
-  const re = /\[\[([^\]\\|]+?)(?:\|([^\]]+?))?\]\]/g;
+  // Use the shared WIKILINK_RE from wikilink.ts (same character class, same
+  // escaped-pipe / table-cell tolerance).  Safety net: strip any residual
+  // trailing backslash from both path and label.
+  const re = new RegExp(WIKILINK_RE.source, WIKILINK_RE.flags);
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
     const rawPath = match[1].trim().replace(/\\+$/, "");

@@ -5,6 +5,16 @@ export interface WikiTarget {
 }
 
 /**
+ * Shared wiki-link regex.  Matches `[[target]]` and `[[target|alias]]`
+ * forms.  The character class `[^\]\\|]` excludes `]`, `\`, and `|` so
+ * an escaped pipe inside a Markdown table (`[[work/work\|Work]]`) terminates
+ * the path correctly instead of letting a trailing backslash leak into the
+ * captured group.  Used by both `extractLinks` (vault-reader) and
+ * `extractMentionSnippets` (backlinks) so they match identically.
+ */
+export const WIKILINK_RE = /\[\[([^\]\\|]+?)(?:\|([^\]]+?))?\]\]/g;
+
+/**
  * Parse the inner text of a `[[...]]` wiki-link into its parts.
  * Forms: `target`, `target|alias`, `target#anchor`, `target#anchor|alias`.
  * A leading `^` on the anchor denotes a block reference.
