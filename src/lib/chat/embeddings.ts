@@ -18,6 +18,7 @@ import { join, dirname } from "path";
 import { getVaultPath } from "@/lib/vault-reader";
 import type { Embedder, EmbedderId } from "./providers/embeddings";
 import { log } from "@/lib/log";
+import { stripFrontmatter } from "@/lib/markdown/frontmatter";
 import { walkFiles } from "@/lib/fs/walk";
 
 export interface IndexChunk {
@@ -173,13 +174,6 @@ export function chunkMarkdown(raw: string): Chunk[] {
     }
   }
   return chunks;
-}
-
-function stripFrontmatter(raw: string): string {
-  if (!raw.startsWith("---")) return raw;
-  const end = raw.indexOf("\n---", 3);
-  if (end === -1) return raw;
-  return raw.slice(end + 4).replace(/^\s*\n/, "");
 }
 
 function wordCount(text: string): number {

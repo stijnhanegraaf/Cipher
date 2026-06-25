@@ -11,6 +11,7 @@ import "server-only";
 import { readFile, stat } from "fs/promises";
 import { join } from "path";
 import { walkFiles } from "@/lib/fs/walk";
+import { parseFrontmatter } from "@/lib/markdown/frontmatter";
 
 // ─── Vault path (hot-swappable) ────────────────────────────────────────
 // Initialized from VAULT_PATH env var OR common user-home candidates.
@@ -425,37 +426,9 @@ export async function readVaultFile(relPath: string): Promise<ParsedFile | null>
 // ─── Parse markdown ───────────────────────────────────────────────────
 
 function parseMarkdown(raw: string, relPath: string): ParsedFile {
-  const { frontmatter, content } = extractFrontmatter(raw);
+  const { frontmatter, content } = parseFrontmatter(raw);
   const sections = extractSections(content);
   return { path: relPath, content, frontmatter, sections, mtime: 0 };
-}
-
-// ─── Frontmatter ─────────────────────────────────────────────────────
-
-function extractFrontmatter(raw: string): { frontmatter: Record<string, unknown>; content: string } {
-  const frontmatter: Record<string, unknown> = {};
-  if (!raw.startsWith("---")) {
-    return { frontmatter, content: raw };
-  }
-  const end = raw.indexOf("\n---", 3);
-  if (end === -1) return { frontmatter, content: raw };
-
-  const fmText = raw.slice(3, end).trim();
-  for (const line of fmText.split("\n")) {
-    const colonIdx = line.indexOf(":");
-    if (colonIdx === -1) continue;
-    const key = line.slice(0, colonIdx).trim();
-    let value: unknown = line.slice(colonIdx + 1).trim();
-    if (value === "true") value = true;
-    else if (value === "false") value = false;
-    else if (typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value)) value = Number(value);
-    else if (typeof value === "string" && value.startsWith("[") && value.endsWith("]")) {
-      try { value = JSON.parse(value.replace(/'/g, '"')); } catch { /* keep as string */ }
-    }
-    frontmatter[key] = value;
-  }
-  const content = raw.slice(end + 4).trimStart();
-  return { frontmatter, content };
 }
 
 // ─── Sections ─────────────────────────────────────────────────────────

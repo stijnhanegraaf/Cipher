@@ -12,6 +12,7 @@ import { readFile, readdir } from "fs/promises";
 import { join } from "path";
 import { getVaultPath } from "@/lib/vault-reader";
 import { log } from "@/lib/log";
+import { parseFrontmatter } from "@/lib/markdown/frontmatter";
 
 interface AuditEntry {
   name: string;
@@ -41,32 +42,6 @@ function emojiToStatus(emoji: string): string {
   if (emoji === "🔴") return "red";
   if (emoji === "🟡") return "yellow";
   return "green";
-}
-
-function parseFrontmatter(raw: string): { frontmatter: Record<string, unknown>; body: string } {
-  if (!raw.startsWith("---")) return { frontmatter: {}, body: raw };
-  const end = raw.indexOf("---", 3);
-  if (end === -1) return { frontmatter: {}, body: raw };
-  try {
-    const fmText = raw.slice(3, end).trim();
-    // Simple YAML parsing for frontmatter
-    const frontmatter: Record<string, unknown> = {};
-    for (const line of fmText.split("\n")) {
-      const colonIdx = line.indexOf(":");
-      if (colonIdx > 0) {
-        const key = line.slice(0, colonIdx).trim();
-        let value: unknown = line.slice(colonIdx + 1).trim();
-        // Remove quotes
-        if (typeof value === "string" && value.startsWith('"') && value.endsWith('"')) {
-          value = value.slice(1, -1);
-        }
-        frontmatter[key] = value;
-      }
-    }
-    return { frontmatter, body: raw.slice(end + 3).replace(/^\n+/, "") };
-  } catch {
-    return { frontmatter: {}, body: raw };
-  }
 }
 
 function parseAuditRowsFromTable(body: string): AuditEntry[] {
@@ -121,7 +96,7 @@ async function readLatestAudits(vaultPath: string): Promise<Map<string, string>>
     for (const file of latestFiles) {
       const name = file.replace("latest-", "").replace(".md", "");
       const content = await readFile(join(auditsDir, file), "utf8");
-      const { body } = parseFrontmatter(content);
+      const { content: body } = parseFrontmatter(content);
       latestMap.set(name, body);
     }
   } catch {
@@ -146,8 +121,8 @@ export async function GET() {
 
     try {
       const raw = await readFile(dashboardPath, "utf8");
-      const parsed = parseFrontmatter(raw);
-      dashboardBody = parsed.body;
+      const { content: dashboardContent } = parseFrontmatter(raw);
+      dashboardBody = dashboardContent;
     } catch {
       // Dashboard file doesn't exist yet, return empty
       return NextResponse.json({
