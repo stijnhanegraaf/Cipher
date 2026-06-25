@@ -156,6 +156,16 @@
   --ease-out-smooth:  cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-gentle:  cubic-bezier(0.25, 0.1, 0.25, 1);
 
+  /* ── Signature motion (craft consolidation) ─────────────────
+     ONE signature easing for all new rules: ease-out, no bounce.
+     Aliases --ease-out-smooth so we don't fork easing systems.
+     Use --ease-signature + --dur-* in new rules; legacy tokens
+     (--ease-default, --motion-quick, --duration-fast, …) stay valid. */
+  --ease-signature: var(--ease-out-smooth);        /* cubic-bezier(0.16,1,0.3,1) */
+  --dur-color:  150ms;                             /* color / opacity / border flips */
+  --dur-expand: 200ms;                             /* size / position / sheet expand */
+  --dur-enter:  var(--motion-enter);               /* 180ms — entrances, alias of existing */
+
   /* Radius */
   --radius-micro:       2px;
   --radius-small:        4px;
@@ -683,6 +693,9 @@
       --motion-quick:    80ms;
       --motion-standard: 80ms;
       --motion-slow:     100ms;
+      --dur-color:       0ms;
+      --dur-expand:      80ms;
+      --dur-enter:       80ms;
     }
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
@@ -2048,8 +2061,9 @@ button:active, [role="button"]:active {
   40%  { transform: translateY(-1px); }
   100% { transform: translateY(0); }
 }
-.code-copy[data-copied="true"] { animation: code-copied 200ms var(--ease-default); }
+.code-copy[data-copied="true"] { animation: code-copied var(--dur-expand) var(--ease-signature); }
 @media (prefers-reduced-motion: reduce) {
+  .chip-pop-enter { animation: none; opacity: 1; transform: none; }
   .code-copy[data-copied="true"] { animation: none; }
 }
 
