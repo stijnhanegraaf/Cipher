@@ -57,6 +57,9 @@ export function setVaultPath(path: string | null): void {
   cache.clear();
   // Also clear the basename index used by resolveLink.
   _basenameIndex.clear();
+  // Clear tag cache — it depends on the vault path.
+  // Imported lazily to avoid circular dependency issues.
+  import("@/lib/vault-tags").then(({ invalidateTagCache }) => invalidateTagCache()).catch(() => { /* ignore */ });
 }
 
 /** Safe root getter for internal readers — returns "" when no vault is connected so callers short-circuit naturally. */

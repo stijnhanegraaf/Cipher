@@ -1,6 +1,7 @@
 import "server-only";
 import { invalidateGraphCache } from "@/lib/vault-graph";
 import { invalidateHealthCache } from "@/lib/vault-health";
+import { invalidateTagCache } from "@/lib/vault-tags";
 import { invalidateVaultTreeCache } from "@/app/api/vault/tree/route";
 
 /**
@@ -12,4 +13,5 @@ export function invalidateAfterWrite(): void {
   invalidateVaultTreeCache();
   invalidateGraphCache();
   invalidateHealthCache();
+  invalidateTagCache();
 }
