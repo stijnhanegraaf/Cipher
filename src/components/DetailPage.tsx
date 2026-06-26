@@ -21,6 +21,7 @@ import { log } from "@/lib/log";
 import { theme } from "@/components/detail/detail-theme";
 import { DetailSkeleton, DetailError } from "@/components/detail/DetailStates";
 import { TableOfContents } from "@/components/detail/TableOfContents";
+import { BacklinksPanel } from "@/components/browse/BacklinksPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -648,6 +649,11 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* ── Backlinks (linked mentions) ────────────────────────────── */}
+            {data && !editMode && (
+              <BacklinksPanel path={path} onNavigate={onNavigate} variant="sidebar" />
+            )}
           </div>
 
           {/* ── Table of Contents sidebar ──────────────────────────────── */}

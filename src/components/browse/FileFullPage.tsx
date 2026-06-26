@@ -11,6 +11,7 @@ import { Breadcrumbs, MarkdownRenderer } from "@/components/ui";
 import { useSheet } from "@/lib/hooks/useSheet";
 import { useVault } from "@/lib/hooks/useVault";
 import { useFileContent } from "@/lib/hooks/useFileContent";
+import { BacklinksPanel } from "@/components/browse/BacklinksPanel";
 
 /**
  * FileFullPage — full-route file view at /file/[...path].
@@ -67,6 +68,9 @@ export function FileFullPage({ path }: { path: string }) {
         )}
         {data && (
           <MarkdownRenderer content={data.content} onNavigate={sheet.open} />
+        )}
+        {data && (
+          <BacklinksPanel path={path} onNavigate={sheet.open} variant="block" />
         )}
       </div>
     </PageShell>

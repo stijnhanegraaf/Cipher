@@ -19,11 +19,9 @@ import type { Graph, GraphNode } from "@/lib/vault-graph";
 import { IconButton } from "@/components/ui/IconButton";
 import type { FileEnvelope } from "@/lib/types/file-envelope";
 import { extractTags } from "@/lib/markdown/tags";
+import { LinkRowList, type LinkRow } from "@/components/browse/LinkRowList";
 
-export interface LinkRow {
-  path: string;
-  title: string;
-}
+export type { LinkRow };
 
 interface Props {
   path: string | null;
@@ -67,12 +65,6 @@ function relTime(mtime: number): string {
 function parentFolder(id: string): string {
   const i = id.lastIndexOf("/");
   return i === -1 ? "" : id.slice(0, i);
-}
-
-function basename(id: string): string {
-  const i = id.lastIndexOf("/");
-  const last = i === -1 ? id : id.slice(i + 1);
-  return last.replace(/\.md$/i, "");
 }
 
 export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen, onNavigate }: Props) {
@@ -304,98 +296,19 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
       )}
 
       {/* 5. LINKED FROM */}
-      <LinkSection
+      <LinkRowList
         title={`LINKED FROM · ${node.backlinks}`}
         rows={backlinkRows}
         onNavigate={onNavigate}
       />
 
       {/* 6. LINKS TO */}
-      <LinkSection
+      <LinkRowList
         title={`LINKS TO · ${node.outlinks}`}
         rows={outlinkRows}
         onNavigate={onNavigate}
       />
     </aside>
-  );
-}
-
-function LinkSection({
-  title,
-  rows,
-  onNavigate,
-}: {
-  title: string;
-  rows: LinkRow[];
-  onNavigate: (path: string) => void;
-}) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div
-        className="mono-label"
-        style={{
-          color: "var(--text-quaternary)",
-          letterSpacing: "0.08em",
-          marginBottom: 6,
-        }}
-      >
-        {title}
-      </div>
-      {rows.length === 0 ? null : (
-        <div>
-          {rows.slice(0, 5).map((r) => (
-            <button
-              key={r.path}
-              type="button"
-              onClick={() => onNavigate(r.path)}
-              className="app-row focus-ring"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                width: "100%",
-                height: "var(--row-h-compact)",
-                padding: "0 8px",
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                gap: 8,
-                textAlign: "left",
-              }}
-            >
-              <svg width={12} height={12} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={1.5} style={{ color: "var(--text-quaternary)", flexShrink: 0 }}>
-                <path d="M3 2h4l2 2v6H3z" />
-              </svg>
-              <span
-                className="caption-large"
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  color: "var(--text-primary)",
-                }}
-              >
-                {basename(r.path)}
-              </span>
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-quaternary)",
-                  flexShrink: 0,
-                  maxWidth: 140,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {parentFolder(r.path)}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 

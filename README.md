@@ -136,7 +136,7 @@ Vault-health: broken links, stale notes, orphaned files, the entities that show 
 
 ### Detail sheet
 
-Click any file anywhere (sidebar, palette result, graph node, citation pill) and it slides in from the right as a sheet. Wiki-link previews, backlinks, frontmatter, the whole note. The sheet is additive; your previous view stays mounted behind it.
+Click any file anywhere (sidebar, palette result, graph node, citation pill) and it slides in from the right as a sheet. Wiki-link previews, frontmatter, the whole note, and a "Linked Mentions" section listing every file that links to the current note with a context snippet. The sheet is additive; your previous view stays mounted behind it.
 
 ### Vault index
 
