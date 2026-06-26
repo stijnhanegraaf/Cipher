@@ -37,6 +37,10 @@ export function useFileContent(path: string): UseFileContentResult {
   const [reloadTick, setReloadTick] = useState(0);
 
   const reload = useCallback(() => {
+    // Event handler (not an effect) — reset to the loading state so retry
+    // re-shows the skeleton, matching the original fetchData() behaviour.
+    setLoading(true);
+    setError(null);
     setReloadTick((t) => t + 1);
   }, []);
 
