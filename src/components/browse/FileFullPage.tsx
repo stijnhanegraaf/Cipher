@@ -12,6 +12,7 @@ import { useSheet } from "@/lib/hooks/useSheet";
 import { useVault } from "@/lib/hooks/useVault";
 import { useFileContent } from "@/lib/hooks/useFileContent";
 import { BacklinksPanel } from "@/components/browse/BacklinksPanel";
+import { OutgoingLinksPanel } from "@/components/browse/OutgoingLinksPanel";
 
 /**
  * FileFullPage — full-route file view at /file/[...path].
@@ -68,6 +69,9 @@ export function FileFullPage({ path }: { path: string }) {
         )}
         {data && (
           <MarkdownRenderer content={data.content} onNavigate={sheet.open} />
+        )}
+        {data && (
+          <OutgoingLinksPanel path={path} onNavigate={sheet.open} variant="block" />
         )}
         {data && (
           <BacklinksPanel path={path} onNavigate={sheet.open} variant="block" />
