@@ -77,7 +77,7 @@ export function extractMentionSnippets(
       const offset = match.index;
       const matchLen = match[0].length;
 
-      const snippet = buildSnippet(content, offset, matchLen, matchedText, radius);
+      const snippet = buildSnippet(content, offset, matchLen, radius);
       results.push({ offset, snippet, matchedText });
     }
 
@@ -109,7 +109,6 @@ function buildSnippet(
   content: string,
   offset: number,
   matchLen: number,
-  displayText: string,
   radius: number,
 ): string {
   const total = content.length;

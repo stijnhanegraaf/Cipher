@@ -65,7 +65,7 @@ export function LinkRowList({
                 display: "flex",
                 alignItems: "center",
                 width: "100%",
-                height: "var(--row-h-compact)",
+                height: "var(--row-h-dense)",
                 padding: "0 8px",
                 border: "none",
                 background: "transparent",
