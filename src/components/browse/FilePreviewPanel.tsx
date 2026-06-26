@@ -17,6 +17,7 @@ import {
 } from "react";
 import type { Graph, GraphNode } from "@/lib/vault-graph";
 import { IconButton } from "@/components/ui/IconButton";
+import { TagChip } from "@/components/ui/TagChip";
 import type { FileEnvelope } from "@/lib/types/file-envelope";
 import { extractTags } from "@/lib/markdown/tags";
 import { LinkRowList, type LinkRow } from "@/components/browse/LinkRowList";
@@ -289,9 +290,16 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
       {data.tags.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
           {(data.tags.length > 6 ? data.tags.slice(0, 5) : data.tags).map((t) => (
-            <TagChip key={t} label={t} />
+            <TagChip key={t} tag={t} />
           ))}
-          {data.tags.length > 6 && <TagChip label={`+${data.tags.length - 5} more`} />}
+          {data.tags.length > 6 && (
+            <span
+              className="chip"
+              style={{ "--sc": "var(--hue-tag)" } as CSSProperties}
+            >
+              +{data.tags.length - 5} more
+            </span>
+          )}
         </div>
       )}
 
@@ -312,25 +320,6 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
   );
 }
 
-function TagChip({ label }: { label: string }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        height: 20,
-        padding: "0 10px",
-        background: "var(--bg-surface-alpha-2)",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: 999,
-        fontSize: 12,
-        color: "var(--text-tertiary)",
-      }}
-    >
-      {label}
-    </span>
-  );
-}
 
 function Sep() {
   return (
