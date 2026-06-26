@@ -5,9 +5,14 @@
 
 import type { ViewModel, SearchResultsData, Intent } from "../view-models";
 import { readVaultFile, listVaultFiles, getVaultLayout } from "../vault-reader";
+import { notesForTag } from "../vault-tags";
 import { uid, kindFromPath, nameFromPath } from "./shared";
+import { parseTagQuery } from "./tag-query";
 
 export async function buildSearchResults(query: string): Promise<ViewModel> {
+  // Parse #tag tokens out BEFORE any length filter so short tags like #ai work.
+  const { tags: tagFilters, rest: textQuery } = parseTagQuery(query);
+
   // Search across every folder the vault layout probed, plus a few
   // common unknown-to-layout names as a backstop. Vault-agnostic.
   const layout = getVaultLayout();
@@ -30,15 +35,47 @@ export async function buildSearchResults(query: string): Promise<ViewModel> {
     for (const f of files) allFiles.add(f);
   }
 
-  const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
-  const results: { path: string; excerpt: string; score: number; kind: string }[] = [];
+  // When #tags are present, restrict the candidate set to the intersection
+  // of notesForTag(t) for each tag.
+  let candidateFiles: Set<string>;
+  if (tagFilters.length > 0) {
+    // Fetch notes for each tag and intersect.
+    const tagNoteSets = await Promise.all(
+      tagFilters.map(async (tag) => {
+        const entries = await notesForTag(tag);
+        return new Set(entries.map((e) => e.path));
+      }),
+    );
+    // Start with the first tag set, intersect with the rest.
+    const [first, ...remaining] = tagNoteSets;
+    let intersection = first;
+    for (const s of remaining) {
+      intersection = new Set([...intersection].filter((p) => s.has(p)));
+    }
+    // Only include paths that are also in the vault file walk (scope guard).
+    candidateFiles = new Set([...intersection].filter((p) => allFiles.has(p)));
+  } else {
+    candidateFiles = allFiles;
+  }
 
-  for (const filePath of allFiles) {
+  const terms = textQuery.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+  const results: { path: string; excerpt: string; score: number; kind: string; mtime: number }[] = [];
+
+  for (const filePath of candidateFiles) {
     const file = await readVaultFile(filePath);
     if (!file) continue;
 
     const content = file.content.toLowerCase();
     const headingText = file.sections.map((s) => s.heading.toLowerCase()).join(" ");
+
+    // When there are tag filters but no free-text terms, every tag-matched
+    // note qualifies — score purely by recency.
+    if (tagFilters.length > 0 && terms.length === 0) {
+      const mtime = file.mtime || 0;
+      const kind = kindFromPath(filePath);
+      results.push({ path: filePath, excerpt: "", score: 0, kind, mtime });
+      continue;
+    }
 
     let score = 0;
     for (const term of terms) {
@@ -63,11 +100,16 @@ export async function buildSearchResults(query: string): Promise<ViewModel> {
       const excerpt = (start > 0 ? "…" : "") + content.slice(start, end).replace(/\n/g, " ") + (end < content.length ? "…" : "");
 
       const kind = kindFromPath(filePath);
-      results.push({ path: filePath, excerpt, score, kind });
+      results.push({ path: filePath, excerpt, score, kind, mtime: file.mtime || 0 });
     }
   }
 
-  results.sort((a, b) => b.score - a.score);
+  // Sort: tag-only queries by recency (mtime desc); scored queries by score desc.
+  if (tagFilters.length > 0 && terms.length === 0) {
+    results.sort((a, b) => b.mtime - a.mtime);
+  } else {
+    results.sort((a, b) => b.score - a.score);
+  }
   const topResults = results.slice(0, 12);
 
   const data: SearchResultsData = {
