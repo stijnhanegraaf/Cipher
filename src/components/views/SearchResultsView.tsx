@@ -6,22 +6,13 @@ import { motion } from "framer-motion";
 import { stagger, fadeSlideUp } from "@/lib/motion";
 import { SearchResultsData, ViewModel } from "@/lib/view-models";
 import { Badge } from "@/components/ui";
-
-// Kind → display label & badge variant
-const kindConfig: Record<string, { label: string; variant: "default" | "success" | "warning" | "error" | "indigo" | "outline" }> = {
-  canonical_note:    { label: "Note",    variant: "indigo" },
-  entity:            { label: "Entity",  variant: "outline" },
-  topic:             { label: "Topic",   variant: "outline" },
-  derived_index:     { label: "Index",   variant: "default" },
-  runtime_status:    { label: "Status",  variant: "warning" },
-  generated_summary: { label: "Summary", variant: "default" },
-};
+import { SEARCH_KIND_ORDER, SEARCH_KIND_LABEL, toSearchKind } from "@/lib/builders/search-kinds";
 
 // Group results by kind for cleaner display
 function groupByKind(results: SearchResultsData["results"]) {
   const groups: Record<string, SearchResultsData["results"]> = {};
   for (const r of results) {
-    const kind = r.kind || "other";
+    const kind = toSearchKind(r.kind);
     if (!groups[kind]) groups[kind] = [];
     groups[kind].push(r);
   }
@@ -31,7 +22,7 @@ function groupByKind(results: SearchResultsData["results"]) {
 export function SearchResultsView({ data, view: _view, onAsk, onNavigate }: { data: unknown; view: ViewModel; onAsk?: (query: string) => void; onNavigate?: (path: string) => void }) {
   const search = data as SearchResultsData;
   const groups = groupByKind(search.results);
-  const kindOrder = ["canonical_note", "entity", "topic", "derived_index", "runtime_status", "generated_summary", "other"];
+  const kindOrder = SEARCH_KIND_ORDER;
 
   return (
     <motion.div
@@ -103,13 +94,13 @@ export function SearchResultsView({ data, view: _view, onAsk, onNavigate }: { da
       {kindOrder.map((kind) => {
         const items = groups[kind];
         if (!items || items.length === 0) return null;
-        const config = kindConfig[kind] || { label: kind, variant: "outline" as const };
+        const label = SEARCH_KIND_LABEL[kind] ?? kind;
 
         return (
           <motion.div key={kind} variants={fadeSlideUp} className="space-y-2">
             <div className="flex items-center gap-2 mb-2">
               <h3 className="micro uppercase tracking-[0.08em] text-text-quaternary">
-                {config.label}
+                {label}
               </h3>
             </div>
             <div className="space-y-1">

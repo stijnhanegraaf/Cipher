@@ -380,13 +380,6 @@ export interface ObsidianLink {
   path: string;
 }
 
-export interface SearchResult {
-  path: string;
-  excerpt: string;
-  score: number;
-  kind: string;
-}
-
 export interface HubFile {
   name: string;
   path: string;
@@ -872,7 +865,4 @@ export {
   getResearchProjects,
 } from "./vault-indexes";
 
-export {
-  listVaultFiles,
-  searchVault,
-} from "./vault-search";
+export { listVaultFiles } from "./vault-search";

@@ -9,6 +9,7 @@ import { useSearchParams } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
 import { useSheet } from "@/lib/hooks/useSheet";
 import type { SearchResultsData } from "@/lib/view-models";
+import { SEARCH_KIND_ORDER, SEARCH_KIND_LABEL, toSearchKind } from "@/lib/builders/search-kinds";
 
 async function fetchSearch(q: string): Promise<SearchResultsData | null> {
   if (!q) return null;
@@ -47,17 +48,10 @@ export function SearchPage() {
 
   const grouped = useMemo(() => {
     if (!data) return [] as { kind: string; label: string; items: SearchResultsData["results"] }[];
-    const order = [
-      { kind: "canonical_note", label: "Notes" },
-      { kind: "entity", label: "Entities" },
-      { kind: "topic", label: "Topics" },
-      { kind: "derived_index", label: "Indexes" },
-      { kind: "runtime_status", label: "Status" },
-      { kind: "generated_summary", label: "Summaries" },
-    ];
+    const order = SEARCH_KIND_ORDER.map((kind) => ({ kind, label: SEARCH_KIND_LABEL[kind] }));
     const byKind: Record<string, SearchResultsData["results"]> = {};
     for (const r of data.results) {
-      (byKind[r.kind || "other"] ??= []).push(r);
+      (byKind[toSearchKind(r.kind)] ??= []).push(r);
     }
     return order
       .filter(({ kind }) => byKind[kind]?.length)
