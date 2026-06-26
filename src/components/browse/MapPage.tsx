@@ -6,9 +6,10 @@
  * Mode persists to localStorage["cipher-map-mode-v1"].
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import { GraphCanvas } from "@/components/browse/GraphCanvas";
+import { GraphLegend, type TagCount } from "@/components/browse/GraphLegend";
 import { MapModeToggle, type MapMode } from "@/components/browse/MapModeToggle";
 import { StructureColumns } from "@/components/browse/StructureColumns";
 import { useSheet } from "@/lib/hooks/useSheet";
@@ -28,6 +29,7 @@ export function MapPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<MapMode>("graph");
+  const [visibleTags, setVisibleTags] = useState<Set<string>>(new Set());
 
   // Hydrate mode on mount (avoids SSR mismatch by starting with "graph").
   useEffect(() => {
@@ -63,6 +65,31 @@ export function MapPage() {
     };
   }, []);
 
+  // Derive sorted tag list from graph nodes (by count desc, then name asc).
+  const tagCounts = useMemo((): TagCount[] => {
+    if (!graph) return [];
+    const counts = new Map<string, number>();
+    for (const n of graph.nodes) {
+      const t = n.tag ?? "";
+      counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+  }, [graph]);
+
+  const handleTagToggle = useCallback((tag: string) => {
+    setVisibleTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(tag)) {
+        next.delete(tag);
+      } else {
+        next.add(tag);
+      }
+      return next;
+    });
+  }, []);
+
   const title = mode === "structure" ? "Structure" : "Graph";
   const subtitle = graph ? `${graph.nodes.length} notes · ${graph.edges.length} links` : undefined;
 
@@ -90,7 +117,14 @@ export function MapPage() {
           <div style={{ flex: 1, maxWidth: 720, margin: "0 auto", padding: "16px 0", color: "var(--status-blocked)" }}>{error}</div>
         )}
         {!loading && !error && graph && mode === "graph" && (
-          <GraphCanvas graph={graph} onOpen={sheet.open} />
+          <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+            <GraphCanvas graph={graph} onOpen={sheet.open} visibleTags={visibleTags} />
+            <GraphLegend
+              tags={tagCounts}
+              visibleTags={visibleTags}
+              onToggle={handleTagToggle}
+            />
+          </div>
         )}
         {!loading && !error && graph && mode === "structure" && (
           <StructureColumns graph={graph} onOpen={sheet.open} />

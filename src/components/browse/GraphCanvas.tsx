@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Graph, GraphEdge, GraphNode } from "@/lib/vault-graph";
+import { tagColor } from "@/lib/color/tag-color";
 
 // ─── GraphCanvas ──────────────────────────────────────────────────────
 // Canvas-based force-directed graph for the active vault.
@@ -28,6 +29,8 @@ interface Props {
   orphansOnly?: boolean;
   /** Name-substring filter. Case-insensitive on node title/id. */
   searchTerm?: string;
+  /** Tag filter — if non-empty, nodes whose primary tag is not in the set fade to 0.15. */
+  visibleTags?: Set<string>;
 }
 
 interface SimNode extends GraphNode {
@@ -40,21 +43,8 @@ interface SimNode extends GraphNode {
   degree: number;
   /** Per-node charge for degree-weighted repulsion. Hubs push harder. */
   charge: number;
-  /** Deterministic 0..7 folder slot for coloring. */
-  slot: number;
   /** Breathing phase (0..2π), hashed from id; used by draw(). */
   phase: number;
-}
-
-// Folder slot palette removed (was FOLDER_SLOTS) — slots are now assigned inline at draw-time.
-
-function folderSlot(folder: string): number {
-  const key = folder.split("/")[0] || "root";
-  let h = 0;
-  for (let i = 0; i < key.length; i++) {
-    h = (h * 31 + key.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h) % 8;
 }
 
 function hashPhase(id: string): number {
@@ -74,7 +64,7 @@ function hashPhase(id: string): number {
  * filters which nodes participate; `orphansOnly` restricts to zero-link
  * nodes; `searchTerm` dims non-matches. Click a node to fire `onOpen`.
  */
-export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, searchTerm }: Props) {
+export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, searchTerm, visibleTags }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -121,10 +111,11 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
         const q = searchTerm.toLowerCase();
         if (!n.title.toLowerCase().includes(q) && !n.id.toLowerCase().includes(q)) continue;
       }
+      if (visibleTags && visibleTags.size > 0 && !visibleTags.has(n.tag)) continue;
       set.add(n.id);
     }
     return set;
-  }, [graph.nodes, visibleFolders, orphansOnly, searchTerm]);
+  }, [graph.nodes, visibleFolders, orphansOnly, searchTerm, visibleTags]);
 
 
   const focusLinks = useMemo(() => {
@@ -196,7 +187,6 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
           radius: Math.max(1.2, Math.min(5, 1.2 + Math.sqrt(n.backlinks) * 0.7)),
           degree,
           charge: 130 + Math.sqrt(degree) * 80,
-          slot: folderSlot(n.folder),
           phase: hashPhase(n.id),
         };
       });
@@ -588,13 +578,26 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
     const bgStart = isLight ? "#fafaf5" : "#0b0e18";
     const bgEnd   = isLight ? "#f0f0ea" : "#05060a";
     const colStar        = isLight ? "rgba(74,81,102,0.85)"  : "rgba(168,178,209,0.85)";
-    const colStarBright  = isLight ? "#23252a"              : "#ffffff";
-    const colStarHub     = isLight ? (style.getPropertyValue("--accent-brand").trim() || "#5e6ad2") : "#ffffff";
     const colRay         = isLight ? "rgba(94,106,210,0.20)" : "rgba(180,200,255,0.18)";
     const colRayHover    = isLight ? "rgba(94,106,210,0.70)" : "rgba(200,220,255,0.70)";
     const colAccent      = style.getPropertyValue("--accent-brand").trim() || "#5e6ad2";
     const colLabel       = style.getPropertyValue("--text-primary").trim() || "#f7f8f8";
     const colTooltipBg   = style.getPropertyValue("--bg-tooltip").trim() || "#0d0e0f";
+
+    // Per-frame tag-color cache: resolve each unique --hue-* token to a literal
+    // once per draw call via the existing style declaration. Canvas cannot use
+    // var(), but getComputedStyle resolves the full token chain for us. A Map of
+    // ≤14 entries (7 palette + semantic aliases) keeps this negligibly cheap.
+    const hueCache = new Map<string, string>();
+    const nodeColor = (n: SimNode): string => {
+      const token = tagColor(n.tag ?? "");
+      let lit = hueCache.get(token);
+      if (lit === undefined) {
+        lit = style.getPropertyValue(token).trim() || colStar;
+        hueCache.set(token, lit);
+      }
+      return lit;
+    };
 
     // Clear then paint a calm, nearly-flat backdrop with one subtle vignette.
     ctx.clearRect(0, 0, w, h);
@@ -728,20 +731,23 @@ export function GraphCanvas({ graph, onOpen, visibleFolders, orphansOnly, search
       ctx.beginPath();
       ctx.arc(nx, ny, displayR, 0, Math.PI * 2);
 
+      // Tag color: resolve per-frame via the hue cache.
+      // Degree-based glow/radius remain ORTHOGONAL — only the fill hue changes.
+      const tagFill = nodeColor(n);
       if (hovered || selected) {
         ctx.fillStyle = colAccent;
         ctx.shadowColor = colAccent;
         ctx.shadowBlur = 18;
       } else if (isHub) {
-        ctx.fillStyle = colStarHub;
-        ctx.shadowColor = colStarHub;
+        ctx.fillStyle = tagFill;
+        ctx.shadowColor = tagFill;
         ctx.shadowBlur = 14;
       } else if (isBright) {
-        ctx.fillStyle = colStarBright;
-        ctx.shadowColor = colStarBright;
+        ctx.fillStyle = tagFill;
+        ctx.shadowColor = tagFill;
         ctx.shadowBlur = 6;
       } else {
-        ctx.fillStyle = colStar;
+        ctx.fillStyle = tagFill;
         ctx.shadowBlur = 0;
       }
 

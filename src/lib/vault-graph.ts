@@ -13,6 +13,7 @@ import {
   extractLinks,
 } from "./vault-reader";
 import { extractMentionSnippet } from "@/lib/markdown/backlinks";
+import { extractTags, primaryTag } from "@/lib/markdown/tags";
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -23,6 +24,10 @@ export interface GraphNode {
   backlinks: number;  // inbound edge count
   outlinks: number;   // outbound edge count
   mtime: number;
+  /** All tags extracted from frontmatter + inline body (normalized, deduped). */
+  tags: string[];
+  /** Primary (first) tag, or "" when untagged. Used for graph coloring. */
+  tag: string;
 }
 
 export interface GraphEdge {
@@ -80,6 +85,7 @@ export async function buildGraph(): Promise<Graph> {
       const s = await stat(join(root, path));
       mtime = s.mtimeMs;
     } catch { /* ignore */ }
+    const tags = file ? extractTags(file.content, file.frontmatter) : [];
     nodesById.set(path, {
       id: path,
       title,
@@ -87,6 +93,8 @@ export async function buildGraph(): Promise<Graph> {
       backlinks: 0,
       outlinks: 0,
       mtime,
+      tags,
+      tag: primaryTag(tags),
     });
   }
 
