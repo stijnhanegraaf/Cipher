@@ -14,6 +14,7 @@ import { Sidebar, type SidebarProps } from "@/components/Sidebar";
 import { CommandPalette, type PaletteAction } from "@/components/CommandPalette";
 import { VaultConnectDialog } from "@/components/VaultConnectDialog";
 import { log } from "@/lib/log";
+import { ChatStoreProvider } from "@/lib/chat/chat-store";
 import { useSheet } from "@/lib/hooks/useSheet";
 import { useVault } from "@/lib/hooks/useVault";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
@@ -44,9 +45,14 @@ import {
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div style={{ minHeight: "100dvh", background: "var(--bg-marketing)" }} />}>
-      <AppShellInner>{children}</AppShellInner>
-    </Suspense>
+    // ChatStoreProvider is mounted outside Suspense so it outlives any route
+    // (including the /chat page). The stream + AbortController live here,
+    // keeping the in-flight answer alive across navigation.
+    <ChatStoreProvider>
+      <Suspense fallback={<div style={{ minHeight: "100dvh", background: "var(--bg-marketing)" }} />}>
+        <AppShellInner>{children}</AppShellInner>
+      </Suspense>
+    </ChatStoreProvider>
   );
 }
 
