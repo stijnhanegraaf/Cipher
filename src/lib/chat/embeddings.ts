@@ -5,11 +5,11 @@
  * windows). Chunks shorter than 50 words are skipped. Each chunk is
  * embedded once via Ollama's nomic-embed-text model and stored in
  * <vault>/.cipher/embeddings.json. Stale chunks are detected by comparing
- * the index builtAt against each file's mtime.
+ * each file's current mtime against the mtime stored per chunk.
  *
- * The index is built lazily on first query and reused across requests.
- * Rebuild triggers: missing file, model mismatch, or any file's
- * mtime > index.builtAt.
+ * The index is built ONLY via the explicit POST /api/chat/index endpoint.
+ * Chat queries use the on-disk index as-is (no auto-rebuild on query).
+ * Rebuild is incremental: only files whose mtime changed are re-embedded.
  */
 
 import "server-only";
@@ -40,17 +40,27 @@ export interface EmbeddingIndex {
 
 export type IndexProgress = (done: number, total: number) => void;
 
+/** A chunk to be embedded — the input shape for `embedConcurrent`. */
+export interface PendingChunk {
+  path: string;
+  heading?: string;
+  text: string;
+  mtime: number;
+}
+
 // ─── Public entry points ─────────────────────────────────────────────
 
 /**
- * Ensure an up-to-date index exists and return it.
+ * Incrementally rebuild the vault index and persist it.
  *
- * - Missing / malformed / wrong-model index → full rebuild.
- * - Any vault file mtime > index.builtAt → full rebuild (v1: no partial).
- * - Otherwise → cached load.
+ * - Reuses chunks whose file mtime is unchanged since last embed.
+ * - Re-embeds files whose mtime is newer than the stored chunk mtime.
+ * - Drops chunks for files that no longer exist.
+ * - Writes a partial snapshot every ~50 new chunks so an interrupted
+ *   build can resume (the incremental logic skips already-embedded files
+ *   on the next run).
  *
- * `onProgress(done, total)` is called before each chunk is embedded; use
- * it to stream progress events to the client.
+ * Called ONLY from POST /api/chat/index. Chat queries use loadExistingIndex().
  */
 export async function ensureIndex(embedder: Embedder, onProgress?: IndexProgress): Promise<EmbeddingIndex> {
   const vault = getVaultPath();
@@ -61,24 +71,62 @@ export async function ensureIndex(embedder: Embedder, onProgress?: IndexProgress
   const files = await walkMarkdown(vault);
   if (files.length === 0) throw new EmptyVaultError();
 
-  const maxMtime = files.reduce((m, f) => Math.max(m, f.mtime), 0);
   const compatible =
-    existing &&
+    existing !== null &&
     existing.embedder === embedder.id &&
     existing.model === embedder.model &&
     existing.dim === embedder.dim;
-  if (compatible && existing.builtAt >= maxMtime) {
-    return existing;
+
+  // Build path → chunks map for incremental reuse (only when compatible).
+  const existingByPath = new Map<string, IndexChunk[]>();
+  if (compatible && existing) {
+    for (const chunk of existing.chunks) {
+      const arr = existingByPath.get(chunk.path) ?? [];
+      arr.push(chunk);
+      existingByPath.set(chunk.path, arr);
+    }
+  }
+
+  // Partition current files: reuse unchanged chunks, queue changed/new files.
+  const reusedChunks: IndexChunk[] = [];
+  const pendingFiles: VaultFile[] = [];
+
+  for (const f of files) {
+    const cached = existingByPath.get(f.path);
+    if (compatible && cached && cached.length > 0 && cached[0].mtime >= f.mtime) {
+      reusedChunks.push(...cached);
+    } else {
+      pendingFiles.push(f);
+    }
+  }
+
+  // Nothing to do — all files unchanged and model is compatible.
+  if (pendingFiles.length === 0) {
+    if (existing && reusedChunks.length === existing.chunks.length) {
+      log.info("chat/embed", `index up to date: ${reusedChunks.length} chunks`);
+      return existing;
+    }
+    // Some files were deleted; persist the cleaned-up index.
+    const cleaned: EmbeddingIndex = {
+      embedder: embedder.id,
+      model: embedder.model,
+      dim: embedder.dim,
+      builtAt: existing?.builtAt ?? Date.now(),
+      chunks: reusedChunks,
+    };
+    await writeIndexAtomically(indexPath, cleaned);
+    return cleaned;
   }
 
   log.info(
     "chat/embed",
-    `rebuilding index: ${files.length} files, embedder=${embedder.id}/${embedder.model} (${embedder.dim}d), maxMtime=${maxMtime}, builtAt=${existing?.builtAt ?? 0}`,
+    `incremental index: reusing ${reusedChunks.length} chunks, re-embedding ${pendingFiles.length} file(s), ` +
+    `embedder=${embedder.id}/${embedder.model} (${embedder.dim}d)`,
   );
 
-  // Collect all chunks up front so progress total is meaningful.
-  const pending: { path: string; heading?: string; text: string; mtime: number }[] = [];
-  for (const f of files) {
+  // Collect all pending chunks so progress total is accurate.
+  const pending: PendingChunk[] = [];
+  for (const f of pendingFiles) {
     const raw = await readFile(join(vault, f.path), "utf-8").catch(() => "");
     if (!raw) continue;
     for (const c of chunkMarkdown(raw)) {
@@ -86,46 +134,134 @@ export async function ensureIndex(embedder: Embedder, onProgress?: IndexProgress
     }
   }
 
-  const chunks: IndexChunk[] = [];
-  const total = pending.length;
-  for (let i = 0; i < pending.length; i++) {
-    onProgress?.(i, total);
-    const p = pending[i];
-    try {
-      const vec = await embedder.embed(p.text);
-      chunks.push({
-        id: `${p.path}#${slugify(p.heading || `w${i}`)}`,
-        path: p.path,
-        heading: p.heading,
-        text: p.text,
-        vec,
-        mtime: p.mtime,
-      });
-    } catch (err) {
-      log.warn("chat/embed", `embed failed for ${p.path}`, err);
-    }
-  }
-  onProgress?.(total, total);
+  const totalReused = reusedChunks.length;
+  const grandTotal = totalReused + pending.length;
+
+  const newChunks = await embedConcurrent(pending, embedder, {
+    concurrency: 12,
+    onProgress: (done, _ofPending) => {
+      onProgress?.(totalReused + done, grandTotal);
+    },
+    onPartial: async (partialNew) => {
+      const partial: EmbeddingIndex = {
+        embedder: embedder.id,
+        model: embedder.model,
+        dim: embedder.dim,
+        builtAt: Date.now(),
+        chunks: [...reusedChunks, ...partialNew],
+      };
+      await writeIndexAtomically(indexPath, partial);
+    },
+  });
+
+  onProgress?.(grandTotal, grandTotal);
 
   const index: EmbeddingIndex = {
     embedder: embedder.id,
     model: embedder.model,
     dim: embedder.dim,
     builtAt: Date.now(),
-    chunks,
+    chunks: [...reusedChunks, ...newChunks],
   };
   await writeIndexAtomically(indexPath, index);
   return index;
 }
 
 /**
- * Read the on-disk index as-is without rebuilding. Used by the keyword-only
- * fallback when no embedder is reachable.
+ * Embed a batch of chunks with bounded concurrency.
+ *
+ * - ORDER is preserved (result[i] corresponds to pending[i]).
+ * - A single failing chunk is logged and skipped; it does NOT abort the batch.
+ * - `onProgress(done, total)` is called after each item completes.
+ * - `onPartial(chunks)` is called every ~50 successful embeddings so the
+ *   caller can persist intermediate results for resumability.
+ */
+export async function embedConcurrent(
+  pending: PendingChunk[],
+  embedder: Embedder,
+  options: {
+    concurrency?: number;
+    onProgress?: IndexProgress;
+    onPartial?: (chunks: IndexChunk[]) => Promise<void>;
+  } = {},
+): Promise<IndexChunk[]> {
+  const { concurrency = 12, onProgress, onPartial } = options;
+  const PARTIAL_EVERY = 50;
+
+  if (pending.length === 0) return [];
+
+  const results: (IndexChunk | null)[] = new Array(pending.length).fill(null);
+  let nextIdx = 0;
+  let completed = 0;
+  let lastPartialAt = 0;
+
+  async function worker(): Promise<void> {
+    while (true) {
+      // Single-threaded increment — safe between await points.
+      const idx = nextIdx++;
+      if (idx >= pending.length) break;
+
+      const p = pending[idx];
+      try {
+        const vec = await embedder.embed(p.text);
+        results[idx] = {
+          id: `${p.path}#${slugify(p.heading ?? `w${idx}`)}`,
+          path: p.path,
+          heading: p.heading,
+          text: p.text,
+          vec,
+          mtime: p.mtime,
+        };
+      } catch (err) {
+        log.warn("chat/embed", `embed failed for ${p.path}#${p.heading ?? idx}`, err);
+        // results[idx] stays null — filtered below.
+      }
+
+      completed++;
+      onProgress?.(completed, pending.length);
+
+      if (onPartial && completed - lastPartialAt >= PARTIAL_EVERY) {
+        lastPartialAt = completed;
+        const soFar = results.filter((r): r is IndexChunk => r !== null);
+        await onPartial(soFar);
+      }
+    }
+  }
+
+  const workerCount = Math.min(concurrency, pending.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+  return results.filter((r): r is IndexChunk => r !== null);
+}
+
+/**
+ * Read the on-disk index as-is without rebuilding. Used by retrieve() and
+ * the keyword-only fallback when no embedder is reachable.
  */
 export async function loadExistingIndex(): Promise<EmbeddingIndex | null> {
   const vault = getVaultPath();
   if (!vault) return null;
   return loadIndex(join(vault, ".cipher", "embeddings.json"));
+}
+
+/**
+ * Return a quick status snapshot for GET /api/chat/index.
+ *
+ * `stale` is true when any vault .md file has mtime > index.builtAt,
+ * meaning a new build would pick up changes.
+ */
+export async function getIndexStatus(): Promise<{ built: boolean; count: number; stale: boolean }> {
+  const vault = getVaultPath();
+  if (!vault) return { built: false, count: 0, stale: false };
+
+  const index = await loadIndex(join(vault, ".cipher", "embeddings.json"));
+  if (!index) return { built: false, count: 0, stale: false };
+
+  const files = await walkMarkdown(vault);
+  const maxMtime = files.reduce((m, f) => Math.max(m, f.mtime), 0);
+  const stale = maxMtime > index.builtAt;
+
+  return { built: true, count: index.chunks.length, stale };
 }
 
 export class EmptyVaultError extends Error {

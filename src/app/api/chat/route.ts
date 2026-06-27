@@ -5,15 +5,19 @@
  *   1. detectIntent(query)
  *        if matched → emit { type:"envelope", envelope } → { type:"done" } → return.
  *   2. Otherwise LLM path:
- *        a. ensureIndex() — streams index-progress events while building.
+ *        a. retrieve(query) — loads the on-disk index; does NOT trigger a rebuild.
+ *           If the index is missing/empty, emits { type:"error", code:"needs-indexing" }
+ *           and tells the user to run "Index vault" from the model picker.
  *        b. retrieve(query) → top 8 chunks.
  *        c. buildPrompt(...) → messages.
- *        d. ollama.streamChat() → { type:"token", text } per delta.
+ *        d. provider.streamChat() → { type:"token", text } per delta.
  *        e. On stream close → parse [^N] citations → emit one per unique id.
  *        f. Emit { type:"done" }.
  *
- * Errors map to one of: ollama-down | model-missing | empty-vault | unknown.
- * Each error ends the stream with a single { type:"error", ... } then close.
+ * Errors: ollama-down | model-missing | empty-vault | needs-indexing | unknown.
+ * Each error ends the stream with { type:"error", ... } then { type:"done" }.
+ *
+ * Index builds run via POST /api/chat/index, not here.
  */
 
 import { detectIntent } from "@/lib/intent-detector";
@@ -44,7 +48,7 @@ type ChatEvent =
   | { type: "token"; text: string }
   | { type: "citation"; id: number; path: string; heading?: string; snippet: string }
   | { type: "done" }
-  | { type: "error"; code: "ollama-down" | "model-missing" | "empty-vault" | "unknown"; message: string };
+  | { type: "error"; code: "ollama-down" | "model-missing" | "empty-vault" | "needs-indexing" | "unknown"; message: string };
 
 export async function POST(req: Request) {
   let body: ChatRequest;
@@ -104,9 +108,18 @@ export async function POST(req: Request) {
         }
 
         // ── LLM path. ────────────────────────────────────────────────
-        const chunks = await retrieve(query, (done, total) => {
-          emit({ type: "index-progress", done, total });
-        });
+        const result = await retrieve(query);
+        if (result.needsIndexing) {
+          emit({
+            type: "error",
+            code: "needs-indexing",
+            message: "Vault not indexed yet. Open the model picker and click 'Index vault' to build the search index.",
+          });
+          emit({ type: "done" });
+          controller.close();
+          return;
+        }
+        const { chunks } = result;
 
         const messages = buildPrompt({ query, history, chunks });
         const { provider } = await getActiveProvider();

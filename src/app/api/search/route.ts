@@ -57,10 +57,11 @@ export async function GET(request: NextRequest) {
   }
 
   const source: SearchSource = embedder.id;
-  const chunks = await retrieve(q);
+  const result = await retrieve(q);
+  const { chunks, needsIndexing } = result;
 
-  // Zero chunks (empty index, no matches): transparent degrade to exact.
-  if (chunks.length === 0) {
+  // Zero chunks (empty/missing index, no matches): transparent degrade to exact.
+  if (needsIndexing || chunks.length === 0) {
     const vm = await buildSearchResults(q);
     return NextResponse.json({ data: vm.data, source: "keyword-only" as SearchSource });
   }

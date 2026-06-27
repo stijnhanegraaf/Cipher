@@ -107,7 +107,7 @@ describe("GET /api/search — mode=semantic, embedder present", () => {
       dim: 1536,
       embed: vi.fn(),
     });
-    mockRetrieve.mockResolvedValue(SEMANTIC_CHUNKS);
+    mockRetrieve.mockResolvedValue({ chunks: SEMANTIC_CHUNKS, needsIndexing: false });
 
     const res = await GET(makeRequest("cipher", "semantic"));
     const json = await res.json();
@@ -144,7 +144,7 @@ describe("GET /api/search — mode=semantic, transparent degrade", () => {
       dim: 768,
       embed: vi.fn(),
     });
-    mockRetrieve.mockResolvedValue([]);
+    mockRetrieve.mockResolvedValue({ chunks: [], needsIndexing: false });
     mockBuildSearchResults.mockResolvedValue(makeViewModel(EXACT_DATA));
 
     const res = await GET(makeRequest("cipher", "semantic"));

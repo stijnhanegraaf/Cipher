@@ -88,6 +88,17 @@ const PROVIDER_META: Record<ProviderId, {
   },
 };
 
+interface IndexStatus {
+  built: boolean;
+  count: number;
+  stale: boolean;
+}
+
+interface IndexBuildProgress {
+  done: number;
+  total: number;
+}
+
 interface Props {
   current: string;
   onChange: (model: string) => void;
@@ -103,8 +114,21 @@ export function ModelPicker({ current, onChange }: Props) {
   const [saving, setSaving] = useState(false);
   const [savedFired, setSavedFired] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [indexStatus, setIndexStatus] = useState<IndexStatus | null>(null);
+  const [indexBuilding, setIndexBuilding] = useState(false);
+  const [indexProgress, setIndexProgress] = useState<IndexBuildProgress | null>(null);
+  const [indexError, setIndexError] = useState<string | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
+
+  const refreshIndex = useCallback(async () => {
+    try {
+      const res = await fetch("/api/chat/index", { cache: "no-store" });
+      if (res.ok) setIndexStatus((await res.json()) as IndexStatus);
+    } catch {
+      // ignore — index status is optional
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     setHealthFetching(true);
@@ -122,14 +146,57 @@ export function ModelPicker({ current, onChange }: Props) {
     }
   }, []);
 
+  const buildIndex = useCallback(async () => {
+    setIndexBuilding(true);
+    setIndexProgress(null);
+    setIndexError(null);
+    try {
+      const res = await fetch("/api/chat/index", { method: "POST", cache: "no-store" });
+      const reader = res.body?.getReader();
+      if (!reader) return;
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const ev = JSON.parse(line) as { type: string; done?: number; total?: number; message?: string };
+            if (ev.type === "index-progress" && typeof ev.done === "number" && typeof ev.total === "number") {
+              setIndexProgress({ done: ev.done, total: ev.total });
+            } else if (ev.type === "error" && ev.message) {
+              setIndexError(ev.message);
+            }
+          } catch {
+            // malformed line — skip
+          }
+        }
+      }
+    } catch {
+      setIndexError("Index build failed. Try again.");
+    } finally {
+      setIndexBuilding(false);
+      setIndexProgress(null);
+      await refreshIndex();
+    }
+  }, [refreshIndex]);
+
   // Fetch health on mount so the pill resolves at rest (not only on popover open).
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+    void refreshIndex();
+  }, [refresh, refreshIndex]);
 
   useEffect(() => {
-    if (open) void refresh();
-  }, [open, refresh]);
+    if (open) {
+      void refresh();
+      void refreshIndex();
+    }
+  }, [open, refresh, refreshIndex]);
 
   // Auto-correct model when the provider's list changes and current is invalid.
   useEffect(() => {
@@ -558,6 +625,59 @@ export function ModelPicker({ current, onChange }: Props) {
                 {health.embed.label}
               </div>
             )}
+
+            {/* ── Vault index status ──────────────────────────── */}
+            <div style={{ marginTop: 10 }}>
+              <div className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.08em", fontSize: 10, marginBottom: 6 }}>
+                VAULT INDEX
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <div className="caption" style={{ color: "var(--text-tertiary)", lineHeight: 1.4, flex: 1 }}>
+                  {indexBuilding && indexProgress ? (
+                    <span>
+                      Indexing{"…"} {indexProgress.done}/{indexProgress.total}
+                    </span>
+                  ) : indexBuilding ? (
+                    <span>Starting{"…"}</span>
+                  ) : indexStatus?.built ? (
+                    <span>
+                      {indexStatus.count.toLocaleString()} chunks
+                      {" - "}
+                      <span style={{ color: indexStatus.stale ? "var(--status-warning, #d19a66)" : "var(--success, #34d399)" }}>
+                        {indexStatus.stale ? "stale" : "up to date"}
+                      </span>
+                    </span>
+                  ) : (
+                    <span style={{ color: "var(--status-warning, #d19a66)" }}>not built</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  disabled={indexBuilding}
+                  onClick={() => { void buildIndex(); }}
+                  className="focus-ring caption"
+                  style={{
+                    flexShrink: 0,
+                    height: 24,
+                    padding: "0 8px",
+                    border: "1px solid var(--border-standard)",
+                    borderRadius: 5,
+                    background: "var(--bg-surface-alpha-4)",
+                    color: indexBuilding ? "var(--text-quaternary)" : "var(--text-secondary)",
+                    cursor: indexBuilding ? "not-allowed" : "pointer",
+                    fontSize: 11,
+                    opacity: indexBuilding ? 0.5 : 1,
+                  }}
+                >
+                  {indexBuilding ? "Indexing…" : indexStatus?.built ? "Re-index" : "Index vault"}
+                </button>
+              </div>
+              {indexError && (
+                <div className="caption" style={{ marginTop: 4, color: "var(--status-danger, #c0392b)" }}>
+                  {indexError}
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={{ height: 1, background: "var(--border-subtle)", margin: "0 4px" }} />

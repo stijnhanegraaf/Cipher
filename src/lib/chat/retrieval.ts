@@ -2,17 +2,21 @@
  * Hybrid retrieval over the per-vault embedding index.
  *
  * Pipeline:
- *   1. Keyword shortlist — top 40 chunks by fuzzyScore against chunk.text.
- *   2. Embed the query once.
- *   3. Cosine-sort the shortlist, take top 8.
- *   4. Token-budget truncate: cap total to ~3000 tokens, longest first.
+ *   1. Load the existing on-disk index (never triggers a rebuild).
+ *   2. If the index is missing/empty and an embedder is reachable, return
+ *      { chunks: [], needsIndexing: true } so the caller can prompt the user
+ *      to run an explicit index build instead of auto-triggering one.
+ *   3. Keyword shortlist — top 40 chunks by fuzzyScore against chunk.text.
+ *   4. Embed the query once.
+ *   5. Cosine-sort the shortlist, take top 8.
+ *   6. Token-budget truncate: cap total to ~3000 tokens, longest first.
  *
  * Returns the retained chunks in cosine-sorted order (best first).
  */
 
 import "server-only";
 import { fuzzyScore } from "@/lib/fuzzy";
-import { cosine, ensureIndex, type IndexChunk, type IndexProgress } from "./embeddings";
+import { cosine, loadExistingIndex, type IndexChunk } from "./embeddings";
 import { resolveEmbedder } from "./providers";
 import { readLLMSettings } from "@/lib/llm-settings";
 import { log } from "@/lib/log";
@@ -25,11 +29,21 @@ export interface RetrievedChunk {
   score: number; // cosine similarity
 }
 
+export interface RetrieveResult {
+  chunks: RetrievedChunk[];
+  /**
+   * True when an embedder is reachable but the vault index is missing or empty.
+   * The caller should prompt the user to run "Index vault" instead of proceeding
+   * with an empty context.
+   */
+  needsIndexing: boolean;
+}
+
 const SHORTLIST_SIZE = 40;
 const FINAL_TOP_N = 8;
 const TOKEN_BUDGET = 3000;
 
-export async function retrieve(query: string, onProgress?: IndexProgress): Promise<RetrievedChunk[]> {
+export async function retrieve(query: string): Promise<RetrieveResult> {
   const settings = await readLLMSettings();
   const embedder = await resolveEmbedder(settings);
 
@@ -37,11 +51,16 @@ export async function retrieve(query: string, onProgress?: IndexProgress): Promi
   // whatever chunks the existing (possibly stale) index has, else bail.
   if (!embedder) {
     log.info("chat/retrieval", "no embedder available; using keyword-only ranking");
-    return keywordOnly(query);
+    return { chunks: await keywordOnly(query), needsIndexing: false };
   }
 
-  const index = await ensureIndex(embedder, onProgress);
-  if (index.chunks.length === 0) return [];
+  const index = await loadExistingIndex();
+
+  // Index is missing or empty — signal the caller to prompt for indexing.
+  if (!index || index.chunks.length === 0) {
+    log.info("chat/retrieval", "no index found; returning needs-indexing signal");
+    return { chunks: [], needsIndexing: true };
+  }
 
   // 1. Keyword shortlist.
   const scored = index.chunks
@@ -62,9 +81,12 @@ export async function retrieve(query: string, onProgress?: IndexProgress): Promi
   } catch (err) {
     log.warn("chat/retrieval", `query embed failed via ${embedder.id}; falling back to keyword-only`, err);
     const top = scored.slice(0, FINAL_TOP_N).map((c) => ({ c, sim: 0 }));
-    return truncateToBudget(top, TOKEN_BUDGET).map(({ c, sim }) => ({
-      id: c.id, path: c.path, heading: c.heading, text: c.text, score: sim,
-    }));
+    return {
+      chunks: truncateToBudget(top, TOKEN_BUDGET).map(({ c, sim }) => ({
+        id: c.id, path: c.path, heading: c.heading, text: c.text, score: sim,
+      })),
+      needsIndexing: false,
+    };
   }
 
   // 3. Cosine rerank.
@@ -76,19 +98,21 @@ export async function retrieve(query: string, onProgress?: IndexProgress): Promi
   // 4. Token budget.
   const withinBudget = truncateToBudget(ranked.map((r) => ({ c: r.c, sim: r.sim })), TOKEN_BUDGET);
 
-  return withinBudget.map(({ c, sim }) => ({
-    id: c.id,
-    path: c.path,
-    heading: c.heading,
-    text: c.text,
-    score: sim,
-  }));
+  return {
+    chunks: withinBudget.map(({ c, sim }) => ({
+      id: c.id,
+      path: c.path,
+      heading: c.heading,
+      text: c.text,
+      score: sim,
+    })),
+    needsIndexing: false,
+  };
 }
 
 async function keywordOnly(query: string): Promise<RetrievedChunk[]> {
   // Without an embedder we can't build or refresh an index; read whatever is
   // already on disk and rank by fuzzy score. If nothing exists, return empty.
-  const { loadExistingIndex } = await import("./embeddings");
   const index = await loadExistingIndex();
   if (!index || index.chunks.length === 0) return [];
   const scored = index.chunks
