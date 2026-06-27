@@ -61,6 +61,48 @@ const SEMANTIC: Readonly<Record<string, string>> = {
   example:  "--hue-example",
 };
 
+// ─── Arc palette set (for semantic filter in tagArcColor) ────────────────────
+
+// Module-level set so we pay the allocation once.
+const _PALETTE_SET = new Set<string>(HUE_PALETTE);
+
+// FNV-1a 32-bit hash — fast, well-distributed, dependency-free.
+function _fnv32a(s: string): number {
+  let h = 2166136261; // FNV offset basis (uint32)
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0; // FNV prime; keep unsigned 32-bit
+  }
+  return h;
+}
+
+// ─── tagArcColor ─────────────────────────────────────────────────────────────
+
+/**
+ * Map a tag string to a HUE_PALETTE token for arc segment coloring.
+ *
+ * Deterministic per-tag color so arc segments are distinguishable:
+ *   1. Semantic override — reuses SEMANTIC map (only entries in HUE_PALETTE).
+ *   2. Hash fallback — FNV-1a hash into HUE_PALETTE for all other tags.
+ *
+ * "" → "--hue-tag" (untagged uses the neutral palette default).
+ * Node body color is unchanged — this color is ONLY for arc segments.
+ *
+ * @param tag - Normalized tag (no leading #). Use "" for untagged nodes.
+ * @returns   A HueToken that is always a member of HUE_PALETTE.
+ */
+export function tagArcColor(tag: string): HueToken {
+  if (!tag) return "--hue-tag";
+  const lower = tag.toLowerCase();
+  const semantic = SEMANTIC[lower];
+  // Only use the semantic value if it is a HUE_PALETTE member (excludes
+  // alias tokens like --hue-tip / --hue-example that are not in the palette).
+  if (semantic !== undefined && _PALETTE_SET.has(semantic)) {
+    return semantic as HueToken;
+  }
+  return HUE_PALETTE[_fnv32a(lower) % HUE_PALETTE.length];
+}
+
 // ─── Status overrides (restrained: success + danger only) ────────────────────
 
 const STATUS_SUCCESS = new Set(["done", "success", "tip", "hint"]);

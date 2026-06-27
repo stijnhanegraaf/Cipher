@@ -30,7 +30,7 @@ import type React from "react";
 import { useReducedMotion } from "framer-motion";
 import { forceCollide } from "d3-force";
 import type { Graph } from "@/lib/vault-graph";
-import { tagColor, statusTagColor } from "@/lib/color/tag-color";
+import { tagColor, statusTagColor, tagArcColor } from "@/lib/color/tag-color";
 import { toForceGraphData, type FGNodeData } from "@/lib/browse/force-graph-data";
 
 // ─── Runtime node/link types ─────────────────────────────────────────────────
@@ -241,9 +241,11 @@ interface Props {
   onOpen: (path: string) => void;
   /** When true, use full semantic tag colours (rainbow palette). Default: false (mono + 2 status hues). */
   rainbow?: boolean;
+  /** Path of the currently-open note (from useSheet). Node with this id gets an accent highlight ring. */
+  activePath?: string | null;
 }
 
-export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Props) {
+export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false, activePath }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fgRef = useRef<FGInstance | undefined>(undefined);
   const engineStoppedRef = useRef(false);
@@ -259,12 +261,20 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
   const hoveredNodeRef = useRef<string | null>(null);
   const visibleTagsRef = useRef(visibleTags);
   const neighborMapRef = useRef(new Map<string, Set<string>>());
+  const activePathRef = useRef<string | null | undefined>(activePath);
 
   // Keep visibleTags ref in sync and trigger a repaint on filter changes.
   useEffect(() => {
     visibleTagsRef.current = visibleTags;
     fgRef.current?.resumeAnimation();
   }, [visibleTags]);
+
+  // Keep activePath ref in sync and trigger a repaint so the highlight ring
+  // updates immediately when the sheet opens or closes.
+  useEffect(() => {
+    activePathRef.current = activePath;
+    fgRef.current?.resumeAnimation();
+  }, [activePath]);
 
   // Measure container via ResizeObserver.
   useEffect(() => {
@@ -452,6 +462,57 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
       ctx.shadowColor = "transparent";
 
       ctx.restore();
+
+      // ─── Tag arcs (Extended-Graph style) ───────────────────────────────────
+      // Peripheral arc ring: one colored arc per tag, drawn just outside the
+      // node body. Skipped when: no tags, zoomed too far out, or the node is
+      // tag-filtered to near-invisible.
+      const arcTags = node.tags ?? [];
+      if (arcTags.length > 0 && globalScale >= 0.7 && isTagVisible) {
+        const MAX_ARCS = 6;
+        // If more than 6 tags: draw the first 5 + one neutral overflow arc.
+        const overflow = arcTags.length > MAX_ARCS ? arcTags.length - 5 : 0;
+        const renderCount = overflow > 0 ? MAX_ARCS : arcTags.length;
+        const gap = 0.12; // radians between segments
+        const arcSpan = (Math.PI * 2 - renderCount * gap) / renderCount;
+        const arcR = drawR + 3 / globalScale;
+        const lw = Math.max(1, 2 / globalScale);
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = lw;
+        ctx.lineCap = "round";
+
+        for (let i = 0; i < renderCount; i++) {
+          const isOverflowSlot = overflow > 0 && i === renderCount - 1;
+          const arcTag = isOverflowSlot ? "" : arcTags[i];
+          const arcColor = isOverflowSlot
+            ? resolveToken("--text-tertiary")
+            : resolveToken(tagArcColor(arcTag));
+          const startAngle = -Math.PI / 2 + i * (arcSpan + gap);
+          const endAngle = startAngle + arcSpan;
+          ctx.beginPath();
+          ctx.arc(x, y, arcR, startAngle, endAngle);
+          ctx.strokeStyle = arcColor;
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      // ─── Active-note ring ───────────────────────────────────────────────────
+      // Bright accent ring around the currently-open note so it stands out.
+      // Drawn slightly further out than the tag arcs (drawR + 6 vs drawR + 3).
+      if (activePathRef.current && node.id === activePathRef.current) {
+        ctx.save();
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.arc(x, y, drawR + 6 / globalScale, 0, Math.PI * 2);
+        ctx.strokeStyle = resolveToken("--accent-brand");
+        ctx.lineWidth = 2 / globalScale;
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // ─── Label pill ────────────────────────────────────────────────────────
       // Show when: hovered or 1-hop neighbour (any zoom), OR zoom-gated persistent.

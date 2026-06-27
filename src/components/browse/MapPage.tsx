@@ -156,6 +156,7 @@ export function MapPage() {
               onOpen={sheet.open}
               visibleTags={visibleTags}
               rainbow={rainbow}
+              activePath={sheet.path}
             />
             <GraphLegend
               tags={tagCounts}
