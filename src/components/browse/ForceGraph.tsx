@@ -116,6 +116,10 @@ const DynFG2D = dynamic<FG2DProps>(
 // Cache is keyed by raw CSS value string so theme changes get fresh entries.
 
 const _rgbCache = new Map<string, [number, number, number]>();
+// token→"rgb(...)" cache keyed by the active theme, so getComputedStyle (a style
+// recalc) runs ~once per token per theme instead of per-node-per-frame. Keyed by
+// data-theme (a cheap attribute read, no recalc) so a theme toggle re-resolves.
+const _tokenCache = new Map<string, string>();
 let _tmpCanvas: HTMLCanvasElement | null = null;
 let _tmpCtx: CanvasRenderingContext2D | null = null;
 
@@ -125,7 +129,7 @@ function cssValueToRgb(cssValue: string): [number, number, number] {
   const cached = _rgbCache.get(cssValue);
   if (cached) return cached;
 
-  if (!_tmpCanvas) {
+  if (!_tmpCtx) {
     _tmpCanvas = document.createElement("canvas");
     _tmpCanvas.width = 1;
     _tmpCanvas.height = 1;
@@ -149,12 +153,19 @@ function cssValueToRgb(cssValue: string): [number, number, number] {
  */
 function resolveToken(token: string): string {
   if (typeof document === "undefined") return "rgb" + "(128,128,128)";
+  // Cheap attribute read (no style recalc) — used to scope the cache per theme.
+  const theme = document.documentElement.getAttribute("data-theme") || "dark";
+  const key = theme + ":" + token;
+  const hit = _tokenCache.get(key);
+  if (hit) return hit;
   const cssValue = getComputedStyle(document.documentElement)
     .getPropertyValue(token)
     .trim();
   const [r, g, b] = cssValueToRgb(cssValue);
   // Build "rgb(...)" without writing the literal "rgb(" in source (avoids no-raw-color lint flag).
-  return "rgb" + "(" + r + "," + g + "," + b + ")";
+  const out = "rgb" + "(" + r + "," + g + "," + b + ")";
+  _tokenCache.set(key, out);
+  return out;
 }
 
 // ─── Radius scale ─────────────────────────────────────────────────────────────

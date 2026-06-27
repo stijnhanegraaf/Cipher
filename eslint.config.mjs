@@ -62,16 +62,6 @@ const eslintConfig = defineConfig([
       "cipher-design/no-raw-color": "off",
     },
   },
-
-  // ─── Allowlist: layout.tsx ─────────────────────────────────────────────────
-  // meta theme-color requires literal color strings; <meta> cannot use var(--).
-  // The themeColor viewport config and the inline bootstrap script both need literals.
-  {
-    files: ["src/app/layout.tsx"],
-    rules: {
-      "cipher-design/no-raw-color": "off",
-    },
-  },
 ]);
 
 export default eslintConfig;
