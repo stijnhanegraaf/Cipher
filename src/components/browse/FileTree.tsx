@@ -5,6 +5,8 @@ import { Tree, type NodeApi, type NodeRendererProps, type TreeApi } from "react-
 import { fetchChildren, type TreeChild } from "@/lib/browse/vault-tree-client";
 import { fileKindForExt } from "@/lib/browse/file-kind";
 import { FileKindIcon } from "./FileKindIcon";
+import { filterPaths } from "@/lib/browse/filter-paths";
+import { useVaultIndex } from "@/lib/hooks/useVaultIndex";
 
 interface NodeData {
   id: string;
@@ -53,6 +55,7 @@ export function FileTree({
   const [filter, setFilter] = useState("");
   const [debouncedFilter, setDebouncedFilter] = useState("");
   const treeRef = useRef<TreeApi<NodeData> | null>(null);
+  const { index } = useVaultIndex();
 
   useEffect(() => {
     let alive = true;
@@ -82,11 +85,14 @@ export function FileTree({
     onExpandChange({ ...expandState, [id]: !expandState[id] });
   }, [roots, expandState, onExpandChange, loadChildrenFor]);
 
-  const filtered = useMemo(() => {
-    const needle = debouncedFilter.trim().toLowerCase();
-    if (!needle) return roots;
-    return filterTree(roots, needle);
-  }, [roots, debouncedFilter]);
+  // When a filter is active, show a flat list built from the whole-vault index
+  // (useVaultIndex / /api/vault/index) so collapsed and never-loaded subtrees
+  // are reachable. The lazy arborist tree is preserved as-is for the empty case.
+  const flatMatches = useMemo(
+    () => filterPaths(index.files, debouncedFilter),
+    [index.files, debouncedFilter],
+  );
+  const isFiltered = debouncedFilter.trim().length > 0;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
@@ -114,24 +120,41 @@ export function FileTree({
           }}
         />
       </div>
-      <Tree<NodeData>
-        ref={treeRef as React.RefObject<TreeApi<NodeData>>}
-        data={filtered}
-        openByDefault={false}
-        width={width}
-        height={Math.max(0, height - 44)}
-        rowHeight={24}
-        indent={16}
-        selection={selectedFilePath ?? undefined}
-        onToggle={onToggle}
-        onSelect={(nodes: NodeApi<NodeData>[]) => {
-          const n = nodes[0]; if (!n) return;
-          if (n.data.type === "file") onSelectFile(n.data.path);
-          else onSelectFolder(n.data.path);
-        }}
-      >
-        {Row}
-      </Tree>
+      {isFiltered ? (
+        // Flat list from the whole-vault index — surfaces collapsed/unloaded files.
+        // Note: /api/vault/index covers .md only (same as ⌘K palette), so the
+        // filter surfaces markdown notes. Non-md files appear only in the lazy tree.
+        <div style={{ overflowY: "auto", height: Math.max(0, height - 44) }}>
+          {flatMatches.map((f) => (
+            <FlatFileRow
+              key={f.path}
+              name={f.name}
+              isSelected={f.path === selectedFilePath}
+              onSelect={() => onSelectFile(f.path)}
+              onOpenFull={() => onOpenFull(f.path)}
+            />
+          ))}
+        </div>
+      ) : (
+        <Tree<NodeData>
+          ref={treeRef as React.RefObject<TreeApi<NodeData>>}
+          data={roots}
+          openByDefault={false}
+          width={width}
+          height={Math.max(0, height - 44)}
+          rowHeight={24}
+          indent={16}
+          selection={selectedFilePath ?? undefined}
+          onToggle={onToggle}
+          onSelect={(nodes: NodeApi<NodeData>[]) => {
+            const n = nodes[0]; if (!n) return;
+            if (n.data.type === "file") onSelectFile(n.data.path);
+            else onSelectFolder(n.data.path);
+          }}
+        >
+          {Row}
+        </Tree>
+      )}
     </div>
   );
 }
@@ -188,14 +211,47 @@ function replaceNode(nodes: NodeData[], id: string, patch: (n: NodeData) => Node
   });
 }
 
-function filterTree(nodes: NodeData[], needle: string): NodeData[] {
-  const out: NodeData[] = [];
-  for (const n of nodes) {
-    const selfMatch = n.name.toLowerCase().includes(needle);
-    const kids = n.children ? filterTree(n.children, needle) : [];
-    if (selfMatch || kids.length > 0) {
-      out.push({ ...n, children: n.children ? kids : undefined });
-    }
-  }
-  return out;
+function FlatFileRow({
+  name,
+  isSelected,
+  onSelect,
+  onOpenFull,
+}: {
+  name: string;
+  isSelected: boolean;
+  onSelect: () => void;
+  onOpenFull: () => void;
+}) {
+  return (
+    <div
+      tabIndex={0}
+      role="button"
+      style={{
+        display: "flex", alignItems: "center", gap: 4,
+        padding: "0 6px",
+        height: 24,
+        cursor: "pointer",
+        color: isSelected ? "var(--text-primary)" : "var(--text-secondary)",
+        background: isSelected ? "var(--bg-surface-alpha-4)" : "transparent",
+        fontSize: 13,
+        borderRadius: 4,
+      }}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+          e.preventDefault();
+          onOpenFull();
+        } else if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+    >
+      <span style={{ width: 12 }} />
+      <span style={{ width: 16, display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--text-quaternary)", flexShrink: 0 }}>
+        <FileKindIcon kind={fileKindForExt("md")} size={14} />
+      </span>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{name}</span>
+    </div>
+  );
 }
