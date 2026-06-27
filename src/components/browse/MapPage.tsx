@@ -30,6 +30,7 @@ export function MapPage() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<MapMode>("graph");
   const [visibleTags, setVisibleTags] = useState<Set<string>>(new Set());
+  const [rainbow, setRainbow] = useState(false);
 
   // Hydrate mode on mount (avoids SSR mismatch by starting with "graph").
   useEffect(() => {
@@ -125,12 +126,40 @@ export function MapPage() {
           </p>
         )}
         {!loading && !error && graph && graph.nodes.length > 0 && mode === "graph" && (
-          <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-            <ForceGraph graph={graph} onOpen={sheet.open} visibleTags={visibleTags} />
+          <div
+            style={{
+              position: "relative",
+              flex: 1,
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+              background: "var(--bg-marketing)",
+            }}
+          >
+            {/* Radial vignette overlay — subtle accent glow behind the canvas */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                inset: 0,
+                pointerEvents: "none",
+                background:
+                  "radial-gradient(ellipse at 50% 40%, color-mix(in oklch, var(--accent-brand) 8%, transparent), transparent 70%)",
+                zIndex: 0,
+              }}
+            />
+            <ForceGraph
+              graph={graph}
+              onOpen={sheet.open}
+              visibleTags={visibleTags}
+              rainbow={rainbow}
+            />
             <GraphLegend
               tags={tagCounts}
               visibleTags={visibleTags}
               onToggle={handleTagToggle}
+              rainbow={rainbow}
+              onRainbowToggle={() => setRainbow((r) => !r)}
             />
           </div>
         )}

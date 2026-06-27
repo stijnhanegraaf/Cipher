@@ -1,11 +1,14 @@
 "use client";
 
 /**
- * GraphLegend — tag legend + filter for the vault graph.
+ * GraphLegend — tag legend + filter + colour-mode toggle for the vault graph.
  *
  * Renders chip rows (one per distinct primary tag) positioned over the
  * canvas. Clicking a chip toggles its tag's membership in `visibleTags`.
  * When visibleTags is empty, all nodes are visible (no filter active).
+ *
+ * Also renders a "Colors" segmented toggle that switches the graph between
+ * the restrained mono + status-hues default and the full semantic rainbow.
  *
  * Color: each chip uses `--sc: var(--hue-*)` — the same token the canvas
  * resolves for node fill, so legend swatches always match node colors.
@@ -23,9 +26,13 @@ interface Props {
   tags: TagCount[];
   visibleTags: Set<string>;
   onToggle: (tag: string) => void;
+  /** Whether the rainbow (full semantic) palette is active. */
+  rainbow?: boolean;
+  /** Called to flip the rainbow toggle. */
+  onRainbowToggle?: () => void;
 }
 
-export function GraphLegend({ tags, visibleTags, onToggle }: Props) {
+export function GraphLegend({ tags, visibleTags, onToggle, rainbow = false, onRainbowToggle }: Props) {
   if (tags.length === 0) return null;
 
   const hasFilter = visibleTags.size > 0;
@@ -43,9 +50,76 @@ export function GraphLegend({ tags, visibleTags, onToggle }: Props) {
         maxHeight: "calc(100% - 80px)",
         overflowY: "auto",
         pointerEvents: "auto",
+        zIndex: 1,
       }}
       aria-label="Filter graph nodes by tag"
     >
+      {/* Colour-mode toggle */}
+      {onRainbowToggle && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            marginBottom: 4,
+            padding: "2px 4px",
+            borderRadius: 6,
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border-standard)",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "0.72rem",
+              color: "var(--text-quaternary)",
+              paddingLeft: 2,
+              letterSpacing: "0.02em",
+              userSelect: "none",
+            }}
+          >
+            Colors:
+          </span>
+          <button
+            type="button"
+            onClick={!rainbow ? undefined : onRainbowToggle}
+            aria-pressed={!rainbow}
+            style={
+              {
+                fontSize: "0.72rem",
+                padding: "1px 6px",
+                borderRadius: 4,
+                border: "none",
+                background: !rainbow ? "var(--accent-brand)" : "transparent",
+                color: !rainbow ? "var(--bg-marketing)" : "var(--text-tertiary)",
+                cursor: rainbow ? "pointer" : "default",
+                userSelect: "none",
+              } as React.CSSProperties
+            }
+          >
+            Status
+          </button>
+          <button
+            type="button"
+            onClick={rainbow ? undefined : onRainbowToggle}
+            aria-pressed={rainbow}
+            style={
+              {
+                fontSize: "0.72rem",
+                padding: "1px 6px",
+                borderRadius: 4,
+                border: "none",
+                background: rainbow ? "var(--accent-brand)" : "transparent",
+                color: rainbow ? "var(--bg-marketing)" : "var(--text-tertiary)",
+                cursor: !rainbow ? "pointer" : "default",
+                userSelect: "none",
+              } as React.CSSProperties
+            }
+          >
+            Tags
+          </button>
+        </div>
+      )}
+
       {tags.map(({ tag, count }) => {
         const token = tagColor(tag);
         const label = tag || "untagged";
