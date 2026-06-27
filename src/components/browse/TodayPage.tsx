@@ -31,6 +31,8 @@ export function TodayPage() {
   /** Daily-note button state. */
   const [dailyLoading, setDailyLoading] = useState(false);
   const [dailyToast, setDailyToast] = useState<string | null>(null);
+  /** Brief error toast for task-save failures. */
+  const [saveErrorToast, setSaveErrorToast] = useState<string | null>(null);
 
   /** Undo toast — pops when a task is checked; clicking reverts. */
   const [undoTask, setUndoTask] = useState<TodayTask | null>(null);
@@ -101,7 +103,8 @@ export function TodayPage() {
           return next;
         });
         setUndoTask(null);
-        alert("Couldn't save — reverted."); // simple fallback; richer toast in v7.1
+        setSaveErrorToast("Couldn’t save — reverted.");
+        window.setTimeout(() => setSaveErrorToast(null), 4000);
       });
 
       // After 2s, remove from list.
@@ -367,6 +370,27 @@ export function TodayPage() {
             </section>
           )}
         </>
+      )}
+
+      {/* Save-error toast */}
+      {saveErrorToast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            padding: "10px 14px",
+            borderRadius: 8,
+            background: "var(--bg-tooltip)",
+            border: "1px solid var(--border-standard)",
+            color: "var(--status-blocked)",
+            fontSize: 13,
+            zIndex: 100,
+            boxShadow: "var(--shadow-dialog)",
+          }}
+        >
+          {saveErrorToast}
+        </div>
       )}
 
       {/* Undo toast */}

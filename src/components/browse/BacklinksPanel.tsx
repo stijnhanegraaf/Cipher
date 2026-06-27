@@ -31,6 +31,8 @@ interface BacklinkApiResponse {
   error?: string;
 }
 
+const BACKLINKS_CAP = 12;
+
 interface BacklinksPanelProps {
   path: string;
   onNavigate: (path: string) => void;
@@ -41,6 +43,9 @@ export function BacklinksPanel({ path, onNavigate, variant = "sidebar" }: Backli
   const cacheRef = useRef<Map<string, BacklinkRow[]>>(new Map());
   // null = loading/not started; array = resolved (may be empty)
   const [rows, setRows] = useState<BacklinkRow[] | null>(null);
+  // knownEmpty: true when the API returned a valid 200 with an empty backlinks array.
+  const [knownEmpty, setKnownEmpty] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -48,13 +53,13 @@ export function BacklinksPanel({ path, onNavigate, variant = "sidebar" }: Backli
 
     const load = async () => {
       if (!path) {
-        if (!cancelled) setRows(null);
+        if (!cancelled) { setRows(null); setKnownEmpty(false); }
         return;
       }
 
       const cached = cacheRef.current.get(path);
       if (cached !== undefined) {
-        if (!cancelled) setRows(cached);
+        if (!cancelled) { setRows(cached); setKnownEmpty(cached.length === 0); }
         return;
       }
 
@@ -64,21 +69,27 @@ export function BacklinksPanel({ path, onNavigate, variant = "sidebar" }: Backli
           { signal: controller.signal }
         );
         if (!res.ok) {
-          // Non-200 (incl. 409 no-vault, 500 errors) → treat as empty
+          // Non-200 (incl. 409 no-vault, 500 errors) → treat as empty, degrade silently
           cacheRef.current.set(path, []);
-          if (!cancelled) setRows([]);
+          if (!cancelled) { setRows([]); setKnownEmpty(false); }
           return;
         }
         const json = (await res.json()) as BacklinkApiResponse;
+        const isRealArray = Array.isArray(json.backlinks);
         // Defensive: if `backlinks` field missing (e.g. 500 without field) → []
-        const backlinks: BacklinkRow[] = Array.isArray(json.backlinks) ? json.backlinks : [];
+        const backlinks: BacklinkRow[] = isRealArray ? (json.backlinks as BacklinkRow[]) : [];
         cacheRef.current.set(path, backlinks);
-        if (!cancelled) setRows(backlinks);
+        if (!cancelled) {
+          setRows(backlinks);
+          // Show empty state only when API confirmed no backlinks (not when field missing).
+          setKnownEmpty(isRealArray && backlinks.length === 0);
+        }
       } catch {
         // AbortError or network failure — degrade silently
         if (!controller.signal.aborted && !cancelled) {
           cacheRef.current.set(path, []);
           setRows([]);
+          setKnownEmpty(false);
         }
       }
     };
@@ -94,10 +105,31 @@ export function BacklinksPanel({ path, onNavigate, variant = "sidebar" }: Backli
   // Still loading — render nothing to avoid flash
   if (rows === null) return null;
 
-  // No backlinks — render nothing
-  if (rows.length === 0) return null;
-
   const isBlock = variant === "block";
+
+  // No backlinks — show quiet empty state only when we know the API confirmed it.
+  if (rows.length === 0) {
+    if (!knownEmpty) return null;
+    return (
+      <div
+        style={{
+          marginTop: isBlock ? 32 : 24,
+          paddingTop: isBlock ? 24 : 0,
+          borderTop: isBlock ? "1px solid var(--border-subtle)" : "none",
+        }}
+      >
+        <div className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.08em", marginBottom: 8 }}>
+          LINKED MENTIONS
+        </div>
+        <p className="small" style={{ color: "var(--text-quaternary)", margin: 0 }}>
+          No linked mentions yet.
+        </p>
+      </div>
+    );
+  }
+
+  const visible = showAll ? rows : rows.slice(0, BACKLINKS_CAP);
+  const hiddenCount = rows.length - visible.length;
 
   return (
     <div
@@ -118,7 +150,7 @@ export function BacklinksPanel({ path, onNavigate, variant = "sidebar" }: Backli
         {`LINKED MENTIONS · ${rows.length}`}
       </div>
       <div>
-        {rows.map((r) => (
+        {visible.map((r) => (
           <button
             key={r.sourcePath}
             type="button"
@@ -168,6 +200,25 @@ export function BacklinksPanel({ path, onNavigate, variant = "sidebar" }: Backli
             )}
           </button>
         ))}
+        {hiddenCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="focus-ring caption"
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "6px 8px",
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              color: "var(--text-quaternary)",
+              textAlign: "left",
+            }}
+          >
+            +{hiddenCount} more
+          </button>
+        )}
       </div>
     </div>
   );

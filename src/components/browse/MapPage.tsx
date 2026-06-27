@@ -101,22 +101,30 @@ export function MapPage() {
     >
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
         {loading && (
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--text-quaternary)",
-            }}
-          >
-            Building graph…
+          <div style={{ padding: 32 }}>
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="animate-shimmer"
+                style={{ height: 40, marginBottom: 4, borderRadius: 6, animationDelay: `${i * 0.12}s` }}
+              />
+            ))}
           </div>
         )}
         {!loading && error && (
-          <div style={{ flex: 1, maxWidth: 720, margin: "0 auto", padding: "16px 0", color: "var(--status-blocked)" }}>{error}</div>
+          <div style={{ padding: 32 }}>
+            <p className="caption-large" style={{ color: "var(--status-blocked)", marginBottom: 8 }}>
+              Couldn&#39;t load graph
+            </p>
+            <p className="small" style={{ color: "var(--text-tertiary)" }}>{error}</p>
+          </div>
         )}
-        {!loading && !error && graph && mode === "graph" && (
+        {!loading && !error && graph && graph.nodes.length === 0 && (
+          <p className="small" style={{ color: "var(--text-quaternary)", padding: 32, margin: 0 }}>
+            No notes found. Connect a vault to build the graph.
+          </p>
+        )}
+        {!loading && !error && graph && graph.nodes.length > 0 && mode === "graph" && (
           <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
             <GraphCanvas graph={graph} onOpen={sheet.open} visibleTags={visibleTags} />
             <GraphLegend
@@ -126,7 +134,7 @@ export function MapPage() {
             />
           </div>
         )}
-        {!loading && !error && graph && mode === "structure" && (
+        {!loading && !error && graph && graph.nodes.length > 0 && mode === "structure" && (
           <StructureColumns graph={graph} onOpen={sheet.open} />
         )}
       </div>

@@ -52,6 +52,8 @@ export function FileTree({
   height,
 }: Props) {
   const [roots, setRoots] = useState<NodeData[]>([]);
+  const [treeLoading, setTreeLoading] = useState(true);
+  const [treeError, setTreeError] = useState(false);
   const [filter, setFilter] = useState("");
   const [debouncedFilter, setDebouncedFilter] = useState("");
   const treeRef = useRef<TreeApi<NodeData> | null>(null);
@@ -59,9 +61,17 @@ export function FileTree({
 
   useEffect(() => {
     let alive = true;
-    fetchChildren(initialPath)
-      .then((kids) => { if (alive) setRoots(kids.map(toNode)); })
-      .catch(() => { if (alive) setRoots([]); });
+    void (async () => {
+      if (!alive) return;
+      setTreeLoading(true);
+      setTreeError(false);
+      try {
+        const kids = await fetchChildren(initialPath);
+        if (alive) { setRoots(kids.map(toNode)); setTreeLoading(false); }
+      } catch {
+        if (alive) { setRoots([]); setTreeError(true); setTreeLoading(false); }
+      }
+    })();
     return () => { alive = false; };
   }, [initialPath]);
 
@@ -120,23 +130,45 @@ export function FileTree({
           }}
         />
       </div>
+      {treeLoading && !isFiltered && (
+        <div style={{ padding: 8 }}>
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="animate-shimmer"
+              style={{ height: 24, marginBottom: 2, borderRadius: 4, animationDelay: `${i * 0.1}s` }}
+            />
+          ))}
+        </div>
+      )}
+      {!treeLoading && treeError && !isFiltered && (
+        <p className="small" style={{ color: "var(--status-blocked)", padding: "8px 6px", margin: 0 }}>
+          Couldn&#39;t load files.
+        </p>
+      )}
       {isFiltered ? (
         // Flat list from the whole-vault index — surfaces collapsed/unloaded files.
         // Note: /api/vault/index covers .md only (same as ⌘K palette), so the
         // filter surfaces markdown notes. Non-md files appear only in the lazy tree.
         <div style={{ overflowY: "auto", height: Math.max(0, height - 44) }}>
-          {flatMatches.map((f) => (
-            <FlatFileRow
-              key={f.path}
-              name={f.name}
-              isSelected={f.path === selectedFilePath}
-              onSelect={() => onSelectFile(f.path)}
-              onOpenFull={() => onOpenFull(f.path)}
-            />
-          ))}
+          {flatMatches.length === 0 ? (
+            <p className="small" style={{ color: "var(--text-quaternary)", padding: "8px 6px", margin: 0 }}>
+              No files match &ldquo;{debouncedFilter}&rdquo;.
+            </p>
+          ) : (
+            flatMatches.map((f) => (
+              <FlatFileRow
+                key={f.path}
+                name={f.name}
+                isSelected={f.path === selectedFilePath}
+                onSelect={() => onSelectFile(f.path)}
+                onOpenFull={() => onOpenFull(f.path)}
+              />
+            ))
+          )}
         </div>
       ) : (
-        <Tree<NodeData>
+        !treeLoading && !treeError && <Tree<NodeData>
           ref={treeRef as React.RefObject<TreeApi<NodeData>>}
           data={roots}
           openByDefault={false}

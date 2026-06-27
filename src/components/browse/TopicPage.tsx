@@ -29,17 +29,21 @@ export function TopicPage({ name }: { name: string }) {
   const [data, setData] = useState<TopicOverviewData | null>(null);
   const [view, setView] = useState<ViewModel | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setError(null);
       try {
         const { view, data } = await fetchTopic(name);
         if (!cancelled) {
           setView(view);
           setData(data);
         }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load topic");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -71,8 +75,31 @@ export function TopicPage({ name }: { name: string }) {
       }
     >
       <div style={{ padding: "24px 32px 80px" }}>
-        {loading && <p className="small" style={{ color: "var(--text-quaternary)" }}>Loading…</p>}
-        {!loading && data && (
+        {loading && (
+          <div>
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="animate-shimmer"
+                style={{ height: 40, marginBottom: 4, borderRadius: 6, animationDelay: `${i * 0.12}s` }}
+              />
+            ))}
+          </div>
+        )}
+        {!loading && error && (
+          <div>
+            <p className="caption-large" style={{ color: "var(--status-blocked)", marginBottom: 8 }}>
+              Couldn&#39;t load topic
+            </p>
+            <p className="small" style={{ color: "var(--text-tertiary)" }}>{error}</p>
+          </div>
+        )}
+        {!loading && !error && !data && (
+          <p className="small" style={{ color: "var(--text-quaternary)", margin: 0 }}>
+            No data found for &ldquo;{name}&rdquo;.
+          </p>
+        )}
+        {!loading && !error && data && (
           <>
             {data.currentState && (
               <section style={{ marginBottom: 32 }}>

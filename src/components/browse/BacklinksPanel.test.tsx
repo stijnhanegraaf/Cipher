@@ -39,20 +39,18 @@ describe("BacklinksPanel", () => {
     expect(screen.getByText("See the project plan here")).toBeInTheDocument();
   });
 
-  it("renders nothing when backlinks is empty", async () => {
+  it("renders empty state when backlinks is confirmed empty by API", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ backlinks: [] }),
     } as Response);
 
-    const { container } = render(
-      <BacklinksPanel path="notes/target.md" onNavigate={vi.fn()} />
-    );
+    render(<BacklinksPanel path="notes/target.md" onNavigate={vi.fn()} />);
 
     await waitFor(() => {
-      // Nothing rendered — container should be empty
-      expect(container).toBeEmptyDOMElement();
+      expect(screen.getByText("No linked mentions yet.")).toBeInTheDocument();
     });
+    expect(screen.getByText("LINKED MENTIONS")).toBeInTheDocument();
   });
 
   it("renders nothing on non-200 response", async () => {

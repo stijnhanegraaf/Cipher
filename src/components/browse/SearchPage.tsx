@@ -46,18 +46,23 @@ export function SearchPage() {
   const [data, setData] = useState<SearchResultsData | null>(null);
   const [source, setSource] = useState<SearchSource>("");
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setFetchError(false);
       setSource(""); // clear prior source so the degrade notice can't flicker mid-fetch
       try {
         const payload = await fetchSearch(q, mode);
         if (!cancelled) {
           setData(payload?.data ?? null);
           setSource(payload?.source ?? "keyword-only");
+          if (q && payload === null) setFetchError(true);
         }
+      } catch {
+        if (!cancelled) setFetchError(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -136,13 +141,28 @@ export function SearchPage() {
         </p>
       )}
 
-      {loading && <div style={{ padding: 32, color: "var(--text-quaternary)" }}>Searching…</div>}
+      {loading && (
+        <div style={{ padding: 32 }}>
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="animate-shimmer"
+              style={{ height: 40, marginBottom: 4, borderRadius: 6, animationDelay: `${i * 0.12}s` }}
+            />
+          ))}
+        </div>
+      )}
       {!loading && !q && (
         <p className="small" style={{ color: "var(--text-quaternary)", padding: 32 }}>
           No query. Add <code>?q=…</code> to the URL or use ⌘K.
         </p>
       )}
-      {!loading && q && data && grouped.length === 0 && (
+      {!loading && q && fetchError && (
+        <p className="small" style={{ color: "var(--status-blocked)", padding: 32 }}>
+          Search failed. Check your connection and try again.
+        </p>
+      )}
+      {!loading && q && !fetchError && data && grouped.length === 0 && (
         <p className="small" style={{ color: "var(--text-quaternary)", padding: 32 }}>
           No matches for &quot;{q}&quot;.
         </p>

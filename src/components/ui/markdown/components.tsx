@@ -156,11 +156,14 @@ function WikiLink({
     };
   }, [raw]);
 
+  // resolvedPath === undefined means resolution is still in flight.
+  const isResolving = resolvedPath === undefined;
   const isBrokenAnchor =
     anchorInfo !== null && anchorInfo.kind !== "none" && !anchorInfo.valid;
 
   function handleClick(e: React.MouseEvent) {
     e.preventDefault();
+    if (isResolving) return; // wait for resolution before navigating
     const { target } = parseWikiTarget(raw);
     const dest = resolvedPath ?? target;
 
@@ -182,7 +185,9 @@ function WikiLink({
     <a
       href="#"
       onClick={handleClick}
-      className={`md-link focus-ring${isBrokenAnchor ? " md-link--broken-anchor" : ""}`}
+      aria-busy={isResolving}
+      className={`md-link focus-ring${isBrokenAnchor ? " md-link--broken-anchor" : ""}${isResolving ? " md-link--resolving" : ""}`}
+      style={isResolving ? { opacity: 0.6, cursor: "wait" } : undefined}
     >
       {wikiLinkIcon}
       {children}

@@ -42,15 +42,43 @@ type StreamEvent =
   | { type: "done" }
   | { type: "error"; code: string; message: string };
 
+interface LlmHealth {
+  ok: boolean;
+  needsKey: boolean;
+  providerLabel: string;
+}
+
 export function ChatInterface() {
   const [turns, setTurns] = useState<QATurn[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [model, setModel] = useState<string>(DEFAULT_MODEL);
+  const [llmHealth, setLlmHealth] = useState<LlmHealth | null>(null);
   const composerRef = useRef<ComposerHandle>(null);
   const searchParams = useSearchParams();
   const autoFiredRef = useRef(false);
   const turnsRef = useRef<QATurn[]>(turns);
   useEffect(() => { turnsRef.current = turns; }, [turns]);
+
+  // ── LLM health check for the empty-state banner. ────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/chat/health")
+      .then(async (res) => {
+        if (cancelled || !res.ok) return;
+        const data = (await res.json()) as { ok: boolean; needsKey?: boolean; providerLabel?: string };
+        if (!cancelled) {
+          setLlmHealth({
+            ok: !!data.ok,
+            needsKey: !!data.needsKey,
+            providerLabel: data.providerLabel ?? "LLM",
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLlmHealth({ ok: false, needsKey: false, providerLabel: "LLM" });
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     try {
@@ -237,7 +265,30 @@ export function ChatInterface() {
       }
     >
       {turns.length === 0 ? (
-        <ChatEmptyState onSubmit={submit} />
+        <ChatEmptyState
+          onSubmit={submit}
+          banner={
+            llmHealth !== null && (!llmHealth.ok || llmHealth.needsKey) ? (
+              <div
+                className="caption"
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  background: "color-mix(in srgb, var(--status-warning) 8%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--status-warning) 30%, transparent)",
+                  color: "var(--text-secondary)",
+                  maxWidth: 560,
+                  width: "100%",
+                  textAlign: "center",
+                }}
+              >
+                {llmHealth.needsKey
+                  ? `${llmHealth.providerLabel} requires an API key — configure it in Settings.`
+                  : `${llmHealth.providerLabel} is unreachable. Check your connection or configure a provider in Settings.`}
+              </div>
+            ) : undefined
+          }
+        />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
           <div style={{ flex: 1, overflowY: "auto" }}>
