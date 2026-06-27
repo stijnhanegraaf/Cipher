@@ -47,20 +47,32 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const sheet = useSheet();
 
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [connectOpen, setConnectOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const dismissed = sessionStorage.getItem("cipher-vault-nudge-dismissed");
-    return !dismissed;
-  });
-  const [recentQueries, setRecentQueries] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
+  // NOTE: both of these start with SSR-safe defaults (closed / empty) and are
+  // hydrated from storage in a post-mount effect below. Reading sessionStorage/
+  // localStorage in a useState initializer makes the first client render differ
+  // from the server render → hydration mismatch. Defer it to after mount.
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [recentQueries, setRecentQueries] = useState<string[]>([]);
+
+  // Hydrate client-only state once, after mount (server/client first render agree).
+  useEffect(() => {
     try {
       const stored = localStorage.getItem("cipher-recent");
-      return stored ? (JSON.parse(stored) as string[]) : [];
-    } catch {
-      return [];
-    }
-  });
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- post-mount hydration from localStorage (the SSR-safe alternative to a client-only useState initializer)
+      if (stored) setRecentQueries(JSON.parse(stored) as string[]);
+    } catch { /* ignore */ }
+  }, []);
+
+  // Auto-open the connect nudge once no vault is connected and it hasn't been
+  // dismissed this session. Runs post-mount (not in render) so it can't cause a
+  // hydration mismatch. Closing sets the dismissed flag, so it won't reopen.
+  useEffect(() => {
+    if (vault.loading || vault.connected) return;
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot post-mount nudge gated on session-storage + vault state; not a render loop
+      if (!sessionStorage.getItem("cipher-vault-nudge-dismissed")) setConnectOpen(true);
+    } catch { /* ignore */ }
+  }, [vault.loading, vault.connected]);
 
   // Close connect dialog when vault connects after mount.
   useEffect(() => {
