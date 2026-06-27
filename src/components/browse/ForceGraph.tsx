@@ -300,12 +300,19 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
     [fgData]
   );
 
-  // Configure custom d3 forces after the graph component has mounted.
-  // setTimeout(0) defers one macrotask so the dynamic-import ref is guaranteed set.
+  // Configure custom d3 forces once the graph instance is available. The
+  // component is dynamically imported, so fgRef may be null for the first few
+  // frames — poll via rAF until it's set (capped) instead of a single
+  // setTimeout(0), which could miss a slow import and leave nodes overlapping.
   useEffect(() => {
-    const id = setTimeout(() => {
+    let raf = 0;
+    let tries = 0;
+    const apply = () => {
       const fg = fgRef.current;
-      if (!fg) return;
+      if (!fg) {
+        if (tries++ < 60) raf = requestAnimationFrame(apply);
+        return;
+      }
       // Stronger repulsion for an airy constellation spread.
       fg.d3Force("charge")?.strength(-120);
       // Prevent node overlap — radius matches the visual radius + 2px clearance.
@@ -313,8 +320,9 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
         "collide",
         forceCollide<FGNode>((node) => nodeRadius(node.degree) + 2)
       );
-    }, 0);
-    return () => clearTimeout(id);
+    };
+    raf = requestAnimationFrame(apply);
+    return () => cancelAnimationFrame(raf);
   }, [runtimeData]);
 
   // ─── Canvas paint callbacks ─────────────────────────────────────────────────

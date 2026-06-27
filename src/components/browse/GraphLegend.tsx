@@ -15,7 +15,7 @@
  */
 
 import type React from "react";
-import { tagColor } from "@/lib/color/tag-color";
+import { tagColor, statusTagColor } from "@/lib/color/tag-color";
 
 export interface TagCount {
   tag: string;   // normalized tag string, or "" for untagged
@@ -121,7 +121,8 @@ export function GraphLegend({ tags, visibleTags, onToggle, rainbow = false, onRa
       )}
 
       {tags.map(({ tag, count }) => {
-        const token = tagColor(tag);
+        // Match the canvas: mono + status hues by default, full rainbow when toggled.
+        const token = rainbow ? tagColor(tag) : statusTagColor(tag);
         const label = tag || "untagged";
         const isSelected = hasFilter ? visibleTags.has(tag) : false;
 
