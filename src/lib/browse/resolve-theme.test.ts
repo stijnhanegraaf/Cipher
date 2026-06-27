@@ -14,10 +14,14 @@ describe("resolveTheme", () => {
   it("stored null → follows OS light", () => {
     expect(resolveTheme(null, false)).toBe("light");
   });
-  it("stored unknown string → follows OS dark", () => {
+  it("stored 'system' → follows OS dark (OS-follow value)", () => {
     expect(resolveTheme("system", true)).toBe("dark");
   });
-  it("stored unknown string → follows OS light", () => {
+  it("stored 'system' → follows OS light (OS-follow value)", () => {
     expect(resolveTheme("system", false)).toBe("light");
+  });
+  it("stored 'system' behaves identically to null", () => {
+    expect(resolveTheme("system", true)).toBe(resolveTheme(null, true));
+    expect(resolveTheme("system", false)).toBe(resolveTheme(null, false));
   });
 });

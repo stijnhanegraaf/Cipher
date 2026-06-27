@@ -14,6 +14,7 @@ import { useSidebarPins } from "@/lib/hooks/useSidebarPins";
 import { PinIcon } from "@/components/ui/PinIcon";
 import { PinDialog } from "@/components/sidebar/PinDialog";
 import type { PinEntry } from "@/lib/settings";
+import type { ThemeChoice } from "@/lib/browse/theme";
 
 /**
  * Sidebar — persistent 240px left rail.
@@ -32,8 +33,10 @@ export interface SidebarProps {
   onBrowse: () => void;
   /** Opens the command palette (e.g. scoped to "change vault"). */
   onPalette: () => void;
-  /** Toggles the theme. */
+  /** Cycles the theme (System → Light → Dark → System). */
   onToggleTheme: () => void;
+  /** Current active theme preference — drives the toggle button label/icon. */
+  themePref: ThemeChoice;
   /** Current view type, used to mark the matching nav item as active. */
   activeKind?: string | null;
   /** Recent queries from localStorage. */
@@ -57,7 +60,7 @@ interface NavItem {
   activeWhen?: () => boolean;
 }
 
-export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, activeKind, recentQueries = [], onRemoveRecent, onOpenPin }: SidebarProps) {
+export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, themePref, activeKind, recentQueries = [], onRemoveRecent, onOpenPin }: SidebarProps) {
   const vault = useVault();
   const router = useRouter();
   const pathname = usePathname();
@@ -456,8 +459,8 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           <button
             type="button"
             onClick={onToggleTheme}
-            aria-label="Toggle appearance"
-            title="Toggle appearance"
+            aria-label={`Appearance: ${themePref === "light" ? "Light" : themePref === "dark" ? "Dark" : "System"} — click to cycle`}
+            title={`Appearance: ${themePref === "light" ? "Light" : themePref === "dark" ? "Dark" : "System"}`}
             className="focus-ring flex items-center"
             style={{
               gap: 10,
@@ -478,11 +481,26 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
             onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-quaternary)"; }}
           >
             <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14 }}>
-              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20.354 15.354A9 9 0 018.646 3.646 9 9 0 0012 21a9 9 0 008.354-5.646z" />
-              </svg>
+              {themePref === "light" ? (
+                /* Sun icon — Light mode */
+                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                </svg>
+              ) : themePref === "dark" ? (
+                /* Moon icon — Dark mode */
+                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.354 15.354A9 9 0 018.646 3.646 9 9 0 0012 21a9 9 0 008.354-5.646z" />
+                </svg>
+              ) : (
+                /* Monitor icon — System (OS-follow) */
+                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2" />
+                  <path d="M8 21h8M12 17v4" />
+                </svg>
+              )}
             </span>
-            Appearance
+            {themePref === "light" ? "Light" : themePref === "dark" ? "Dark" : "System"}
           </button>
           <a
             href="https://github.com/stijnhanegraaf"

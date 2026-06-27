@@ -5,6 +5,8 @@
  *   2. The theme-toggle component (window.__setThemeColor)
  *
  * @param stored  Value from localStorage.getItem('brain-theme'), or null.
+ *                Pass `"system"` to explicitly request OS-follow behaviour
+ *                (treated identically to null — both resolve via osDark).
  * @param osDark  Whether prefers-color-scheme: dark is active.
  */
 export function resolveTheme(

@@ -18,6 +18,14 @@ import { useSheet } from "@/lib/hooks/useSheet";
 import { useVault } from "@/lib/hooks/useVault";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
 import { formatDailyDate } from "@/lib/daily-note";
+import {
+  type ThemeChoice,
+  readTheme,
+  resolveTheme as resolveThemeChoice,
+  applyTheme,
+  writeTheme,
+  watchSystemTheme,
+} from "@/lib/browse/theme";
 
 /**
  * AppShell — persistent chrome shared by every route.
@@ -47,12 +55,14 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const sheet = useSheet();
 
   const [paletteOpen, setPaletteOpen] = useState(false);
-  // NOTE: both of these start with SSR-safe defaults (closed / empty) and are
+  // NOTE: these start with SSR-safe defaults (closed / empty / system) and are
   // hydrated from storage in a post-mount effect below. Reading sessionStorage/
   // localStorage in a useState initializer makes the first client render differ
   // from the server render → hydration mismatch. Defer it to after mount.
   const [connectOpen, setConnectOpen] = useState(false);
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
+  // "system" is the SSR-safe default — matches the bootstrap no-key case.
+  const [themePref, setThemePref] = useState<ThemeChoice>("system");
 
   // Hydrate client-only state once, after mount (server/client first render agree).
   useEffect(() => {
@@ -61,6 +71,23 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- post-mount hydration from localStorage (the SSR-safe alternative to a client-only useState initializer)
       if (stored) setRecentQueries(JSON.parse(stored) as string[]);
     } catch { /* ignore */ }
+  }, []);
+
+  // Hydrate theme preference from localStorage post-mount.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- post-mount hydration of theme pref from localStorage (SSR-safe; default "system" avoids hydration mismatch)
+    setThemePref(readTheme());
+  }, []);
+
+  // Live OS-follow: when prefers-color-scheme changes and pref is "system" (or
+  // absent), re-resolve and apply the theme via direct DOM writes (no setState).
+  useEffect(() => {
+    return watchSystemTheme(() => {
+      const current = readTheme();
+      if (current !== "system") return; // manual light/dark override — no-op
+      applyTheme("system");
+      window.__setThemeColor?.(resolveThemeChoice("system"));
+    });
   }, []);
 
   // Auto-open the connect nudge once no vault is connected and it hasn't been
@@ -116,21 +143,15 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     },
   ]);
 
-  // ── Theme toggle (used by sidebar + palette). ──────────────────────
-  const handleToggleTheme = useCallback(() => {
-    const html = document.documentElement;
-    const isLight = html.classList.contains("light");
-    const next = isLight ? "dark" : "light";
-    if (next === "dark") {
-      html.classList.remove("light");
-      html.classList.add("dark");
-    } else {
-      html.classList.add("light");
-      html.classList.remove("dark");
-    }
-    localStorage.setItem("brain-theme", next);
-    // Sync meta theme-color to the RESOLVED theme (not just OS).
-    window.__setThemeColor?.(next);
+  // ── Theme toggle: 3-state cycle System → Light → Dark → System. ───
+  const handleCycleTheme = useCallback(() => {
+    const current = readTheme();
+    const next: ThemeChoice =
+      current === "system" ? "light" :
+      current === "light"  ? "dark"  : "system";
+    writeTheme(next); // applies DOM (.light class + data-theme) + updates localStorage
+    window.__setThemeColor?.(resolveThemeChoice(next)); // sync meta theme-color
+    setThemePref(next);
   }, []);
 
   // ── Sidebar handlers. ──────────────────────────────────────────────
@@ -159,7 +180,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       { id: "nav-system", group: "Navigation", label: "System", icon: navIcon, run: () => router.push("/browse/system") },
       { id: "nav-timeline", group: "Navigation", label: "Timeline", icon: navIcon, run: () => router.push("/browse/timeline") },
       { id: "nav-audits", group: "Navigation", label: "Audits", icon: navIcon, run: () => router.push("/browse/audit") },
-      { id: "action-theme", group: "Actions", label: "Toggle theme", run: handleToggleTheme },
+      { id: "action-theme", group: "Actions", label: `Appearance: ${themePref === "light" ? "Light" : themePref === "dark" ? "Dark" : "System"}`, run: handleCycleTheme },
       {
         id: "action-connect-vault",
         group: "Actions",
@@ -205,7 +226,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         },
       },
     ];
-  }, [router, handleToggleTheme, vault, setConnectOpen]);
+  }, [router, handleCycleTheme, vault, setConnectOpen, themePref]);
 
   // Active-state hint for sidebar — route-driven only, no view kind.
   const activeKind = null;
@@ -219,7 +240,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           onHome={handleHome}
           onBrowse={() => router.push("/files")}
           onPalette={() => setPaletteOpen(true)}
-          onToggleTheme={handleToggleTheme}
+          onToggleTheme={handleCycleTheme}
+          themePref={themePref}
           activeKind={activeKind}
           recentQueries={recentQueries}
           onRemoveRecent={handleRemoveRecent}

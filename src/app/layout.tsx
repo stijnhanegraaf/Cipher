@@ -60,6 +60,7 @@ export default function RootLayout({
                 try {
                   var v = localStorage.getItem('brain-theme');
                   var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  // 'system' (or null/absent) falls through to the OS branch — "system" is the OS-follow value.
                   var resolved = v === 'light' ? 'light' : v === 'dark' ? 'dark' : (dark ? 'dark' : 'light');
                   if (resolved === 'light') document.documentElement.classList.add('light');
                   document.documentElement.setAttribute('data-theme', resolved);
