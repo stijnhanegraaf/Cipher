@@ -230,7 +230,7 @@
      ──────────────────────────────────────────── */
   --hue-tag:        var(--accent-violet);     /* generic tags        */
   --hue-note:       var(--accent-brand);      /* note / doc kind     */
-  --hue-idea:       oklch(72.3% 0.124 83);    /* idea / amber kind — #d9a441 in oklch; no .light override: amber at chip-text-mix 72% toward dark primary reads well on light surfaces */
+  --hue-idea:       oklch(75.066% 0.1295 79.85);    /* idea / amber kind — exact oklch of #d9a441; no .light override: amber at chip-text-mix 72% toward dark primary reads well on light surfaces */
   --hue-question:   var(--status-open);       /* question (blue)     */
   --hue-warning:    var(--status-warning);    /* warning kind        */
   --hue-success:    var(--success);           /* done / positive     */

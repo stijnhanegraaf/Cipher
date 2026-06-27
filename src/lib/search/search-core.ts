@@ -290,17 +290,24 @@ export async function collectVaultFiles(
 
   const filtered = restrictTo ? rels.filter((r) => restrictTo.has(r)) : rels;
 
-  const results = await Promise.all(
-    filtered.map(async (rel) => {
-      try {
-        const f = await readVaultFile(rel);
-        if (!f) return null;
-        return toScorable(f);
-      } catch {
-        return null; // Skip unreadable files; never throw.
-      }
-    }),
-  );
+  // Read in bounded batches so a very large vault can't spike scheduling/memory
+  // pressure. readVaultFile is mtime-cached, so warm repeats stay cheap. Order
+  // is preserved; unreadable files are skipped (never throw).
+  const BATCH = 48;
+  const out: ScorableFile[] = [];
+  for (let i = 0; i < filtered.length; i += BATCH) {
+    const batch = await Promise.all(
+      filtered.slice(i, i + BATCH).map(async (rel) => {
+        try {
+          const f = await readVaultFile(rel);
+          return f ? toScorable(f) : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    for (const f of batch) if (f) out.push(f);
+  }
 
-  return results.filter((f): f is ScorableFile => f !== null);
+  return out;
 }

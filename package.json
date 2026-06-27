@@ -34,7 +34,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint && stylelint 'src/**/*.css'",
     "lint:css": "stylelint 'src/**/*.css'",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
