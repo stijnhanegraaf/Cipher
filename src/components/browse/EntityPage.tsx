@@ -35,6 +35,7 @@ export function EntityPage({ name }: { name: string }) {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setError(null); // clear any prior error so a successful re-fetch isn't blocked
       try {
         const { view, data } = await fetchEntity(name);
         if (!cancelled) {

@@ -62,7 +62,7 @@ export function SearchPage() {
           if (q && payload === null) setFetchError(true);
         }
       } catch {
-        if (!cancelled) setFetchError(true);
+        if (!cancelled) { setData(null); setFetchError(true); } // drop stale results on network failure
       } finally {
         if (!cancelled) setLoading(false);
       }
