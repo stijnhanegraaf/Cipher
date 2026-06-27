@@ -5,14 +5,14 @@
  *   1. detectIntent(query)
  *        if matched → emit { type:"envelope", envelope } → { type:"done" } → return.
  *   2. Otherwise LLM path:
- *        a. retrieve(query) — loads the on-disk index; does NOT trigger a rebuild.
- *           If the index is missing/empty, emits { type:"error", code:"needs-indexing" }
- *           and tells the user to run "Index vault" from the model picker.
- *        b. retrieve(query) → top 8 chunks.
- *        c. buildPrompt(...) → messages.
- *        d. provider.streamChat() → { type:"token", text } per delta.
- *        e. On stream close → parse [^N] citations → emit one per unique id.
- *        f. Emit { type:"done" }.
+ *        a. retrieve(query) — loads the on-disk index (does NOT rebuild) → top
+ *           chunks. If the index is missing/empty, emits
+ *           { type:"error", code:"needs-indexing" } telling the user to run
+ *           "Index vault" from the model picker.
+ *        b. buildPrompt(...) → messages.
+ *        c. provider.streamChat() → { type:"token", text } per delta.
+ *        d. On stream close → parse [^N] citations → emit one per unique id.
+ *        e. Emit { type:"done" }.
  *
  * Errors: ollama-down | model-missing | empty-vault | needs-indexing | unknown.
  * Each error ends the stream with { type:"error", ... } then { type:"done" }.
@@ -44,7 +44,6 @@ interface ChatRequest {
 
 type ChatEvent =
   | { type: "envelope"; envelope: ResponseEnvelope }
-  | { type: "index-progress"; done: number; total: number }
   | { type: "token"; text: string }
   | { type: "citation"; id: number; path: string; heading?: string; snippet: string }
   | { type: "done" }
