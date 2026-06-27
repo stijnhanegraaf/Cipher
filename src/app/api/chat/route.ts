@@ -24,7 +24,7 @@ import { detectIntent } from "@/lib/intent-detector";
 import { buildView } from "@/lib/view-builder";
 import type { ResponseEnvelope } from "@/lib/view-models";
 import { retrieve } from "@/lib/chat/retrieval";
-import { buildPrompt, parseCitations, type ChatHistoryTurn } from "@/lib/chat/prompt";
+import { buildPrompt, buildVaultStructureSummary, parseCitations, type ChatHistoryTurn } from "@/lib/chat/prompt";
 import {
   getActiveProvider,
   ProviderDownError,
@@ -120,7 +120,8 @@ export async function POST(req: Request) {
         }
         const { chunks } = result;
 
-        const messages = buildPrompt({ query, history, chunks });
+        const vaultSummary = await buildVaultStructureSummary().catch(() => "");
+        const messages = buildPrompt({ query, history, chunks, vaultSummary });
         const { provider } = await getActiveProvider();
         const collected: string[] = [];
         for await (const delta of provider.streamChat(model, messages)) {

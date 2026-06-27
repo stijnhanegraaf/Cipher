@@ -17,6 +17,10 @@ import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 vi.mock("@/lib/vault-reader", () => ({
   getVaultPath: vi.fn(),
 }));
+// extractTags is pure but imports buildFenceMask; stub it out to keep tests fast
+vi.mock("@/lib/markdown/tags", () => ({
+  extractTags: vi.fn().mockReturnValue([]),
+}));
 vi.mock("@/lib/fs/walk", () => ({
   walkFiles: vi.fn(),
 }));
@@ -34,15 +38,16 @@ vi.mock("fs/promises", async (importOriginal) => {
 vi.mock("@/lib/log", () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
-// stripFrontmatter is a pure function — use real implementation via the module
+// stripFrontmatter / parseFrontmatter are pure functions — use lightweight stubs
 vi.mock("@/lib/markdown/frontmatter", () => ({
   stripFrontmatter: (raw: string) => raw,
+  parseFrontmatter: (raw: string) => ({ frontmatter: {}, content: raw }),
 }));
 
 import { readFile, writeFile, rename, mkdir, stat } from "fs/promises";
 import { walkFiles } from "@/lib/fs/walk";
 import { getVaultPath } from "@/lib/vault-reader";
-import { ensureIndex, embedConcurrent, type PendingChunk, type EmbeddingIndex } from "./embeddings";
+import { ensureIndex, embedConcurrent, composeEmbedText, type PendingChunk, type EmbeddingIndex } from "./embeddings";
 import type { Embedder } from "./providers/embeddings";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -67,9 +72,11 @@ function makeEmbedder(overrides?: Partial<Embedder>): Embedder {
 
 /**
  * Build a minimal EmbeddingIndex JSON string for mocking the on-disk index.
+ * Uses version 2 (structure-aware) by default so compatibility checks pass.
  */
 function makeIndexJson(chunks: EmbeddingIndex["chunks"], builtAt = 1000): string {
   const index: EmbeddingIndex = {
+    version: 2,
     embedder: "ollama-local",
     model: "nomic-embed-text",
     dim: 2,
@@ -173,6 +180,7 @@ describe("ensureIndex — incremental rebuild", () => {
       { id: "a.md#section", path: "a.md", text: "text a", vec: [1, 0], mtime: 500 },
     ];
     const indexWithDifferentModel = JSON.stringify({
+      version: 2,
       embedder: "ollama-local",
       model: "different-model", // mismatch
       dim: 2,
@@ -346,5 +354,64 @@ describe("embedConcurrent — partial saves", () => {
 
     // Only b.md needs re-embedding; a.md is reused from the partial save.
     expect(embedder.embed).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── Section 4: composeEmbedText ──────────────────────────────────────────────
+
+describe("composeEmbedText", () => {
+  it("includes title, heading, path, and body in output", () => {
+    const result = composeEmbedText({
+      title: "My Note",
+      heading: "Introduction",
+      path: "projects/my-note.md",
+      body: "This is the body content.",
+    });
+    expect(result).toContain("My Note");
+    expect(result).toContain("Introduction");
+    expect(result).toContain("projects/my-note.md");
+    expect(result).toContain("This is the body content.");
+  });
+
+  it("omits heading content when heading is undefined (empty string in slot)", () => {
+    const result = composeEmbedText({
+      title: "Untitled",
+      heading: undefined,
+      path: "notes/untitled.md",
+      body: "Body text.",
+    });
+    expect(result).toContain("Untitled");
+    expect(result).toContain("notes/untitled.md");
+    expect(result).toContain("Body text.");
+    // The heading slot is present but empty — four lines total
+    const lines = result.split("\n");
+    expect(lines).toHaveLength(4);
+    expect(lines[1]).toBe(""); // heading slot is empty
+  });
+
+  it("preserves the exact order: title / heading / path / body", () => {
+    const result = composeEmbedText({
+      title: "T",
+      heading: "H",
+      path: "P",
+      body: "B",
+    });
+    expect(result).toBe("T\nH\nP\nB");
+  });
+
+  it("embedConcurrent passes structured text to the embedder (not body-only)", async () => {
+    const pending: PendingChunk[] = [
+      { path: "wiki/foo.md", heading: "Details", text: "body content", mtime: 0, title: "Foo" },
+    ];
+    const embedSpy = vi.fn().mockResolvedValue([1, 0]);
+    const embedder: Embedder = { id: "ollama-local", model: "nomic-embed-text", dim: 2, embed: embedSpy };
+    await embedConcurrent(pending, embedder);
+    // The embed call should receive the composed text, not just body content
+    expect(embedSpy).toHaveBeenCalledTimes(1);
+    const calledWith: string = embedSpy.mock.calls[0][0] as string;
+    expect(calledWith).toContain("Foo");           // title
+    expect(calledWith).toContain("Details");        // heading
+    expect(calledWith).toContain("wiki/foo.md");    // path
+    expect(calledWith).toContain("body content");   // body
   });
 });

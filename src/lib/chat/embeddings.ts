@@ -18,8 +18,15 @@ import { join, dirname } from "path";
 import { getVaultPath } from "@/lib/vault-reader";
 import type { Embedder, EmbedderId } from "./providers/embeddings";
 import { log } from "@/lib/log";
-import { stripFrontmatter } from "@/lib/markdown/frontmatter";
+import { stripFrontmatter, parseFrontmatter } from "@/lib/markdown/frontmatter";
+import { extractTags } from "@/lib/markdown/tags";
 import { walkFiles } from "@/lib/fs/walk";
+
+// ─── Index version ───────────────────────────────────────────────────────────
+// Bump this constant whenever the embedding strategy changes (e.g. switching
+// from body-only to structure-aware title+heading+path+body). On mismatch the
+// existing index is treated as incompatible and rebuilt from scratch.
+export const INDEX_VERSION = 2;
 
 export interface IndexChunk {
   id: string;          // `${path}#${headingSlug || windowIndex}`
@@ -28,9 +35,19 @@ export interface IndexChunk {
   text: string;
   vec: number[];
   mtime: number;
+  /** Basename or frontmatter title — carried from index build time. */
+  title?: string;
+  /** Normalized tags extracted from frontmatter + body at index build time. */
+  tags?: string[];
 }
 
 export interface EmbeddingIndex {
+  /**
+   * Embedding strategy version. Absent / 1 = body-only (legacy).
+   * 2 = structure-aware (title + heading + path + body). On mismatch
+   * the index is rebuilt so vectors stay consistent.
+   */
+  version?: number;
   embedder: EmbedderId;
   model: string;
   dim: number;
@@ -44,8 +61,34 @@ export type IndexProgress = (done: number, total: number) => void;
 export interface PendingChunk {
   path: string;
   heading?: string;
+  /** Body-only text — stored in IndexChunk.text for display / snippets. */
   text: string;
   mtime: number;
+  /** Basename or frontmatter title — stored in IndexChunk.title. */
+  title?: string;
+  /** Normalized tags — stored in IndexChunk.tags. */
+  tags?: string[];
+}
+
+// ─── Structure-aware embed text ──────────────────────────────────────────────
+
+/**
+ * Compose the text that gets passed to the embedding model.
+ *
+ * Includes title, heading, path, and body so that semantic search can match
+ * on any of these dimensions — not just body content. Heading is omitted
+ * (empty string) for whole-file chunks without a specific section heading.
+ *
+ * The stored `IndexChunk.text` stays body-only for display / snippet use;
+ * only the embedding vector reflects the composed text.
+ */
+export function composeEmbedText(args: {
+  title: string;
+  heading?: string;
+  path: string;
+  body: string;
+}): string {
+  return `${args.title}\n${args.heading ?? ""}\n${args.path}\n${args.body}`;
 }
 
 // ─── Public entry points ─────────────────────────────────────────────
@@ -75,7 +118,8 @@ export async function ensureIndex(embedder: Embedder, onProgress?: IndexProgress
     existing !== null &&
     existing.embedder === embedder.id &&
     existing.model === embedder.model &&
-    existing.dim === embedder.dim;
+    existing.dim === embedder.dim &&
+    (existing.version ?? 1) === INDEX_VERSION;
 
   // Build path → chunks map for incremental reuse (only when compatible).
   const existingByPath = new Map<string, IndexChunk[]>();
@@ -108,6 +152,7 @@ export async function ensureIndex(embedder: Embedder, onProgress?: IndexProgress
     }
     // Some files were deleted; persist the cleaned-up index.
     const cleaned: EmbeddingIndex = {
+      version: INDEX_VERSION,
       embedder: embedder.id,
       model: embedder.model,
       dim: embedder.dim,
@@ -129,8 +174,13 @@ export async function ensureIndex(embedder: Embedder, onProgress?: IndexProgress
   for (const f of pendingFiles) {
     const raw = await readFile(join(vault, f.path), "utf-8").catch(() => "");
     if (!raw) continue;
+    // Derive title: frontmatter `title` field → basename without extension.
+    const { frontmatter } = parseFrontmatter(raw);
+    const basename = f.path.split("/").pop()?.replace(/\.md$/i, "") ?? f.path;
+    const title = (typeof frontmatter.title === "string" && frontmatter.title.trim()) || basename;
+    const tags = extractTags(raw, frontmatter);
     for (const c of chunkMarkdown(raw)) {
-      pending.push({ path: f.path, heading: c.heading, text: c.text, mtime: f.mtime });
+      pending.push({ path: f.path, heading: c.heading, text: c.text, mtime: f.mtime, title, tags });
     }
   }
 
@@ -144,6 +194,7 @@ export async function ensureIndex(embedder: Embedder, onProgress?: IndexProgress
     },
     onPartial: async (partialNew) => {
       const partial: EmbeddingIndex = {
+        version: INDEX_VERSION,
         embedder: embedder.id,
         model: embedder.model,
         dim: embedder.dim,
@@ -157,6 +208,7 @@ export async function ensureIndex(embedder: Embedder, onProgress?: IndexProgress
   onProgress?.(grandTotal, grandTotal);
 
   const index: EmbeddingIndex = {
+    version: INDEX_VERSION,
     embedder: embedder.id,
     model: embedder.model,
     dim: embedder.dim,
@@ -203,7 +255,13 @@ export async function embedConcurrent(
 
       const p = pending[idx];
       try {
-        const vec = await embedder.embed(p.text);
+        const composed = composeEmbedText({
+          title: p.title ?? (p.path.split("/").pop()?.replace(/\.md$/i, "") ?? p.path),
+          heading: p.heading,
+          path: p.path,
+          body: p.text,
+        });
+        const vec = await embedder.embed(composed);
         results[idx] = {
           id: `${p.path}#${slugify(p.heading ?? `w${idx}`)}`,
           path: p.path,
@@ -211,6 +269,8 @@ export async function embedConcurrent(
           text: p.text,
           vec,
           mtime: p.mtime,
+          title: p.title,
+          tags: p.tags,
         };
       } catch (err) {
         log.warn("chat/embed", `embed failed for ${p.path}#${p.heading ?? idx}`, err);
@@ -352,7 +412,9 @@ async function loadIndex(indexPath: string): Promise<EmbeddingIndex | null> {
     const embedder: EmbedderId = parsed.embedder ?? "ollama-local";
     const model = parsed.model ?? "nomic-embed-text";
     const dim = parsed.dim ?? parsed.chunks[0]?.vec.length ?? 768;
+    const version = typeof parsed.version === "number" ? parsed.version : 1;
     return {
+      version,
       embedder,
       model,
       dim,

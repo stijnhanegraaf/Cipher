@@ -20,13 +20,19 @@ import { cosine, loadExistingIndex, type IndexChunk } from "./embeddings";
 import { resolveEmbedder } from "./providers";
 import { readLLMSettings } from "@/lib/llm-settings";
 import { log } from "@/lib/log";
+import { extractTags } from "@/lib/markdown/tags";
+import type { Graph } from "@/lib/vault-graph";
 
 export interface RetrievedChunk {
   id: string;
   path: string;
   heading?: string;
   text: string;
-  score: number; // cosine similarity
+  score: number; // cosine similarity (+ tag boost)
+  /** Basename or frontmatter title, carried from index. */
+  title?: string;
+  /** Normalized tags carried from index — used for context labels + citation. */
+  tags?: string[];
 }
 
 export interface RetrieveResult {
@@ -42,6 +48,67 @@ export interface RetrieveResult {
 const SHORTLIST_SIZE = 40;
 const FINAL_TOP_N = 8;
 const TOKEN_BUDGET = 3000;
+const GRAPH_EXPAND_MAX = 4;
+const TAG_BOOST_PER_OVERLAP = 0.05;
+
+// ─── Graph expansion ──────────────────────────────────────────────────────────
+
+/**
+ * Pure function: given the vault-relative paths of the cosine top-K chunks,
+ * return additional IndexChunks from notes that are wiki-linked to or from
+ * those top notes (one hop only). Excludes paths already in `topPaths`.
+ * Caps output at `max` chunks.
+ *
+ * `pool` is the full candidate chunk list (keyword shortlist or whole index).
+ */
+export function expandViaGraph(
+  topPaths: string[],
+  pool: IndexChunk[],
+  graph: Graph,
+  max: number,
+): IndexChunk[] {
+  const topPathSet = new Set(topPaths);
+
+  // Collect linked and backlinked note paths (one-hop).
+  const linkedPaths = new Set<string>();
+  for (const edge of graph.edges) {
+    if (topPathSet.has(edge.source)) linkedPaths.add(edge.target);
+    if (topPathSet.has(edge.target)) linkedPaths.add(edge.source);
+  }
+  // Remove paths already in the top-K so we only add NEW context.
+  for (const p of topPathSet) linkedPaths.delete(p);
+
+  // Pick the best chunk per linked path, capped at `max`.
+  const seenPaths = new Set<string>();
+  const expanded: IndexChunk[] = [];
+  for (const chunk of pool) {
+    if (!linkedPaths.has(chunk.path)) continue;
+    if (seenPaths.has(chunk.path)) continue; // one chunk per linked note
+    seenPaths.add(chunk.path);
+    expanded.push(chunk);
+    if (expanded.length >= max) break;
+  }
+  return expanded;
+}
+
+// ─── Tag boost ────────────────────────────────────────────────────────────────
+
+/**
+ * Pure function: compute a small score boost based on tag overlap between
+ * the query's inline tags and a chunk's note tags.
+ *
+ * Returns a non-negative number added to the chunk's cosine similarity so
+ * that a tag-matching chunk ranks above an equal-cosine non-matching one.
+ */
+export function computeTagBoost(queryTags: string[], chunkTags: string[]): number {
+  if (queryTags.length === 0 || chunkTags.length === 0) return 0;
+  const chunkTagSet = new Set(chunkTags);
+  let overlap = 0;
+  for (const t of queryTags) {
+    if (chunkTagSet.has(t)) overlap++;
+  }
+  return overlap * TAG_BOOST_PER_OVERLAP;
+}
 
 export async function retrieve(query: string): Promise<RetrieveResult> {
   const settings = await readLLMSettings();
@@ -53,6 +120,7 @@ export async function retrieve(query: string): Promise<RetrieveResult> {
     log.info("chat/retrieval", "no embedder available; using keyword-only ranking");
     return { chunks: await keywordOnly(query), needsIndexing: false };
   }
+
 
   const index = await loadExistingIndex();
 
@@ -84,19 +152,39 @@ export async function retrieve(query: string): Promise<RetrieveResult> {
     return {
       chunks: truncateToBudget(top, TOKEN_BUDGET).map(({ c, sim }) => ({
         id: c.id, path: c.path, heading: c.heading, text: c.text, score: sim,
+        title: c.title, tags: c.tags,
       })),
       needsIndexing: false,
     };
   }
 
-  // 3. Cosine rerank.
-  const ranked = pool
-    .map((c) => ({ c, sim: cosine(qVec, c.vec) }))
+  // 3. Cosine rerank with tag boost.
+  const queryTags = extractTags(query, {});
+  const baseRanked = pool
+    .map((c) => ({ c, sim: cosine(qVec, c.vec) + computeTagBoost(queryTags, c.tags ?? []) }))
     .sort((a, b) => b.sim - a.sim)
     .slice(0, FINAL_TOP_N);
 
+  // 3b. Graph expansion: pull in chunks from notes linked to/from top hits.
+  const topPaths = baseRanked.map((r) => r.c.path);
+  const allRanked = [...baseRanked];
+  try {
+    const { buildGraph } = await import("@/lib/vault-graph");
+    const graph = await buildGraph();
+    const expanded = expandViaGraph(topPaths, pool, graph, GRAPH_EXPAND_MAX);
+    const seenPaths = new Set(topPaths);
+    for (const ec of expanded) {
+      if (!seenPaths.has(ec.path)) {
+        seenPaths.add(ec.path);
+        allRanked.push({ c: ec, sim: 0 });
+      }
+    }
+  } catch {
+    // Graph unavailable (no vault, test environment, etc.) — skip expansion.
+  }
+
   // 4. Token budget.
-  const withinBudget = truncateToBudget(ranked.map((r) => ({ c: r.c, sim: r.sim })), TOKEN_BUDGET);
+  const withinBudget = truncateToBudget(allRanked, TOKEN_BUDGET);
 
   return {
     chunks: withinBudget.map(({ c, sim }) => ({
@@ -105,6 +193,8 @@ export async function retrieve(query: string): Promise<RetrieveResult> {
       heading: c.heading,
       text: c.text,
       score: sim,
+      title: c.title,
+      tags: c.tags,
     })),
     needsIndexing: false,
   };
@@ -123,6 +213,7 @@ async function keywordOnly(query: string): Promise<RetrievedChunk[]> {
     .map(({ c }) => ({ c, sim: 0 }));
   return truncateToBudget(scored, TOKEN_BUDGET).map(({ c, sim }) => ({
     id: c.id, path: c.path, heading: c.heading, text: c.text, score: sim,
+    title: c.title, tags: c.tags,
   }));
 }
 
