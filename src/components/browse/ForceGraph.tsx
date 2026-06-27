@@ -59,8 +59,11 @@ interface FGLink {
 interface FGInstance {
   zoomToFit(durationMs?: number, padding?: number): void;
   resumeAnimation(): void;
-  /** Get or set a named d3 force. Returns force with optional .strength() when called with one arg. */
-  d3Force(name: string, force?: unknown): { strength(n: number): void } | null | undefined;
+  /** Get or set a named d3 force. Returns force with optional .strength()/.distance() when called with one arg. */
+  d3Force(name: string, force?: unknown): {
+    strength(n: number): void;
+    distance?: (n: number) => { strength(n: number): void };
+  } | null | undefined;
 }
 
 // ─── ForceGraph2D prop interface ──────────────────────────────────────────────
@@ -183,6 +186,18 @@ function resolveToken(token: string): string {
   return out;
 }
 
+// ─── Color helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Build an rgba() string from a resolveToken() result ("rgb(r,g,b)").
+ * File is on the no-raw-color allowlist — the rgba literal is permitted here.
+ * Example: withAlpha(resolveToken("--accent-brand"), 0.4) → "rgba(r,g,b,0.4)"
+ */
+function withAlpha(rgb: string, a: number): string {
+  // "rgb(r,g,b)" → "rgba(r,g,b,a)" by splicing after the opening paren prefix.
+  return "rgba" + rgb.slice(3, -1) + "," + a + ")";
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
@@ -213,9 +228,9 @@ function roundRect(
 
 // ─── Radius scale ─────────────────────────────────────────────────────────────
 
-/** Map degree to a canvas radius: leaves ~3px, hubs up to 16px. */
+/** Map degree to a canvas radius: leaves ~3px, hubs up to 18px (clearly bigger). */
 function nodeRadius(degree: number): number {
-  return Math.min(3 + Math.sqrt(degree) * 1.8, 16);
+  return Math.min(3 + Math.sqrt(degree) * 2.2, 18);
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -313,12 +328,14 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
         if (tries++ < 60) raf = requestAnimationFrame(apply);
         return;
       }
-      // Stronger repulsion for an airy constellation spread.
-      fg.d3Force("charge")?.strength(-120);
-      // Prevent node overlap — radius matches the visual radius + 2px clearance.
+      // Strong repulsion for a well-spaced, airy constellation layout.
+      fg.d3Force("charge")?.strength(-220);
+      // Loose link distance + weak spring so clusters spread like a galaxy.
+      fg.d3Force("link")?.distance?.(70)?.strength(0.2);
+      // Prevent node overlap — radius + 4px clearance.
       fg.d3Force(
         "collide",
-        forceCollide<FGNode>((node) => nodeRadius(node.degree) + 2)
+        forceCollide<FGNode>((node) => nodeRadius(node.degree) + 4)
       );
     };
     raf = requestAnimationFrame(apply);
@@ -345,12 +362,12 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
       // A neighbour is: highlight active, this node is highlighted, but it's not the hovered node itself.
       const isNeighbour = highlightActive && !isHovered && highlightNodesRef.current.has(id);
 
-      // Alpha: tag-filtered → near-invisible; dimmed when not in hovered subgraph.
+      // Alpha: tag-filtered → near-invisible; cinematic: dim rest more aggressively so hovered pops.
       let alpha: number;
       if (!isTagVisible) {
         alpha = 0.04;
       } else if (!isHighlighted) {
-        alpha = 0.12;
+        alpha = 0.08;
       } else {
         alpha = 1;
       }
@@ -367,28 +384,72 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
 
       const isLight = document.documentElement.getAttribute("data-theme") === "light";
 
+      // Hub factor: 0=leaf, 1=hub at degree ≥ 15. Controls brightness ramp.
+      const hubFactor = Math.min(node.degree / 15, 1);
+
+      // Slow sine twinkle on glow intensity — hub nodes only, reduced-motion gated.
+      const pulseMult =
+        !prefersReducedMotion && node.degree >= 5
+          ? 1 + Math.sin(Date.now() / 2000 + (node.index ?? 0) * 0.7) * 0.2
+          : 1;
+
       ctx.save();
       ctx.globalAlpha = alpha;
 
-      // Focus glow — hovered node only.
-      if (isHovered && isTagVisible) {
-        ctx.shadowColor = resolveToken("--accent-brand");
-        ctx.shadowBlur = (isLight ? 6 : 12) / globalScale;
+      // ── Bloom glow (shadowBlur) ───────────────────────────────────────────
+      // Dark: full bloom via shadowBlur scaled by degree + pulse. Hubs get max glow.
+      // Light: no bloom; only a soft drop-shadow on hover/neighbour for subtlety.
+      if (!isLight && isTagVisible) {
+        ctx.shadowColor = nodeColor;
+        ctx.shadowBlur = isHovered
+          ? 24 / globalScale
+          : ((8 + hubFactor * 14) * pulseMult) / globalScale;
+      } else if (isLight && isTagVisible && (isHovered || isNeighbour)) {
+        ctx.shadowColor = withAlpha(nodeColor, 0.35);
+        ctx.shadowBlur = 6 / globalScale;
+      }
+
+      // ── Radial gradient fill (glowing orb) ───────────────────────────────
+      // Dark: luminous orb with bright core fading to transparent rim.
+      //   Hubs and hovered nodes get a near-white-hot core (degree→brightness ramp).
+      // Light: solid fill with a gentle soft edge, no bloom.
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, Math.max(drawR, 0.1));
+      if (!isLight) {
+        if (isHovered) {
+          // Hovered: white-hot core → accent ring → transparent rim.
+          const white = resolveToken("--text-primary");
+          grad.addColorStop(0, white);
+          grad.addColorStop(0.25, nodeColor);
+          grad.addColorStop(0.65, withAlpha(nodeColor, 0.5));
+          grad.addColorStop(1, withAlpha(nodeColor, 0));
+        } else if (hubFactor > 0.4) {
+          // Hub (degree ≥ ~6): bright core bleeds toward white, fades out.
+          const white = resolveToken("--text-primary");
+          grad.addColorStop(0, white);
+          grad.addColorStop(0.3, nodeColor);
+          grad.addColorStop(0.7, withAlpha(nodeColor, 0.4));
+          grad.addColorStop(1, withAlpha(nodeColor, 0));
+        } else {
+          // Leaf/mid: accent centre fades to transparent rim.
+          grad.addColorStop(0, nodeColor);
+          grad.addColorStop(0.6, withAlpha(nodeColor, 0.45));
+          grad.addColorStop(1, withAlpha(nodeColor, 0));
+        }
+      } else {
+        // Light: solid fill with gentle radial soft edge (intentional, not washed-out).
+        grad.addColorStop(0, nodeColor);
+        grad.addColorStop(0.8, nodeColor);
+        grad.addColorStop(1, withAlpha(nodeColor, 0.35));
       }
 
       ctx.beginPath();
       ctx.arc(x, y, drawR, 0, Math.PI * 2);
-      ctx.fillStyle = nodeColor;
+      ctx.fillStyle = grad;
       ctx.fill();
 
-      // Reset shadow before rim stroke so stroke doesn't inherit glow.
+      // Reset shadow before any further draws so it doesn't bleed onto labels.
       ctx.shadowBlur = 0;
       ctx.shadowColor = "transparent";
-
-      // 1px rim in --bg-marketing so nodes "float" above edges (d3 Les-Mis trick).
-      ctx.strokeStyle = resolveToken("--bg-marketing");
-      ctx.lineWidth = Math.max(0.5, 1 / globalScale);
-      ctx.stroke();
 
       ctx.restore();
 
@@ -451,7 +512,7 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
         ctx.restore();
       }
     },
-    [rainbow]
+    [rainbow, prefersReducedMotion]
   );
 
   /**
@@ -512,45 +573,70 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
 
       const isLight = document.documentElement.getAttribute("data-theme") === "light";
 
-      let color: string;
-      let alpha: number;
-      let lw: number;
-
-      const restLw = Math.max(0.5, 1.2 / globalScale);
-
-      if (!tagPassed) {
-        // Tag-filtered link — near-invisible.
-        color = resolveToken("--border-standard");
-        alpha = 0.04;
-        lw = restLw;
-      } else if (highlightActive && isLinkHighlighted) {
-        // In the hovered subgraph — accent highlight.
-        color = resolveToken("--accent-brand");
-        alpha = 0.75;
-        lw = Math.max(1, (1.2 * 1.8) / globalScale); // rest width ×1.8
-      } else if (highlightActive) {
-        // Dimmed non-neighbour link.
-        color = resolveToken("--border-standard");
-        alpha = isLight ? 0.08 : 0.06;
-        lw = restLw;
-      } else {
-        // Resting state — no hover active.
-        color = resolveToken("--border-standard");
-        alpha = isLight ? 0.14 : 0.18;
-        lw = restLw;
-      }
+      const restLw = Math.max(0.4, 1 / globalScale);
 
       ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = lw;
-      ctx.beginPath();
-      ctx.moveTo(src.x, src.y);
-      ctx.lineTo(tgt.x, tgt.y);
-      ctx.stroke();
+
+      if (!tagPassed) {
+        // Tag-filtered: near-invisible simple line.
+        ctx.globalAlpha = 0.04;
+        ctx.strokeStyle = resolveToken("--border-standard");
+        ctx.lineWidth = restLw;
+        ctx.beginPath();
+        ctx.moveTo(src.x, src.y);
+        ctx.lineTo(tgt.x, tgt.y);
+        ctx.stroke();
+      } else if (highlightActive && isLinkHighlighted) {
+        // Hovered subgraph: bright accent filament with glow bloom (dark only).
+        const accentColor = resolveToken("--accent-brand");
+        if (!isLight) {
+          ctx.shadowColor = accentColor;
+          ctx.shadowBlur = 4 / globalScale;
+        }
+        const grad = ctx.createLinearGradient(src.x, src.y, tgt.x, tgt.y);
+        grad.addColorStop(0, withAlpha(accentColor, 0.85));
+        grad.addColorStop(1, withAlpha(accentColor, 0.85));
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = Math.max(1, 1.8 / globalScale);
+        ctx.beginPath();
+        ctx.moveTo(src.x, src.y);
+        ctx.lineTo(tgt.x, tgt.y);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = "transparent";
+      } else if (highlightActive) {
+        // Dimmed non-neighbour link — fade away so hovered graph pops.
+        ctx.globalAlpha = isLight ? 0.06 : 0.05;
+        ctx.strokeStyle = resolveToken("--border-standard");
+        ctx.lineWidth = restLw;
+        ctx.beginPath();
+        ctx.moveTo(src.x, src.y);
+        ctx.lineTo(tgt.x, tgt.y);
+        ctx.stroke();
+      } else {
+        // Resting state: gradient filament from source-node colour to target-node colour.
+        // This creates the "light filament" look — each edge shades between its endpoints.
+        const srcNodeColor = rainbow
+          ? resolveToken(tagColor(src.tag))
+          : resolveToken(statusTagColor(src.tag));
+        const tgtNodeColor = rainbow
+          ? resolveToken(tagColor(tgt.tag))
+          : resolveToken(statusTagColor(tgt.tag));
+        const baseAlpha = isLight ? 0.18 : 0.25;
+        const grad = ctx.createLinearGradient(src.x, src.y, tgt.x, tgt.y);
+        grad.addColorStop(0, withAlpha(srcNodeColor, baseAlpha));
+        grad.addColorStop(1, withAlpha(tgtNodeColor, baseAlpha));
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = restLw;
+        ctx.beginPath();
+        ctx.moveTo(src.x, src.y);
+        ctx.lineTo(tgt.x, tgt.y);
+        ctx.stroke();
+      }
+
       ctx.restore();
     },
-    []
+    [rainbow]
   );
 
   // ─── Interaction handlers ───────────────────────────────────────────────────
@@ -588,8 +674,8 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
   const handleEngineStop = useCallback(() => {
     if (!engineStoppedRef.current) {
       engineStoppedRef.current = true;
-      // Fit the full graph into view with 50px padding after initial settle.
-      fgRef.current?.zoomToFit(400, 50);
+      // Fit the full graph into view with 80px padding — more breathing room for the constellation.
+      fgRef.current?.zoomToFit(400, 80);
     }
   }, []);
 
@@ -649,8 +735,9 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
           warmupTicks={prefersReducedMotion ? 200 : 80}
           cooldownTicks={200}
           cooldownTime={6000}
-          d3VelocityDecay={0.55}
-          autoPauseRedraw
+          d3VelocityDecay={0.5}
+          // autoPauseRedraw off when motion is OK — enables continuous render for hub twinkle.
+          autoPauseRedraw={prefersReducedMotion}
           // Drag enabled: react-force-graph pins fx/fy on drag and reheats the sim.
           enableNodeDrag
           linkHoverPrecision={4}

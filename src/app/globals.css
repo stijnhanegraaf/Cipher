@@ -264,6 +264,13 @@
   --code-copy-bg:       oklch(100% 0 0 / 0.06);
   --code-copy-border:   oklch(100% 0 0 / 0.10);
   --code-copy-bg-hover: oklch(100% 0 0 / 0.12);
+
+  /* ── Graph cinematic tokens — deep-space background (dark mode primary) ──
+     --graph-bg-center: slightly-lifted near-black for the radial center glow.
+     --graph-bg-edge:   pure black for the outer vignette edge.
+     .light overrides these to a soft light field below. */
+  --graph-bg-center: oklch(19% 0.004 270);
+  --graph-bg-edge:   oklch(0% 0 0);
 }
 /* stylelint-enable color-no-hex, function-disallowed-list */
 
@@ -349,6 +356,10 @@
   --chip-bg-mix-hi:  20%;
   --chip-border-mix: 38%;
   --chip-text-mix:   72%;
+
+  /* Graph cinematic tokens — light mode: soft light field */
+  --graph-bg-center: oklch(95% 0.003 270);
+  --graph-bg-edge:   oklch(100% 0 0);
 }
 /* stylelint-enable color-no-hex, function-disallowed-list */
 

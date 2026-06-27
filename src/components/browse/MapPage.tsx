@@ -133,10 +133,13 @@ export function MapPage() {
               minHeight: 0,
               display: "flex",
               flexDirection: "column",
-              background: "var(--bg-marketing)",
+              // Cinematic deep-space background: radial gradient from lifted near-black
+              // center to pure-black edges. Light mode uses a clean soft field.
+              background:
+                "radial-gradient(ellipse at 50% 45%, var(--graph-bg-center) 0%, var(--graph-bg-edge) 70%)",
             }}
           >
-            {/* Radial vignette overlay — subtle accent glow behind the canvas */}
+            {/* Accent nebula glow overlay — indigo radial wash centered on the graph */}
             <div
               aria-hidden="true"
               style={{
@@ -144,7 +147,7 @@ export function MapPage() {
                 inset: 0,
                 pointerEvents: "none",
                 background:
-                  "radial-gradient(ellipse at 50% 40%, color-mix(in oklch, var(--accent-brand) 8%, transparent), transparent 70%)",
+                  "radial-gradient(ellipse at 50% 40%, color-mix(in oklch, var(--accent-brand) 10%, transparent), transparent 68%)",
                 zIndex: 0,
               }}
             />
