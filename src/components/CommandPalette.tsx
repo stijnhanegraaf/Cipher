@@ -277,9 +277,9 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
             aria-label="Command palette"
             aria-modal="true"
             initial={isMobile ? { opacity: 0, y: "100%" } : false}
-            animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+            animate={{ opacity: 1, y: 0 }}
             exit={isMobile ? { opacity: 0, y: "100%" } : { opacity: 0, y: -4 }}
-            transition={{ duration: 0.18, ease: [0.22, 1.2, 0.36, 1] }}
+            transition={isMobile ? { duration: 0.18, ease: [0.22, 1.2, 0.36, 1] } : { duration: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
             className={
               isMobile
                 ? "palette-panel fixed bottom-0 left-0 right-0 z-[401] w-full overflow-hidden flex flex-col"

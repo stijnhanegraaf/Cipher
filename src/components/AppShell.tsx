@@ -346,7 +346,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           {/* Hamburger — opens the off-canvas drawer */}
           <button
             type="button"
-            onClick={() => setDrawerOpen(true)}
+            onClick={() => setDrawerOpen((v) => !v)}
             aria-label="Open navigation menu"
             aria-expanded={drawerOpen}
             aria-controls="mobile-drawer"
