@@ -3,6 +3,14 @@
 import { useEffect, useState, useCallback } from "react";
 
 /**
+ * Broadcast on any vault connect/disconnect. useVault is a per-instance hook
+ * (no shared store), so without this every other instance — the sidebar, the
+ * reader, etc. — would keep stale state after a switch. Each instance listens
+ * and re-fetches when this fires.
+ */
+const VAULT_CHANGED_EVENT = "cipher:vault-changed";
+
+/**
  * Shared client-side vault state. Fetches /api/vault once per mount,
  * exposes connect() to hot-swap without a server restart.
  */
@@ -74,6 +82,10 @@ export function useVault(): VaultState {
 
   useEffect(() => {
     refresh();
+    // Stay in sync when ANY other instance switches/disconnects the vault.
+    const onChanged = () => { refresh(); };
+    window.addEventListener(VAULT_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(VAULT_CHANGED_EVENT, onChanged);
   }, [refresh]);
 
   const connect = useCallback(async (path: string) => {
@@ -88,6 +100,8 @@ export function useVault(): VaultState {
         return { ok: false, error: data.error || `HTTP ${res.status}` };
       }
       await refresh();
+      // Notify sibling instances (sidebar, reader, …) to re-sync.
+      window.dispatchEvent(new CustomEvent(VAULT_CHANGED_EVENT));
       return { ok: true, name: data.name };
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : "Network error" };
@@ -99,6 +113,7 @@ export function useVault(): VaultState {
       await fetch("/api/vault", { method: "DELETE" });
     } finally {
       await refresh();
+      window.dispatchEvent(new CustomEvent(VAULT_CHANGED_EVENT));
     }
   }, [refresh]);
 

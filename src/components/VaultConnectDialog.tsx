@@ -46,6 +46,8 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   // SSR-safe: start empty, hydrate from localStorage after mount.
   const [recents, setRecents] = useState<RecentVault[]>([]);
+  // Non-null while a switch is in flight — drives the loading overlay + reload.
+  const [switching, setSwitching] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -90,6 +92,14 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
     if (open && browseOpen && !fs) loadFs();
   }, [open, browseOpen, fs, loadFs]);
 
+  // Once the loading overlay has painted, hard-navigate to the dashboard so
+  // every route + client data fetch reflects the newly-connected vault. (A full
+  // load is the reliable way to reset all per-vault state; the switch is rare.)
+  useEffect(() => {
+    if (switching === null) return;
+    window.location.assign("/browse");
+  }, [switching]);
+
   const submit = async (next?: string) => {
     const trimmed = (next ?? path).trim();
     if (!trimmed) { setError("Path is required."); return; }
@@ -106,11 +116,49 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
       name: res.name ?? trimmed.split("/").at(-1) ?? trimmed,
       lastOpened: now,
     });
+    const connectedName = res.name ?? trimmed.split("/").at(-1) ?? trimmed;
     onConnected?.(trimmed, res.name ?? "");
-    onClose();
+    // Show the loading overlay and reload into the new vault (effect above).
+    setSwitching(connectedName);
   };
 
   if (typeof document === "undefined") return null;
+
+  // Switching: full-screen loading state while we reload into the new vault.
+  if (switching !== null) {
+    return createPortal(
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 500,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+          background: "var(--bg-marketing)",
+        }}
+      >
+        <div
+          className="animate-spin"
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            border: "2px solid var(--border-subtle)",
+            borderTopColor: "var(--accent-brand)",
+          }}
+        />
+        <div className="caption-large" style={{ color: "var(--text-secondary)" }}>
+          Opening {switching}…
+        </div>
+      </div>,
+      document.body,
+    );
+  }
 
   return createPortal(
     <AnimatePresence>
