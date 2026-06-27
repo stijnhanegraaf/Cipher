@@ -7,7 +7,6 @@ import {
   applyTheme,
   writeTheme,
   watchSystemTheme,
-  type ThemeChoice,
 } from "./theme";
 
 const KEY = "brain-theme";
