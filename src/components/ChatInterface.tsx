@@ -41,6 +41,7 @@ export function ChatInterface() {
     partialCitations,
     partialEnvelope,
     send,
+    stop,
     newChat,
   } = useChat();
 
@@ -209,6 +210,34 @@ export function ChatInterface() {
             }}
           >
             <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px 32px 20px" }}>
+              {streaming && (
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+                  <button
+                    type="button"
+                    onClick={stop}
+                    className="mono-label focus-ring"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "5px 12px",
+                      borderRadius: 8,
+                      border: "1px solid var(--border-standard)",
+                      background: "var(--bg-surface)",
+                      color: "var(--text-secondary)",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{ width: 8, height: 8, borderRadius: 2, background: "var(--status-danger)" }}
+                    />
+                    STOP
+                  </button>
+                </div>
+              )}
               <Composer ref={composerRef} onSubmit={submit} disabled={streaming} />
             </div>
           </div>

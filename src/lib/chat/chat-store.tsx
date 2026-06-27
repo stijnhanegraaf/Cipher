@@ -239,6 +239,11 @@ function deserializeTurn(s: StoredTurn): QATurn {
 }
 
 function persistState(state: ChatStoreState): void {
+  // Don't overwrite stored history with an empty snapshot. The first post-mount
+  // render holds INITIAL_STATE (empty) before HYDRATE runs; persisting it here
+  // would clobber the saved conversation for a tick. newChat() clears storage
+  // explicitly via removeItem, so skipping the empty write loses nothing.
+  if (state.turns.length === 0 && !state.streaming && !state.error && !state.partialId) return;
   try {
     const stored: StoredConversation = {
       turns: state.turns.map(serializeTurn),
@@ -354,7 +359,9 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
     const createdAt = Date.now();
     dispatch({ type: "SEND_START", id, query, createdAt });
 
-    // Capture prior history at call-time (before SEND_START updates the store).
+    // stateRef is render-stale at call time, and SEND_START only touches the
+    // streaming/partial fields (never `turns`), so this reads the correct prior
+    // context regardless of dispatch ordering.
     const priorHistory = stateRef.current.turns
       .filter((t) => t.status === "done")
       .slice(-4)
