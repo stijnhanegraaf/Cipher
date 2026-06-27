@@ -15,6 +15,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useVault } from "@/lib/hooks/useVault";
+import {
+  type RecentVault,
+  getRecentVaults,
+  saveRecentVault,
+} from "@/lib/browse/recent-vaults";
 
 interface Props {
   open: boolean;
@@ -37,16 +42,24 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
   const [browseOpen, setBrowseOpen] = useState(false);
   const [fs, setFs] = useState<FsResponse | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // SSR-safe: start empty, hydrate from localStorage after mount.
+  const [recents, setRecents] = useState<RecentVault[]>([]);
 
   useEffect(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync controlled form fields to props on dialog open
     setPath(vault.path || "");
     setError(null);
     setBrowseOpen(false);
     const t = setTimeout(() => inputRef.current?.focus(), 40);
     return () => clearTimeout(t);
   }, [open, vault.path]);
+
+  // Refresh recents from localStorage each time the dialog opens (SSR-safe:
+  // getRecentVaults() returns [] on server; this runs only on the client).
+  useEffect(() => {
+    if (!open) return;
+    setRecents(getRecentVaults());
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -72,7 +85,6 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadFs() only sets state after an async fetch (guarded by !fs so it runs once); not a synchronous render-loop.
     if (open && browseOpen && !fs) loadFs();
   }, [open, browseOpen, fs, loadFs]);
 
@@ -85,6 +97,13 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
     const res = await vault.connect(trimmed);
     setBusy(false);
     if (!res.ok) { setError(res.error ?? "Couldn't connect."); return; }
+    // eslint-disable-next-line react-hooks/purity -- Date.now() in an async event handler (not render); timestamp is needed for recency ordering
+    const now = Date.now();
+    saveRecentVault({
+      path: trimmed,
+      name: res.name ?? trimmed.split("/").at(-1) ?? trimmed,
+      lastOpened: now,
+    });
     onConnected?.(trimmed, res.name ?? "");
     onClose();
   };
@@ -166,6 +185,76 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
 
               {!browseOpen ? (
                 <div style={{ padding: 20 }}>
+                  {recents.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div
+                        className="mono-label"
+                        style={{
+                          color: "var(--text-quaternary)",
+                          letterSpacing: "0.04em",
+                          marginBottom: 6,
+                        }}
+                      >
+                        Recent
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        {recents.map((rv) => (
+                          <div
+                            key={rv.path}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => { void submit(rv.path); }}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void submit(rv.path); } }}
+                            className="focus-ring vault-fs-row"
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "center",
+                              gap: 1,
+                              height: 40,
+                              padding: "0 10px",
+                              borderRadius: "var(--radius-row)",
+                              cursor: "pointer",
+                              transition: "background var(--motion-micro) var(--ease-default)",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 500,
+                                color: "var(--text-primary)",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {rv.name}
+                            </span>
+                            <span
+                              className="mono-label"
+                              style={{
+                                color: "var(--text-quaternary)",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {rv.path}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div
+                        style={{
+                          height: 1,
+                          background: "var(--border-subtle)",
+                          margin: "14px 0",
+                        }}
+                      />
+                    </div>
+                  )}
                   <input
                     ref={inputRef}
                     type="text"

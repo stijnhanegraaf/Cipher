@@ -418,7 +418,69 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, the
           gap: 2,
         }}
       >
-        {!vault.connected && !vault.loading && (
+        {vault.connected ? (
+          /* Current vault row — name on left, Switch affordance on right. */
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              height: 32,
+              padding: "0 12px",
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 999,
+                background: "var(--accent-brand)",
+                boxShadow: "0 0 8px color-mix(in srgb, var(--accent-brand) 45%, transparent)",
+                flexShrink: 0,
+              }}
+            />
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontSize: 13,
+                fontWeight: 500,
+                letterSpacing: -0.1,
+                color: "var(--text-secondary)",
+              }}
+              title={vault.path}
+            >
+              {vault.name}
+            </span>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("cipher:open-vault-connect"))}
+              className="focus-ring"
+              aria-label="Switch vault"
+              style={{
+                flexShrink: 0,
+                padding: "3px 8px",
+                border: "1px solid var(--border-subtle)",
+                background: "transparent",
+                color: "var(--text-quaternary)",
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 500,
+                borderRadius: "var(--radius-small)",
+                letterSpacing: 0,
+                transition: "background var(--motion-micro) var(--ease-default), color var(--motion-micro) var(--ease-default), border-color var(--motion-micro) var(--ease-default)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; e.currentTarget.style.color = "var(--text-secondary)"; e.currentTarget.style.borderColor = "var(--border-standard)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-quaternary)"; e.currentTarget.style.borderColor = "var(--border-subtle)"; }}
+            >
+              Switch
+            </button>
+          </div>
+        ) : !vault.loading ? (
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent("cipher:open-vault-connect"))}
@@ -451,7 +513,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, the
             />
             Connect a vault
           </button>
-        )}
+        ) : null}
         <div
           className="flex items-center"
           style={{ height: 32, padding: "0 12px", gap: 10 }}
