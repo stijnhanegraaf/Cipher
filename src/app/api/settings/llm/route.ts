@@ -13,19 +13,46 @@ export async function GET() {
   const s = await readLLMSettings();
   return NextResponse.json({
     provider: s.provider,
-    ollamaLocal: { hasKey: !!s.ollamaLocal.apiKey, baseUrl: s.ollamaLocal.baseUrl ?? null },
-    ollamaCloud: { hasKey: !!s.ollamaCloud.apiKey, baseUrl: s.ollamaCloud.baseUrl ?? null },
-    openai: { hasKey: !!s.openai.apiKey, baseUrl: s.openai.baseUrl ?? null },
-    anthropic: { hasKey: !!s.anthropic.apiKey, baseUrl: s.anthropic.baseUrl ?? null },
+    ollamaLocal: {
+      hasKey: !!s.ollamaLocal.apiKey,
+      baseUrl: s.ollamaLocal.baseUrl ?? null,
+      mode: s.ollamaLocal.mode ?? "api",
+      cliPath: s.ollamaLocal.cliPath ?? null,
+    },
+    ollamaCloud: {
+      hasKey: !!s.ollamaCloud.apiKey,
+      baseUrl: s.ollamaCloud.baseUrl ?? null,
+      mode: s.ollamaCloud.mode ?? "api",
+      cliPath: s.ollamaCloud.cliPath ?? null,
+    },
+    openai: {
+      hasKey: !!s.openai.apiKey,
+      baseUrl: s.openai.baseUrl ?? null,
+      mode: s.openai.mode ?? "api",
+      cliPath: s.openai.cliPath ?? null,
+    },
+    anthropic: {
+      hasKey: !!s.anthropic.apiKey,
+      baseUrl: s.anthropic.baseUrl ?? null,
+      mode: s.anthropic.mode ?? "api",
+      cliPath: s.anthropic.cliPath ?? null,
+    },
   });
+}
+
+interface ProviderPatch {
+  apiKey?: string;
+  baseUrl?: string;
+  mode?: "api" | "cli";
+  cliPath?: string;
 }
 
 interface PatchBody {
   provider?: ProviderId;
-  ollamaLocal?: { apiKey?: string; baseUrl?: string };
-  ollamaCloud?: { apiKey?: string; baseUrl?: string };
-  openai?: { apiKey?: string; baseUrl?: string };
-  anthropic?: { apiKey?: string; baseUrl?: string };
+  ollamaLocal?: ProviderPatch;
+  ollamaCloud?: ProviderPatch;
+  openai?: ProviderPatch;
+  anthropic?: ProviderPatch;
 }
 
 export async function POST(req: Request) {

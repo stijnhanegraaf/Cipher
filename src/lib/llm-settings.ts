@@ -22,6 +22,10 @@ export type ProviderId = "ollama-local" | "ollama-cloud" | "openai" | "anthropic
 export interface ProviderConfig {
   apiKey?: string;
   baseUrl?: string;
+  /** "api" (default) uses HTTP; "cli" shells out to the local binary. */
+  mode?: "api" | "cli";
+  /** Absolute path to the CLI binary; overrides PATH lookup. */
+  cliPath?: string;
 }
 
 export interface LLMSettings {
@@ -57,6 +61,8 @@ export async function readLLMSettings(): Promise<LLMSettings> {
       return {
         apiKey: typeof o.apiKey === "string" ? o.apiKey : undefined,
         baseUrl: typeof o.baseUrl === "string" ? o.baseUrl : undefined,
+        mode: o.mode === "cli" ? "cli" : o.mode === "api" ? "api" : undefined,
+        cliPath: typeof o.cliPath === "string" ? o.cliPath : undefined,
       };
     };
     return {
@@ -95,6 +101,8 @@ export async function updateLLMSettings(patch: {
   const merge = (a: ProviderConfig, b?: Partial<ProviderConfig>): ProviderConfig => ({
     apiKey: b?.apiKey !== undefined ? b.apiKey || undefined : a.apiKey,
     baseUrl: b?.baseUrl !== undefined ? b.baseUrl || undefined : a.baseUrl,
+    mode: b?.mode !== undefined ? (b.mode || undefined) : a.mode,
+    cliPath: b?.cliPath !== undefined ? b.cliPath || undefined : a.cliPath,
   });
   const next: LLMSettings = {
     provider: patch.provider ?? current.provider,

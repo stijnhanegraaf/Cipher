@@ -11,6 +11,7 @@ import type { ChatProvider } from "./types";
 import { createOllamaProvider } from "./ollama";
 import { createOpenAIProvider } from "./openai";
 import { createAnthropicProvider } from "./anthropic";
+import { createCliProvider } from "./cli";
 
 export { ProviderDownError, ProviderModelMissingError, ProviderAuthError } from "./types";
 export type { ChatMessage, ChatProvider, ProviderStatus } from "./types";
@@ -27,5 +28,14 @@ export function createProvider(id: ProviderId, settings: LLMSettings): ChatProvi
 
 export async function getActiveProvider(): Promise<{ provider: ChatProvider; settings: LLMSettings }> {
   const settings = await readLLMSettings();
+
+  // CLI mode: anthropic → claude CLI, ollama-local → ollama CLI.
+  if (settings.provider === "anthropic" && settings.anthropic.mode === "cli") {
+    return { provider: createCliProvider("claude", settings.anthropic.cliPath), settings };
+  }
+  if (settings.provider === "ollama-local" && settings.ollamaLocal.mode === "cli") {
+    return { provider: createCliProvider("ollama", settings.ollamaLocal.cliPath), settings };
+  }
+
   return { provider: createProvider(settings.provider, settings), settings };
 }
