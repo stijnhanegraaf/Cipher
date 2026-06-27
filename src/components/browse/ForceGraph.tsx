@@ -86,9 +86,12 @@ interface FG2DProps {
 // react-force-graph touches window/canvas; must never run on the server.
 
 const DynFG2D = dynamic<FG2DProps>(
+  // Import the STANDALONE 2D package, not the umbrella `react-force-graph` — the
+  // umbrella bundles the VR/AR builds which reference a global `AFRAME` and throw
+  // "Can't find variable: AFRAME" at import time.
   () =>
-    import("react-force-graph").then((m) => ({
-      default: m.ForceGraph2D as unknown as React.ComponentType<FG2DProps>,
+    import("react-force-graph-2d").then((m) => ({
+      default: m.default as unknown as React.ComponentType<FG2DProps>,
     })),
   {
     ssr: false,
