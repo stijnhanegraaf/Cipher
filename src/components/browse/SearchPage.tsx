@@ -2,6 +2,12 @@
 
 /**
  * /browse/search page — query-driven search across vault files.
+ *
+ * Mode toggle: Exact (default) | Semantic.
+ * - Exact: calls /api/search?mode=exact → buildSearchResults (unchanged behaviour).
+ * - Semantic: calls /api/search?mode=semantic → retrieve() + cosine rerank.
+ *   Degrades transparently to keyword-only when no embedder is reachable.
+ * Existing deep links (?q=…, no mode) land on Exact — behaviour unchanged.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -11,23 +17,34 @@ import { useSheet } from "@/lib/hooks/useSheet";
 import type { SearchResultsData } from "@/lib/view-models";
 import { SEARCH_KIND_ORDER, SEARCH_KIND_LABEL, toSearchKind } from "@/lib/builders/search-kinds";
 
-async function fetchSearch(q: string): Promise<SearchResultsData | null> {
+type SearchMode = "exact" | "semantic";
+// Keep source as a plain string to avoid importing server-only embeddings.ts in a client component.
+type SearchSource = string;
+
+interface SearchPayload {
+  data: SearchResultsData;
+  source: SearchSource;
+}
+
+async function fetchSearch(
+  q: string,
+  mode: SearchMode,
+): Promise<SearchPayload | null> {
   if (!q) return null;
-  const res = await fetch("/api/query", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query: q }),
-  });
+  const params = new URLSearchParams({ q, mode });
+  const res = await fetch(`/api/search?${params}`);
   if (!res.ok) return null;
-  const payload = await res.json();
-  return (payload?.response?.views?.[0]?.data as SearchResultsData) ?? null;
+  return res.json() as Promise<SearchPayload>;
 }
 
 export function SearchPage() {
   const params = useSearchParams();
   const q = params.get("q") ?? "";
   const sheet = useSheet();
+
+  const [mode, setMode] = useState<SearchMode>("exact");
   const [data, setData] = useState<SearchResultsData | null>(null);
+  const [source, setSource] = useState<SearchSource>("keyword-only");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,8 +52,11 @@ export function SearchPage() {
     (async () => {
       setLoading(true);
       try {
-        const payload = await fetchSearch(q);
-        if (!cancelled) setData(payload);
+        const payload = await fetchSearch(q, mode);
+        if (!cancelled) {
+          setData(payload?.data ?? null);
+          setSource(payload?.source ?? "keyword-only");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -44,7 +64,7 @@ export function SearchPage() {
     return () => {
       cancelled = true;
     };
-  }, [q]);
+  }, [q, mode]);
 
   const grouped = useMemo(() => {
     if (!data) return [] as { kind: string; label: string; items: SearchResultsData["results"] }[];
@@ -58,11 +78,62 @@ export function SearchPage() {
       .map(({ kind, label }) => ({ kind, label, items: byKind[kind] }));
   }, [data]);
 
+  const showDegradeNotice = mode === "semantic" && source === "keyword-only";
+
   return (
     <PageShell
       title={q ? `Results for "${q}"` : "Search"}
       subtitle={data ? `${data.results.length} result${data.results.length === 1 ? "" : "s"}` : undefined}
     >
+      {/* Mode segmented control */}
+      <div
+        style={{
+          display: "flex",
+          gap: 4,
+          padding: "12px 32px",
+          borderBottom: "1px solid var(--border-subtle)",
+        }}
+      >
+        {(["exact", "semantic"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className="mono-label"
+            style={{
+              padding: "3px 10px",
+              borderRadius: 6,
+              border: "1px solid var(--border-standard)",
+              background: mode === m ? "var(--active-surface)" : "transparent",
+              color: mode === m ? "var(--text-primary)" : "var(--text-tertiary)",
+              cursor: "pointer",
+              letterSpacing: "0.04em",
+              fontSize: 11,
+              fontWeight: mode === m ? 600 : 400,
+              transition: "background 120ms ease, color 120ms ease",
+            }}
+          >
+            {m === "exact" ? "EXACT" : "SEMANTIC"}
+          </button>
+        ))}
+      </div>
+
+      {/* Keyword-only degrade notice (semantic mode only, when embedder unreachable) */}
+      {showDegradeNotice && (
+        <p
+          className="mono-label"
+          style={{
+            margin: 0,
+            padding: "6px 32px",
+            color: "var(--text-quaternary)",
+            fontSize: 11,
+            borderBottom: "1px solid var(--border-subtle)",
+          }}
+        >
+          Search falls back to keywords
+        </p>
+      )}
+
       {loading && <div style={{ padding: 32, color: "var(--text-quaternary)" }}>Searching…</div>}
       {!loading && !q && (
         <p className="small" style={{ color: "var(--text-quaternary)", padding: 32 }}>
