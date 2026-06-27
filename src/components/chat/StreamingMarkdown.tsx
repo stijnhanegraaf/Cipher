@@ -16,6 +16,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useReducedMotion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import type { Plugin } from "unified";
 import type { Root, Text, Parent } from "mdast";
@@ -116,6 +117,12 @@ interface Props {
 
 export function StreamingMarkdown({ text, active, onCitationClick }: Props) {
   const tailRef = useRef<HTMLSpanElement>(null);
+  // Explicit reduced-motion gate for the blinking cursor.
+  // The global @layer base rule in globals.css also zeroes animation-duration
+  // via `animation-duration: 0.01ms !important`, which covers inline styles
+  // too. We gate explicitly here so the intent is clear and does not rely on
+  // CSS cascade order.
+  const prefersReducedMotion = useReducedMotion();
 
   // Throttled text: updated at most once per rAF (~33ms) while streaming.
   // This prevents react-markdown re-parsing on every single token (can be
@@ -229,7 +236,9 @@ export function StreamingMarkdown({ text, active, onCitationClick }: Props) {
             marginLeft: 2,
             fontFamily: "var(--font-mono)",
             color: "var(--text-primary)",
-            animation: "cipher-cursor-blink 1200ms ease-in-out infinite",
+            animation: prefersReducedMotion
+              ? "none"
+              : "cipher-cursor-blink 1200ms ease-in-out infinite",
           }}
         >
           ▌

@@ -315,6 +315,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
             type="button"
             onClick={() => { setEditingPin(null); setDialogOpen(true); }}
             className="focus-ring"
+            aria-label="Add pin"
             title="Add pin"
             style={{
               background: "transparent",
@@ -635,17 +636,44 @@ function PinnedRow({
       onClick={onOpen}
       onDoubleClick={onEdit}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
+      aria-label={`Open ${pin.label}`}
       className="focus-ring app-row rounded-[8px] cursor-pointer"
       style={{
         display: "flex",
         alignItems: "center",
         gap: 10,
         height: "var(--row-h-dense)",
-        padding: "0 6px 0 12px",
+        padding: "0 6px 0 4px",
         color: "var(--text-tertiary)",
         textAlign: "left",
       }}
     >
+      {/* Drag-grip affordance — signals that this row is reorderable via pointer
+          drag. Keyboard reorder is a follow-up: framer-motion Reorder.Item does
+          not expose a keyboard API; a clean implementation would require a custom
+          drag controller with onKeyDown arrow-key handlers calling reorderPins. */}
+      <span
+        aria-hidden="true"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 12,
+          flexShrink: 0,
+          color: "var(--text-quaternary)",
+          cursor: "grab",
+          opacity: 0.5,
+        }}
+      >
+        <svg width={8} height={12} viewBox="0 0 8 12" fill="currentColor" aria-hidden="true">
+          <circle cx="2" cy="2" r="1.25" />
+          <circle cx="6" cy="2" r="1.25" />
+          <circle cx="2" cy="6" r="1.25" />
+          <circle cx="6" cy="6" r="1.25" />
+          <circle cx="2" cy="10" r="1.25" />
+          <circle cx="6" cy="10" r="1.25" />
+        </svg>
+      </span>
       <PinIcon name={pin.icon} />
       <span
         className="caption"

@@ -55,7 +55,6 @@ export function GraphLegend({ tags, visibleTags, onToggle }: Props) {
           <button
             key={tag}
             type="button"
-            role="button"
             className="chip"
             aria-pressed={isSelected}
             data-selected={isSelected ? "true" : undefined}

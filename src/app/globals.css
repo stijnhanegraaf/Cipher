@@ -1181,6 +1181,14 @@
 .cipher-cursor[data-state="hidden"] {
   visibility: hidden;
 }
+/* Explicit reduced-motion guard for the sidebar cursor — stops the blink.
+   The global @layer base wildcard rule also covers this via
+   animation-duration:0.01ms !important, but an explicit rule here is clearer. */
+@media (prefers-reduced-motion: reduce) {
+  .cipher-cursor[data-state="connected"] {
+    animation: none;
+  }
+}
 
 /* Hover-revealed remove button on recent-query rows.
    Default opacity lives on the class itself (not inline) so the :hover

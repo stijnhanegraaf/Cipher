@@ -34,6 +34,25 @@ export function CodeBlock({ children }: { children: React.ReactNode }) {
       >
         {copied ? "Copied" : "Copy"}
       </button>
+      {/* Polite live region — announces the copy confirmation to screen readers
+          without interrupting ongoing speech. Visually hidden via clip-pattern. */}
+      <span
+        aria-live="polite"
+        aria-atomic="true"
+        style={{
+          position: "absolute",
+          width: "1px",
+          height: "1px",
+          padding: 0,
+          margin: "-1px",
+          overflow: "hidden",
+          clip: "rect(0,0,0,0)",
+          whiteSpace: "nowrap",
+          border: 0,
+        }}
+      >
+        {copied ? "Copied to clipboard" : ""}
+      </span>
       {children}
     </pre>
   );

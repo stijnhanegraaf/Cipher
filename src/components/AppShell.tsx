@@ -118,7 +118,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     }
     localStorage.setItem("brain-theme", next);
     // Sync meta theme-color to the RESOLVED theme (not just OS).
-    (window as Window & { __setThemeColor?: (t: string) => void }).__setThemeColor?.(next);
+    window.__setThemeColor?.(next);
   }, []);
 
   // ── Sidebar handlers. ──────────────────────────────────────────────
