@@ -592,9 +592,16 @@ export function CanvasFullPage({ path }: { path: string }) {
 
   const handleNavigate = useCallback(
     (target: string, anchor?: string) => {
+      // A canvas can reference another canvas. The overlay sheet markdown-parses
+      // whatever it opens, so route .canvas targets to the full /file route
+      // (which short-circuits to CanvasFullPage) instead of the sheet.
+      if (target.toLowerCase().endsWith(".canvas")) {
+        router.push(`/file/${target.split("/").map(encodeURIComponent).join("/")}`);
+        return;
+      }
       sheet.open(target, anchor);
     },
-    [sheet],
+    [sheet, router],
   );
 
   return (

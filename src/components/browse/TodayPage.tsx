@@ -289,7 +289,7 @@ export function TodayPage() {
                 padding: "8px 16px",
                 border: "none",
                 background: "var(--accent-brand)",
-                color: "var(--text-on-brand, #fff)",
+                color: "var(--text-on-brand)",
                 cursor: "pointer",
                 fontSize: 13,
                 fontWeight: 500,
