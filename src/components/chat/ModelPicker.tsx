@@ -96,6 +96,7 @@ interface Props {
 export function ModelPicker({ current, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
+  const [healthFetching, setHealthFetching] = useState(true);
   const [conn, setConn] = useState<Conn | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [cliPathInput, setCliPathInput] = useState("");
@@ -106,6 +107,7 @@ export function ModelPicker({ current, onChange }: Props) {
   const popRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
+    setHealthFetching(true);
     try {
       const [hRes, cRes] = await Promise.all([
         fetch("/api/chat/health", { cache: "no-store" }),
@@ -113,11 +115,20 @@ export function ModelPicker({ current, onChange }: Props) {
       ]);
       if (hRes.ok) setHealth((await hRes.json()) as Health);
       if (cRes.ok) setConn((await cRes.json()) as Conn);
-    } catch { /* ignore */ }
+    } catch {
+      // Network error — healthFetching clears in finally, surfacing offline state.
+    } finally {
+      setHealthFetching(false);
+    }
   }, []);
 
+  // Fetch health on mount so the pill resolves at rest (not only on popover open).
   useEffect(() => {
-    if (open) refresh();
+    void refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    if (open) void refresh();
   }, [open, refresh]);
 
   // Auto-correct model when the provider's list changes and current is invalid.
@@ -214,10 +225,11 @@ export function ModelPicker({ current, onChange }: Props) {
   const activeMeta = PROVIDER_META[activeProvider];
   const isConnected = !!health?.ok && !health.needsKey && health.models.length > 0;
   const labelText =
-    !health              ? "Checking…" :
-    health.needsKey      ? `Connect ${activeMeta.short}` :
-    !health.ok           ? `${activeMeta.short} offline` :
-    health.models.length === 0 ? "No models" :
+    (!health && healthFetching)  ? "Checking…" :
+    !health                      ? `${activeMeta.short} offline` :
+    health.needsKey              ? `Connect ${activeMeta.short}` :
+    !health.ok                   ? `${activeMeta.short} offline` :
+    health.models.length === 0   ? "No models" :
     current;
 
   return (
@@ -555,9 +567,15 @@ export function ModelPicker({ current, onChange }: Props) {
             MODELS {health?.ok && !health.needsKey && health.models.length > 0 ? "· CONNECTED" : "· OFFLINE"}
           </div>
 
-          {!health && (
+          {!health && healthFetching && (
             <div className="caption" style={{ padding: "4px 10px 10px", color: "var(--text-tertiary)" }}>
               Checking…
+            </div>
+          )}
+
+          {!health && !healthFetching && (
+            <div className="caption" style={{ padding: "4px 10px 10px", color: "var(--text-tertiary)" }}>
+              {activeMeta.short} offline
             </div>
           )}
 

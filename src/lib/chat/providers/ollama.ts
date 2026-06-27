@@ -34,8 +34,10 @@ export function createOllamaProvider(
       if (id === "ollama-cloud" && !cfg.apiKey) {
         return { ok: false, models: [], defaultModel: "llama3.2:3b", needsKey: true };
       }
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 1500);
       try {
-        const res = await fetch(`${base}/api/tags`, { cache: "no-store", headers });
+        const res = await fetch(`${base}/api/tags`, { cache: "no-store", headers, signal: ctrl.signal });
         if (res.status === 401 || res.status === 403) {
           return { ok: false, models: [], defaultModel: "llama3.2:3b", needsKey: id === "ollama-cloud" };
         }
@@ -49,6 +51,8 @@ export function createOllamaProvider(
         };
       } catch {
         return { ok: false, models: [], defaultModel: "llama3.2:3b" };
+      } finally {
+        clearTimeout(timer);
       }
     },
     async *streamChat(model: string, messages: ChatMessage[]): AsyncIterable<string> {
