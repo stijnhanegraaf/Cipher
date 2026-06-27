@@ -20,6 +20,10 @@ import { OutgoingLinksPanel } from "@/components/browse/OutgoingLinksPanel";
  * Renders the same content as the sheet overlay, but inside a PageShell
  * (no backdrop, no slide) and with the browser's own navigation stack.
  * Wiki-links open the sheet (?sheet=) on top of this page.
+ *
+ * NOTE: .canvas files are short-circuited at the page.tsx (server component)
+ * level — see src/app/file/[...path]/page.tsx — so this component only ever
+ * receives markdown file paths.
  */
 export function FileFullPage({ path }: { path: string }) {
   const router = useRouter();
