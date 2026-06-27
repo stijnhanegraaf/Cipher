@@ -11,12 +11,17 @@
  * fit, keyboard).
  */
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useId, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useCanvasContent } from "@/lib/hooks/useCanvasContent";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { edgeAnchor } from "@/lib/canvas/parse-canvas";
 import { resolveCanvasColor } from "@/lib/canvas/canvas-color";
 import { fileKindForExt } from "@/lib/browse/file-kind";
+import { PageShell, PageAction } from "@/components/PageShell";
+import { Breadcrumbs } from "@/components/ui";
+import { useSheet } from "@/lib/hooks/useSheet";
+import { useVault } from "@/lib/hooks/useVault";
 import type { CanvasNode, CanvasEdge, ParsedCanvas } from "@/lib/canvas/parse-canvas";
 
 interface CanvasViewProps {
@@ -27,6 +32,7 @@ interface CanvasViewProps {
 // ─── Edge SVG layer ─────────────────────────────────────────────────────────
 
 function EdgeLayer({ nodes, edges }: { nodes: CanvasNode[]; edges: CanvasEdge[] }) {
+  const arrowId = useId();
   if (edges.length === 0) return null;
 
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
@@ -47,7 +53,7 @@ function EdgeLayer({ nodes, edges }: { nodes: CanvasNode[]; edges: CanvasEdge[] 
     >
       <defs>
         <marker
-          id="cv-arrow"
+          id={arrowId}
           markerWidth={10}
           markerHeight={7}
           refX={9}
@@ -81,7 +87,7 @@ function EdgeLayer({ nodes, edges }: { nodes: CanvasNode[]; edges: CanvasEdge[] 
               stroke: edgeColor ?? "var(--border-standard)",
               strokeWidth: 1.5,
             }}
-            markerEnd={edge.toEnd === "arrow" ? "url(#cv-arrow)" : undefined}
+            markerEnd={edge.toEnd === "arrow" ? `url(#${arrowId})` : undefined}
           />
         );
       })}
@@ -570,20 +576,13 @@ export function CanvasView({ filePath, onNavigate }: CanvasViewProps) {
 
 // ─── CanvasFullPage — for /file/[...path] route ──────────────────────────────
 
-import { useCallback as _useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { PageShell, PageAction } from "@/components/PageShell";
-import { Breadcrumbs } from "@/components/ui";
-import { useSheet } from "@/lib/hooks/useSheet";
-import { useVault } from "@/lib/hooks/useVault";
-
 export function CanvasFullPage({ path }: { path: string }) {
   const router = useRouter();
   const vault = useVault();
   const sheet = useSheet();
   const name = path.split("/").pop()?.replace(/\.canvas$/i, "") ?? path;
 
-  const openObsidian = _useCallback(() => {
+  const openObsidian = useCallback(() => {
     const vaultName = vault.name || "Obsidian";
     window.open(
       `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(path)}`,
@@ -591,7 +590,7 @@ export function CanvasFullPage({ path }: { path: string }) {
     );
   }, [path, vault.name]);
 
-  const handleNavigate = _useCallback(
+  const handleNavigate = useCallback(
     (target: string, anchor?: string) => {
       sheet.open(target, anchor);
     },
