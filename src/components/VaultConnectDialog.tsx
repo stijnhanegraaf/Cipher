@@ -245,7 +245,7 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
                         padding: "8px 16px",
                         border: "none",
                         background: "var(--accent-brand)",
-                        color: "var(--text-on-brand, #fff)",
+                        color: "var(--text-on-brand)",
                         cursor: busy || !path.trim() ? "default" : "pointer",
                         opacity: busy || !path.trim() ? 0.55 : 1,
                         fontSize: 13,
@@ -429,7 +429,7 @@ function BrowseView({
                 borderRadius: "var(--radius-small)",
                 transition: "background var(--motion-micro) var(--ease-default), color var(--motion-micro) var(--ease-default), border-color var(--motion-micro) var(--ease-default)",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-brand)"; e.currentTarget.style.color = "var(--text-on-brand, #fff)"; e.currentTarget.style.borderColor = "var(--accent-brand)"; }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-brand)"; e.currentTarget.style.color = "var(--text-on-brand)"; e.currentTarget.style.borderColor = "var(--accent-brand)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-tertiary)"; e.currentTarget.style.borderColor = "var(--border-subtle)"; }}
             >
               Use
@@ -473,7 +473,7 @@ function BrowseView({
             padding: "8px 16px",
             border: "none",
             background: "var(--accent-brand)",
-            color: "var(--text-on-brand, #fff)",
+            color: "var(--text-on-brand)",
             cursor: fs?.cwd && !busy ? "pointer" : "default",
             opacity: fs?.cwd && !busy ? 1 : 0.55,
             fontSize: 13,

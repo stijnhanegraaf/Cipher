@@ -141,7 +141,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
             borderRadius: 8,
             border: "none",
             background: value.trim() && !disabled ? "var(--accent-brand)" : "var(--bg-surface-alpha-2)",
-            color: value.trim() && !disabled ? "var(--text-on-brand, #fff)" : "var(--text-quaternary)",
+            color: value.trim() && !disabled ? "var(--text-on-brand)" : "var(--text-quaternary)",
             cursor: value.trim() && !disabled ? "pointer" : "default",
             flexShrink: 0,
             transition: "background var(--motion-micro) var(--ease-spring-soft), color var(--motion-micro) var(--ease-spring-soft)",

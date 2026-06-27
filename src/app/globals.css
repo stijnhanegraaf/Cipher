@@ -7,6 +7,7 @@
    ───────────────────────────────────────────── */
 
 /* ── Custom Properties: Dark Mode (PRIMARY) ── */
+/* stylelint-disable color-no-hex, function-disallowed-list -- token definition block: raw values allowed here only */
 :root {
   /* Background surfaces */
   --bg-marketing:       oklch(13.895% 0.0029 246.26);
@@ -51,6 +52,9 @@
   /* Glass — translucent background-tinted surface for floating chrome
      (chat input, scrolled top bar). Theme-aware via bg-marketing. */
   --bg-glass:            color-mix(in srgb, var(--bg-marketing) 85%, transparent);
+  /* Component glass — 72% opacity dark glass (was rgba(28,28,30,0.72) in .glass).
+     Distinct from --bg-glass (85% tinted); this is a richer, heavier dark panel. */
+  --bg-glass-component:  oklch(22.7% 0.004 287 / 0.72);
 
   /* Borders */
   --border-subtle:      oklch(100% 0 0 / 0.05);
@@ -166,6 +170,8 @@
   --dur-color:  150ms;                             /* color / opacity / border flips */
   --dur-expand: 200ms;                             /* size / position / sheet expand */
   --dur-enter:  var(--motion-enter);               /* 180ms — entrances, alias of existing */
+  --dur-highlight: 2000ms;                         /* anchor-highlight one-shot flash */
+  --dur-blink:     1200ms;                         /* cipher-cursor blink loop */
 
   /* Radius */
   --radius-micro:       2px;
@@ -224,7 +230,7 @@
      ──────────────────────────────────────────── */
   --hue-tag:        var(--accent-violet);     /* generic tags        */
   --hue-note:       var(--accent-brand);      /* note / doc kind     */
-  --hue-idea:       #d9a441;                  /* idea / amber kind   */
+  --hue-idea:       oklch(72.3% 0.124 83);    /* idea / amber kind — #d9a441 in oklch; no .light override: amber at chip-text-mix 72% toward dark primary reads well on light surfaces */
   --hue-question:   var(--status-open);       /* question (blue)     */
   --hue-warning:    var(--status-warning);    /* warning kind        */
   --hue-success:    var(--success);           /* done / positive     */
@@ -259,8 +265,10 @@
   --code-copy-border:   oklch(100% 0 0 / 0.10);
   --code-copy-bg-hover: oklch(100% 0 0 / 0.12);
 }
+/* stylelint-enable color-no-hex, function-disallowed-list */
 
 /* ── Custom Properties: Light Mode ────────── */
+/* stylelint-disable color-no-hex, function-disallowed-list -- token definition block: raw values allowed here only */
 .light {
   --bg-marketing:       oklch(97.837% 0.0011 197.14);
   --bg-panel:           oklch(96.667% 0.0017 247.84);
@@ -294,6 +302,7 @@
   --text-on-brand:       oklch(100% 0 0);  /* brand bg is dark indigo in both themes */
   --bg-tooltip:          oklch(22.145% 0.0025 247.94);  /* inverted tooltip in light mode */
   --bg-glass:            color-mix(in srgb, var(--bg-marketing) 85%, transparent);
+  --bg-glass-component:  oklch(100% 0 0 / 0.72);        /* light glass — was rgba(255,255,255,0.72) */
 
   --border-subtle:      oklch(0% 0 0 / 0.05);
   --border-standard:    oklch(0% 0 0 / 0.08);
@@ -341,6 +350,7 @@
   --chip-border-mix: 38%;
   --chip-text-mix:   72%;
 }
+/* stylelint-enable color-no-hex, function-disallowed-list */
 
 /* ── Tailwind v4 Theme Extensions ─────────── */
 @theme {
@@ -934,7 +944,7 @@
     font-feature-settings: "cv01", "ss03";
     border-radius: var(--radius-comfortable);
     background: var(--accent-brand);
-    color: #ffffff;
+    color: var(--text-on-brand);
     border: none;
     cursor: pointer;
     transition: background var(--duration-fast) var(--ease-default),
@@ -984,8 +994,8 @@
     font-feature-settings: "cv01", "ss03";
     border-radius: var(--radius-comfortable);
     background: var(--bg-surface-alpha-2);
-    color: #e2e4e7;
-    border: 1px solid rgb(36, 40, 44);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-solid-primary);
     cursor: pointer;
     outline: none;
     transition: background var(--duration-fast) var(--ease-default),
@@ -1004,7 +1014,7 @@
     gap: var(--space-1);
     padding: 0px 10px 0px 5px;
     border-radius: var(--radius-full);
-    border: 1px solid rgb(35, 37, 42);
+    border: 1px solid var(--border-solid-primary);
     background: transparent;
     color: var(--text-secondary);
     font-size: 0.75rem;
@@ -1020,7 +1030,7 @@
     justify-content: center;
     border-radius: var(--radius-circle);
     background: var(--success-pill);
-    color: #f7f8f8;
+    color: var(--text-on-brand);
     font-size: 0.625rem;
     font-weight: 510;
     line-height: 1;
@@ -1077,12 +1087,9 @@
 
   /* ── Glass morphism ─────────────────────── */
   .glass {
-    background: rgba(28, 28, 30, 0.72);
+    background: var(--bg-glass-component);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
-  }
-  .light .glass {
-    background: rgba(255, 255, 255, 0.72);
   }
 
   /* ── Divider ─────────────────────────────── */
@@ -1153,7 +1160,7 @@
   100% { background-color: transparent; }
 }
 .anchor-highlight {
-  animation: anchor-highlight 2000ms var(--ease-default) both;
+  animation: anchor-highlight var(--dur-highlight) var(--ease-default) both;
   border-radius: var(--radius-small);
   padding: 0 6px;
   margin: 0 -6px;
@@ -1172,7 +1179,7 @@
   font-feature-settings: "zero" 1;
 }
 .cipher-cursor[data-state="connected"] {
-  animation: cipher-cursor-blink 1200ms ease-in-out infinite;
+  animation: cipher-cursor-blink var(--dur-blink) ease-in-out infinite;
   color: var(--accent-brand-warm);
 }
 .cipher-cursor[data-state="disconnected"] {
