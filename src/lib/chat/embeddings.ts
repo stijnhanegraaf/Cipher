@@ -307,8 +307,9 @@ export async function loadExistingIndex(): Promise<EmbeddingIndex | null> {
 /**
  * Return a quick status snapshot for GET /api/chat/index.
  *
- * `stale` is true when any vault .md file has mtime > index.builtAt,
- * meaning a new build would pick up changes.
+ * `stale` is true when any vault .md file has mtime > index.builtAt, OR when the
+ * on-disk index predates the current INDEX_VERSION (so a legacy body-only index
+ * is reported stale and the user is prompted to rebuild structure-aware vectors).
  */
 export async function getIndexStatus(): Promise<{ built: boolean; count: number; stale: boolean }> {
   const vault = getVaultPath();
@@ -319,7 +320,10 @@ export async function getIndexStatus(): Promise<{ built: boolean; count: number;
 
   const files = await walkMarkdown(vault);
   const maxMtime = files.reduce((m, f) => Math.max(m, f.mtime), 0);
-  const stale = maxMtime > index.builtAt;
+  // Stale when a file changed OR the index predates the current embedding
+  // strategy (e.g. a body-only v1 index needs a structure-aware rebuild) —
+  // otherwise the UI shows "up to date" and the user never re-indexes.
+  const stale = maxMtime > index.builtAt || (index.version ?? 1) !== INDEX_VERSION;
 
   return { built: true, count: index.chunks.length, stale };
 }

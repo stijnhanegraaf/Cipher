@@ -47,7 +47,7 @@ vi.mock("@/lib/markdown/frontmatter", () => ({
 import { readFile, writeFile, rename, mkdir, stat } from "fs/promises";
 import { walkFiles } from "@/lib/fs/walk";
 import { getVaultPath } from "@/lib/vault-reader";
-import { ensureIndex, embedConcurrent, composeEmbedText, type PendingChunk, type EmbeddingIndex } from "./embeddings";
+import { ensureIndex, embedConcurrent, composeEmbedText, getIndexStatus, INDEX_VERSION, type PendingChunk, type EmbeddingIndex } from "./embeddings";
 import type { Embedder } from "./providers/embeddings";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -413,5 +413,50 @@ describe("composeEmbedText", () => {
     expect(calledWith).toContain("Details");        // heading
     expect(calledWith).toContain("wiki/foo.md");    // path
     expect(calledWith).toContain("body content");   // body
+  });
+});
+
+describe("getIndexStatus — version-aware staleness", () => {
+  beforeEach(() => {
+    mockGetVaultPath.mockReturnValue("/vault");
+    mockStat.mockResolvedValue({ mtimeMs: 100 }); // files older than builtAt
+    mockWalkFiles.mockResolvedValue(["a.md"]);
+  });
+
+  function onDiskIndex(version: number, builtAt = 1000): string {
+    return JSON.stringify({
+      version,
+      embedder: "ollama-local",
+      model: "nomic-embed-text",
+      dim: 2,
+      builtAt,
+      chunks: [{ id: "a.md#s", path: "a.md", text: "t", vec: [1, 0], mtime: 100 }],
+    });
+  }
+
+  it("legacy (v1) index with unchanged files → stale (needs structure-aware rebuild)", async () => {
+    mockReadFile.mockImplementation((p: string) =>
+      (p as string).endsWith("embeddings.json") ? Promise.resolve(onDiskIndex(1)) : Promise.reject(new Error("ENOENT")),
+    );
+    const s = await getIndexStatus();
+    expect(s.built).toBe(true);
+    expect(s.stale).toBe(true); // version 1 !== INDEX_VERSION
+  });
+
+  it("current-version index with unchanged files → not stale", async () => {
+    mockReadFile.mockImplementation((p: string) =>
+      (p as string).endsWith("embeddings.json") ? Promise.resolve(onDiskIndex(INDEX_VERSION)) : Promise.reject(new Error("ENOENT")),
+    );
+    const s = await getIndexStatus();
+    expect(s.stale).toBe(false);
+  });
+
+  it("current-version index but a file changed → stale (mtime)", async () => {
+    mockStat.mockResolvedValue({ mtimeMs: 5000 }); // newer than builtAt 1000
+    mockReadFile.mockImplementation((p: string) =>
+      (p as string).endsWith("embeddings.json") ? Promise.resolve(onDiskIndex(INDEX_VERSION, 1000)) : Promise.reject(new Error("ENOENT")),
+    );
+    const s = await getIndexStatus();
+    expect(s.stale).toBe(true);
   });
 });
