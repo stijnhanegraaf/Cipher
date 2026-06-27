@@ -7,9 +7,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PageShell } from "@/components/PageShell";
+import { PageShell, PageAction } from "@/components/PageShell";
 import { TodayRow } from "@/components/browse/TodayRow";
 import type { TodayPayload, TodayTask } from "@/lib/today-builder";
+import { formatDailyDate } from "@/lib/daily-note";
 
 const FADE_DELAY_MS = 2000;
 const UNDO_WINDOW_MS = 6000;
@@ -26,6 +27,10 @@ export function TodayPage() {
    * When a task lands here we schedule a fade-out and removal from the list.
    */
   const [pendingCheck, setPendingCheck] = useState<Set<string>>(new Set());
+
+  /** Daily-note button state. */
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const [dailyToast, setDailyToast] = useState<string | null>(null);
 
   /** Undo toast — pops when a task is checked; clicking reverts. */
   const [undoTask, setUndoTask] = useState<TodayTask | null>(null);
@@ -152,6 +157,36 @@ export function TodayPage() {
 
   const handleAsk = useCallback((query: string) => router.push(`/chat?q=${encodeURIComponent(query)}`), [router]);
 
+  const handleDailyNote = useCallback(() => {
+    setDailyLoading(true);
+    setDailyToast(null);
+    void (async () => {
+      try {
+        const iso = formatDailyDate(new Date());
+        const res = await fetch("/api/daily", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date: iso }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { path: string; created: boolean };
+          const msg = data.created ? "Created today's note" : "Opened today's note";
+          setDailyToast(msg);
+          router.push(`/browse?sheet=${encodeURIComponent(data.path)}`, { scroll: false });
+          setTimeout(() => setDailyToast(null), 3000);
+        } else if (res.status === 409) {
+          window.dispatchEvent(new CustomEvent("cipher:open-vault-connect"));
+        } else if (res.status === 422) {
+          setDailyToast("No daily-notes folder detected in this vault");
+        }
+      } catch {
+        setDailyToast("Failed to open today’s note");
+      } finally {
+        setDailyLoading(false);
+      }
+    })();
+  }, [router]);
+
   // ── Derived. ───────────────────────────────────────────────────────
   // dateLabel computed once on mount; captures current date at render time.
   const dateLabel = useMemo(() =>
@@ -172,11 +207,56 @@ export function TodayPage() {
   const upNextGroups = useMemo(() => groupByTopic(upNextVisible), [upNextVisible]);
 
   // ── Render. ────────────────────────────────────────────────────────
+  // Daily-note header action button (pencil icon).
+  const dailyNoteAction = (
+    <PageAction
+      onClick={handleDailyNote}
+      label={dailyLoading ? "Opening today's note…" : "Open today's note"}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+      </svg>
+    </PageAction>
+  );
+
   return (
     <PageShell
       title="Today"
       subtitle={subtitle}
+      actions={dailyNoteAction}
     >
+      {/* Daily-note toast */}
+      {dailyToast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            padding: "10px 14px",
+            borderRadius: 8,
+            background: "var(--bg-tooltip)",
+            border: "1px solid var(--border-standard)",
+            color: "var(--text-primary)",
+            fontSize: 13,
+            zIndex: 100,
+            boxShadow: "var(--shadow-dialog)",
+          }}
+        >
+          {dailyToast}
+        </div>
+      )}
+
       {loading && (
         <div style={{ padding: 32 }}>
           {[0, 1, 2, 3].map((i) => (

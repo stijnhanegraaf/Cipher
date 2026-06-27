@@ -16,6 +16,7 @@ import { VaultConnectDialog } from "@/components/VaultConnectDialog";
 import { useSheet } from "@/lib/hooks/useSheet";
 import { useVault } from "@/lib/hooks/useVault";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
+import { formatDailyDate } from "@/lib/daily-note";
 
 /**
  * AppShell — persistent chrome shared by every route.
@@ -160,8 +161,31 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           router.push("/browse");
         },
       }] : []),
+      {
+        id: "action-daily-note",
+        group: "Actions" as const,
+        label: "Open today's note",
+        run: () => {
+          void (async () => {
+            const iso = formatDailyDate(new Date());
+            const res = await fetch("/api/daily", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ date: iso }),
+            });
+            if (res.ok) {
+              const data = (await res.json()) as { path: string; created: boolean };
+              router.push(`/browse?sheet=${encodeURIComponent(data.path)}`);
+            } else if (res.status === 409) {
+              setConnectOpen(true);
+            } else if (res.status === 422) {
+              alert("This vault has no daily-notes folder detected.");
+            }
+          })();
+        },
+      },
     ];
-  }, [router, handleToggleTheme, vault]);
+  }, [router, handleToggleTheme, vault, setConnectOpen]);
 
   // Active-state hint for sidebar — route-driven only, no view kind.
   const activeKind = null;
