@@ -13,6 +13,7 @@ import { HintChip } from "@/components/HintChip";
 import { Sidebar } from "@/components/Sidebar";
 import { CommandPalette, type PaletteAction } from "@/components/CommandPalette";
 import { VaultConnectDialog } from "@/components/VaultConnectDialog";
+import { log } from "@/lib/log";
 import { useSheet } from "@/lib/hooks/useSheet";
 import { useVault } from "@/lib/hooks/useVault";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
@@ -167,19 +168,25 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         label: "Open today's note",
         run: () => {
           void (async () => {
-            const iso = formatDailyDate(new Date());
-            const res = await fetch("/api/daily", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ date: iso }),
-            });
-            if (res.ok) {
-              const data = (await res.json()) as { path: string; created: boolean };
-              router.push(`/browse?sheet=${encodeURIComponent(data.path)}`);
-            } else if (res.status === 409) {
-              setConnectOpen(true);
-            } else if (res.status === 422) {
-              alert("This vault has no daily-notes folder detected.");
+            try {
+              const iso = formatDailyDate(new Date());
+              const res = await fetch("/api/daily", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ date: iso }),
+              });
+              if (res.ok) {
+                const data = (await res.json()) as { path: string; created: boolean };
+                router.push(`/browse?sheet=${encodeURIComponent(data.path)}`);
+              } else if (res.status === 409) {
+                setConnectOpen(true);
+              } else if (res.status === 422) {
+                // No journal folder detected. The TodayPage button surfaces a
+                // toast for this; from the palette we degrade quietly.
+                log.warn("daily-note", "no daily-notes folder detected in this vault");
+              }
+            } catch (err) {
+              log.error("daily-note", "failed to open today's note", err);
             }
           })();
         },
