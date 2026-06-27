@@ -44,13 +44,14 @@ export function SearchPage() {
 
   const [mode, setMode] = useState<SearchMode>("exact");
   const [data, setData] = useState<SearchResultsData | null>(null);
-  const [source, setSource] = useState<SearchSource>("keyword-only");
+  const [source, setSource] = useState<SearchSource>("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setSource(""); // clear prior source so the degrade notice can't flicker mid-fetch
       try {
         const payload = await fetchSearch(q, mode);
         if (!cancelled) {
@@ -78,7 +79,7 @@ export function SearchPage() {
       .map(({ kind, label }) => ({ kind, label, items: byKind[kind] }));
   }, [data]);
 
-  const showDegradeNotice = mode === "semantic" && source === "keyword-only";
+  const showDegradeNotice = !!q && mode === "semantic" && source === "keyword-only";
 
   return (
     <PageShell
@@ -98,6 +99,7 @@ export function SearchPage() {
           <button
             key={m}
             type="button"
+            aria-pressed={mode === m}
             onClick={() => setMode(m)}
             className="mono-label"
             style={{
