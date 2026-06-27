@@ -14,6 +14,11 @@ export interface VaultState {
   connected: boolean;
   loading: boolean;
   error?: string;
+  /**
+   * True when the connected vault contains a detected audits directory.
+   * Drives conditional display of the Audits sidebar row.
+   */
+  hasAudits: boolean;
   /** Connect (or switch) to a new vault path. Rejects on server-side validation error. */
   connect: (path: string) => Promise<{ ok: boolean; error?: string; name?: string }>;
   /** Disconnect the current vault. */
@@ -26,6 +31,7 @@ interface VaultResponse {
   activePath: string;
   name: string;
   connected: boolean;
+  hasAudits?: boolean;
 }
 
 /**
@@ -41,6 +47,7 @@ export function useVault(): VaultState {
     path: "",
     name: "",
     connected: false,
+    hasAudits: false,
     loading: true,
   });
 
@@ -53,6 +60,7 @@ export function useVault(): VaultState {
         path: data.activePath || "",
         name: data.name || "",
         connected: !!data.connected,
+        hasAudits: !!data.hasAudits,
         loading: false,
       });
     } catch (err) {

@@ -80,6 +80,8 @@ export interface VaultLayout {
   researchDir: string | null;
   workDir: string | null;
   systemDir: string | null;
+  /** Relative path to the audits directory within the vault, or null when absent. */
+  auditsDir: string | null;
   hubFile: string | null;
 }
 
@@ -162,6 +164,7 @@ export function getVaultLayout(): VaultLayout | null {
         researchDir: typeof parsed.researchDir === 'string' ? parsed.researchDir : undefined,
         workDir:     typeof parsed.workDir     === 'string' ? parsed.workDir     : undefined,
         systemDir:   typeof parsed.systemDir   === 'string' ? parsed.systemDir   : undefined,
+        auditsDir:   typeof parsed.auditsDir   === 'string' ? parsed.auditsDir   : undefined,
         hubFile:     typeof parsed.hubFile     === 'string' ? parsed.hubFile     : undefined,
       } as Partial<VaultLayout>;
     }
@@ -174,6 +177,9 @@ export function getVaultLayout(): VaultLayout | null {
   const RESEARCH_NAMES = ['knowledge/research', 'research', 'literature'];
   const WORK_NAMES     = ['work', 'tasks', 'todo', 'todos'];
   const SYSTEM_NAMES   = ['system', 'meta', 'ops'];
+  // 'system/audits' matches wiki/system/audits automatically via the wiki/ prefix
+  // probe in findFolder, covering legacy vault layouts.
+  const AUDIT_NAMES    = ['audits', 'system/audits', 'meta/audits', 'reviews'];
   const HUB_FILES      = ['dashboard.md', 'index.md', 'home.md', 'README.md'];
 
   const byName: Partial<VaultLayout> = {
@@ -183,6 +189,7 @@ export function getVaultLayout(): VaultLayout | null {
     researchDir: findFolder(RESEARCH_NAMES),
     workDir:     findFolder(WORK_NAMES),
     systemDir:   findFolder(SYSTEM_NAMES),
+    auditsDir:   findFolder(AUDIT_NAMES),
     hubFile:     findFile(HUB_FILES),
   };
 
@@ -288,6 +295,20 @@ export function getVaultLayout(): VaultLayout | null {
     return null;
   };
 
+  // Derive auditsDir from systemDir as final fallback: covers vaults whose
+  // system folder isn't named "system" (so the AUDIT_NAMES probe misses it)
+  // but whose audits folder lives inside the detected systemDir.
+  const derivedAuditsDir = (() => {
+    if (pick('auditsDir')) return null; // already resolved — no need to derive
+    const sysDir = pick('systemDir');
+    if (!sysDir) return null;
+    const candidate = `${sysDir}/audits`;
+    try {
+      if (existsSync(join(root, candidate)) && statSync(join(root, candidate)).isDirectory()) return candidate;
+    } catch { /* ignore */ }
+    return null;
+  })();
+
   const layout: VaultLayout = {
     root,
     hasWiki,
@@ -297,6 +318,7 @@ export function getVaultLayout(): VaultLayout | null {
     researchDir: pick('researchDir'),
     workDir:     pick('workDir'),
     systemDir:   pick('systemDir'),
+    auditsDir:   pick('auditsDir') ?? derivedAuditsDir,
     hubFile:     pick('hubFile'),
   };
   _layoutCache.set(root, layout);
@@ -855,6 +877,7 @@ export {
   readWorkLog,
   readWorkWeek,
   readResearchProject,
+  readAuditDashboard,
 } from "./vault-readers";
 
 export {

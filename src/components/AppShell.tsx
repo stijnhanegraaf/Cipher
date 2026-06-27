@@ -146,6 +146,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       { id: "nav-graph", group: "Navigation", label: "Graph", icon: navIcon, run: () => router.push("/browse/graph") },
       { id: "nav-system", group: "Navigation", label: "System", icon: navIcon, run: () => router.push("/browse/system") },
       { id: "nav-timeline", group: "Navigation", label: "Timeline", icon: navIcon, run: () => router.push("/browse/timeline") },
+      { id: "nav-audits", group: "Navigation", label: "Audits", icon: navIcon, run: () => router.push("/browse/audit") },
       { id: "action-theme", group: "Actions", label: "Toggle theme", run: handleToggleTheme },
       {
         id: "action-connect-vault",
@@ -256,6 +257,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                 router.push("/browse/timeline");
               } else if (s === "work" || s === "tasks" || s === "todo" || s === "todos") {
                 router.push("/browse");
+              } else if (s === "audits" || s === "reviews") {
+                router.push("/browse/audit");
               } else {
                 // Unrecognised section → navigate to the full-page file browser
                 // scoped to that folder path.

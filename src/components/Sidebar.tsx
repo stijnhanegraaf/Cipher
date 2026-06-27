@@ -137,6 +137,19 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
       onClick: () => router.push("/browse/timeline"),
       activeWhen: () => pathname === "/browse/timeline",
     },
+    // Audits row — only visible when the connected vault has an audits directory.
+    ...(vault.hasAudits ? [{
+      id: "audits",
+      label: "Audits",
+      icon: (
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 12l2 2 4-4" />
+          <path d="M21 12c0 4.97-4.03 9-9 9S3 16.97 3 12 7.03 3 12 3s9 4.03 9 9z" />
+        </svg>
+      ),
+      onClick: () => router.push("/browse/audit"),
+      activeWhen: () => pathname === "/browse/audit",
+    }] as NavItem[] : []),
   ];
 
   return (

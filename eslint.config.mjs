@@ -42,17 +42,6 @@ const eslintConfig = defineConfig([
     },
   },
 
-  // ─── Allowlist: AuditDashboard.tsx ─────────────────────────────────────────
-  // TODO(phase-4): remove allowlist when AuditDashboard is generalized.
-  // Contains 34 raw Tailwind palette colors (zinc/emerald/amber/red) slated for
-  // replacement when the component is rewritten in Phase 4.
-  {
-    files: ["**/AuditDashboard.tsx"],
-    rules: {
-      "cipher-design/no-raw-color": "off",
-    },
-  },
-
   // ─── Allowlist: GraphCanvas.tsx ────────────────────────────────────────────
   // Canvas drawing requires literal colors: ctx.fillStyle / ctx.strokeStyle cannot
   // use CSS custom properties at runtime. See Phase 5: resolve from computed tokens.

@@ -1,7 +1,8 @@
 /**
  * Schema-aware convenience readers for common vault files — open-work,
  * waiting-for, system-status, open-loops, entities, work-logs, weekly
- * summaries, research projects. Each probes layout + common filenames.
+ * summaries, research projects, audit dashboard. Each probes layout +
+ * common filenames.
  */
 
 import type { ParsedFile, EntityData, ResearchProject, WorkGroup, StatusCheck, WorkLogDay } from "./vault-reader";
@@ -10,10 +11,17 @@ import {
   parseWorkItems,
   parseStatusChecks,
   parseWorkLog,
+  parseTable,
   parseEntity,
   parseResearchProject,
   getVaultLayout,
 } from "./vault-reader";
+import {
+  parseOverallStatus,
+  parseAuditRows,
+  parseLatestStatus,
+} from "./audit/parse";
+import type { AuditDashboardData } from "./audit/parse";
 
 function inDir(dir: string | null, ...parts: string[]): string | null {
   if (!dir) return null;
@@ -202,4 +210,50 @@ export async function readResearchProject(name: string): Promise<ResearchProject
     if (p) return p;
   }
   return null;
+}
+
+/**
+ * Read the audit dashboard from the vault's auditsDir.
+ *
+ * Uses the layout probe (getVaultLayout) to locate the audits folder — no
+ * hardcoded paths. Reads through the cached `readVaultFile` spine, then
+ * delegates all parsing to the pure `@/lib/audit/parse` module.
+ *
+ * Returns `{ available: false }` when:
+ *   - No vault is connected.
+ *   - No audits folder was detected in this vault (the common case).
+ *   - The dashboard.md file doesn't exist inside the audits folder.
+ *
+ * Returns `{ available: true, data }` with the parsed dashboard + enriched
+ * per-audit statuses from `latest-<slug>.md` files when present.
+ */
+export async function readAuditDashboard(): Promise<
+  | { available: false }
+  | { available: true; data: AuditDashboardData }
+> {
+  const layout = getVaultLayout();
+  const dir = layout?.auditsDir ?? null;
+  if (!dir) return { available: false };
+
+  const dashboard = await readVaultFile(`${dir}/dashboard.md`);
+  if (!dashboard) return { available: false };
+
+  const overallStatus = parseOverallStatus(dashboard.content);
+  const audits = parseAuditRows(parseTable(dashboard.content));
+
+  // Enrich per-audit statuses from latest-<slug>.md when present.
+  // Slug: lowercase, spaces → hyphens, strip non-alphanumeric except hyphens.
+  const enriched = await Promise.all(
+    audits.map(async (audit) => {
+      const slug = audit.name
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+      const latest = await readVaultFile(`${dir}/latest-${slug}.md`);
+      if (!latest) return audit;
+      return { ...audit, status: parseLatestStatus(latest.content) };
+    })
+  );
+
+  return { available: true, data: { overallStatus, audits: enriched } };
 }
