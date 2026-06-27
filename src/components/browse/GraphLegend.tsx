@@ -1,21 +1,25 @@
 "use client";
 
 /**
- * GraphLegend — tag legend + filter + colour-mode toggle for the vault graph.
+ * GraphLegend — tag filter panel + colour-mode toggle for the vault graph.
  *
  * Renders chip rows (one per distinct primary tag) positioned over the
  * canvas. Clicking a chip toggles its tag's membership in `visibleTags`.
  * When visibleTags is empty, all nodes are visible (no filter active).
  *
+ * Chip swatches use `tagArcColor` — the same color the canvas uses for
+ * per-tag rim arcs, so the legend always matches the on-node arcs.
+ *
+ * When a filter is active, a "Clear" affordance empties the filter set.
+ *
  * Also renders a "Colors" segmented toggle that switches the graph between
  * the restrained mono + status-hues default and the full semantic rainbow.
- *
- * Color: each chip uses `--sc: var(--hue-*)` — the same token the canvas
- * resolves for node fill, so legend swatches always match node colors.
+ * (The rainbow toggle controls node body color only; arc/swatch color is
+ * always tagArcColor regardless of that setting.)
  */
 
 import type React from "react";
-import { tagColor, statusTagColor } from "@/lib/color/tag-color";
+import { tagArcColor } from "@/lib/color/tag-color";
 
 export interface TagCount {
   tag: string;   // normalized tag string, or "" for untagged
@@ -30,9 +34,11 @@ interface Props {
   rainbow?: boolean;
   /** Called to flip the rainbow toggle. */
   onRainbowToggle?: () => void;
+  /** Called to clear all active tag filters (empties visibleTags). */
+  onClearFilter?: () => void;
 }
 
-export function GraphLegend({ tags, visibleTags, onToggle, rainbow = false, onRainbowToggle }: Props) {
+export function GraphLegend({ tags, visibleTags, onToggle, rainbow = false, onRainbowToggle, onClearFilter }: Props) {
   if (tags.length === 0) return null;
 
   const hasFilter = visibleTags.size > 0;
@@ -120,11 +126,33 @@ export function GraphLegend({ tags, visibleTags, onToggle, rainbow = false, onRa
         </div>
       )}
 
+      {/* Clear filter affordance — visible only when a filter is active */}
+      {hasFilter && onClearFilter && (
+        <button
+          type="button"
+          onClick={onClearFilter}
+          style={{
+            fontSize: "0.72rem",
+            padding: "2px 8px",
+            borderRadius: 4,
+            border: "1px solid var(--border-standard)",
+            background: "var(--bg-elevated)",
+            color: "var(--text-tertiary)",
+            cursor: "pointer",
+            userSelect: "none",
+            alignSelf: "flex-end",
+          }}
+        >
+          Clear filter
+        </button>
+      )}
+
       {tags.map(({ tag, count }) => {
-        // Match the canvas: mono + status hues by default, full rainbow when toggled.
-        const token = rainbow ? tagColor(tag) : statusTagColor(tag);
+        // Arc color — always tagArcColor so swatch matches the on-node rim arcs,
+        // independent of the Status|Tags rainbow body-color toggle.
+        const token = tagArcColor(tag);
         const label = tag || "untagged";
-        const isSelected = hasFilter ? visibleTags.has(tag) : false;
+        const isSelected = visibleTags.has(tag);
 
         return (
           <button
@@ -142,6 +170,9 @@ export function GraphLegend({ tags, visibleTags, onToggle, rainbow = false, onRa
                 gap: 6,
                 cursor: "pointer",
                 userSelect: "none",
+                // When a filter is active, dim excluded tags to make inclusion obvious.
+                opacity: hasFilter && !isSelected ? 0.4 : 1,
+                transition: "opacity 0.15s",
               } as React.CSSProperties
             }
           >

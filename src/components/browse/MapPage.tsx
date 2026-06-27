@@ -91,6 +91,10 @@ export function MapPage() {
     });
   }, []);
 
+  const handleClearFilter = useCallback(() => {
+    setVisibleTags(new Set());
+  }, []);
+
   const title = mode === "structure" ? "Structure" : "Graph";
   const subtitle = graph ? `${graph.nodes.length} notes · ${graph.edges.length} links` : undefined;
 
@@ -162,6 +166,7 @@ export function MapPage() {
               tags={tagCounts}
               visibleTags={visibleTags}
               onToggle={handleTagToggle}
+              onClearFilter={handleClearFilter}
               rainbow={rainbow}
               onRainbowToggle={() => setRainbow((r) => !r)}
             />
