@@ -42,11 +42,22 @@ const eslintConfig = defineConfig([
     },
   },
 
-  // ─── Allowlist: GraphCanvas.tsx ────────────────────────────────────────────
-  // Canvas drawing requires literal colors: ctx.fillStyle / ctx.strokeStyle cannot
-  // use CSS custom properties at runtime. See Phase 5: resolve from computed tokens.
+  // ─── Allowlist: ForceGraph.tsx ────────────────────────────────────────────
+  // Canvas drawing requires constructing rgb() strings at runtime from computed
+  // tokens (getComputedStyle → cssValueToRgb → "rgb" + "(" + r + "," + g + "," + b + ")").
+  // No raw hex appears; all colors derive from --hue-* and --text-* CSS tokens.
   {
-    files: ["**/GraphCanvas.tsx"],
+    files: ["**/ForceGraph.tsx"],
+    rules: {
+      "cipher-design/no-raw-color": "off",
+    },
+  },
+
+  // ─── Allowlist: layout.tsx ─────────────────────────────────────────────────
+  // meta theme-color requires literal color strings; <meta> cannot use var(--).
+  // The themeColor viewport config and the inline bootstrap script both need literals.
+  {
+    files: ["src/app/layout.tsx"],
     rules: {
       "cipher-design/no-raw-color": "off",
     },

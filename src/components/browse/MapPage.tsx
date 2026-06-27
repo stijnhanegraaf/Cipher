@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageShell } from "@/components/PageShell";
-import { GraphCanvas } from "@/components/browse/GraphCanvas";
+import { ForceGraph } from "@/components/browse/ForceGraph";
 import { GraphLegend, type TagCount } from "@/components/browse/GraphLegend";
 import { MapModeToggle, type MapMode } from "@/components/browse/MapModeToggle";
 import { StructureColumns } from "@/components/browse/StructureColumns";
@@ -126,7 +126,7 @@ export function MapPage() {
         )}
         {!loading && !error && graph && graph.nodes.length > 0 && mode === "graph" && (
           <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-            <GraphCanvas graph={graph} onOpen={sheet.open} visibleTags={visibleTags} />
+            <ForceGraph graph={graph} onOpen={sheet.open} visibleTags={visibleTags} />
             <GraphLegend
               tags={tagCounts}
               visibleTags={visibleTags}
