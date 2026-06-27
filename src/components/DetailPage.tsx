@@ -439,6 +439,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
         }}
       >
         <div
+          className="detail-content-layout"
           style={{
             maxWidth: showToc ? 920 : 720,
             margin: "0 auto",

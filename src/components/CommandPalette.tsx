@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { PinIcon } from "@/components/ui/PinIcon";
 import type { PinEntry } from "@/lib/settings";
 import { slugify } from "@/lib/slug";
+import { useIsMobile } from "@/lib/hooks/useMediaQuery";
 
 export interface PaletteAction {
   id: string;
@@ -59,6 +60,7 @@ interface CommandPaletteProps {
  * Uses useListNavigation for arrow / j / k / Enter / Home / End.
  */
 export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) {
+  const isMobile = useIsMobile();
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -274,17 +276,23 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
             role="dialog"
             aria-label="Command palette"
             aria-modal="true"
-            initial={false}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
-            className="palette-panel fixed left-1/2 top-[15vh] -translate-x-1/2 z-[401] w-[560px] max-w-[calc(100vw-32px)] overflow-hidden flex flex-col"
+            initial={isMobile ? { opacity: 0, y: "100%" } : false}
+            animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+            exit={isMobile ? { opacity: 0, y: "100%" } : { opacity: 0, y: -4 }}
+            transition={{ duration: 0.18, ease: [0.22, 1.2, 0.36, 1] }}
+            className={
+              isMobile
+                ? "palette-panel fixed bottom-0 left-0 right-0 z-[401] w-full overflow-hidden flex flex-col"
+                : "palette-panel fixed left-1/2 top-[15vh] -translate-x-1/2 z-[401] w-[560px] max-w-[calc(100vw-32px)] overflow-hidden flex flex-col"
+            }
             style={{
-              borderRadius: "var(--radius-panel)",
+              borderRadius: isMobile
+                ? "var(--radius-panel) var(--radius-panel) 0 0"
+                : "var(--radius-panel)",
               background: "var(--surface-raised)",
               border: "1px solid var(--accent-soft)",
               boxShadow: "var(--shadow-dialog)",
-              maxHeight: "min(70vh, 560px)",
+              maxHeight: isMobile ? "90dvh" : "min(70vh, 560px)",
             }}
           >
             {/* Search input */}

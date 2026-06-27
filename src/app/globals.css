@@ -2158,6 +2158,52 @@ body[data-grain="enabled"] .grain::after {
 }
 
 /* ─────────────────────────────────────────────
+   RESPONSIVE — phone (<640px)
+   All phone-specific overrides live here.
+   Desktop (>1024px) path is UNCHANGED — every
+   rule below is additive and scoped to ≤640px.
+   ───────────────────────────────────────────── */
+
+/* Mobile top bar — hidden on desktop/tablet, flex on phone. */
+.mobile-top-bar {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  /* 1. Make room below the fixed 48px mobile top bar. */
+  .chrome-panel--main {
+    padding-top: 48px;
+  }
+
+  /* 2. Show the mobile top bar. */
+  .mobile-top-bar {
+    display: flex;
+  }
+
+  /* 3. Detail reader — stack TOC panel below the content column.
+        flex-direction: column !important overrides the inline display:flex;flex-direction:row
+        set by DetailPage when showToc is true. */
+  .detail-content-layout {
+    flex-direction: column !important;
+    padding-left: var(--space-4) !important;
+    padding-right: var(--space-4) !important;
+  }
+
+  /* 4. Drawer — slide-in panel; framer-motion controls visibility,
+        CSS provides the surface styles. */
+  .mobile-drawer-panel {
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  /* 5. Reading column — reduce side padding on narrow screens. */
+  .reading-column {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+}
+
+/* ─────────────────────────────────────────────
    CRAFT PASS — button press scale (global)
    ───────────────────────────────────────────── */
 button, [role="button"] {

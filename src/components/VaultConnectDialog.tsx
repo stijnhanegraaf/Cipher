@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useVault } from "@/lib/hooks/useVault";
+import { useIsMobile } from "@/lib/hooks/useMediaQuery";
 import {
   type RecentVault,
   getRecentVaults,
@@ -36,6 +37,7 @@ interface FsResponse {
 
 export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
   const vault = useVault();
+  const isMobile = useIsMobile();
   const [path, setPath] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,9 +138,9 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
               position: "fixed",
               inset: 0,
               display: "flex",
-              alignItems: "center",
+              alignItems: isMobile ? "flex-end" : "center",
               justifyContent: "center",
-              padding: 16,
+              padding: isMobile ? 0 : 16,
               pointerEvents: "none",
               zIndex: 401,
             }}
@@ -147,19 +149,21 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
               role="dialog"
               aria-modal="true"
               aria-labelledby="vault-connect-title"
-              initial={{ opacity: 0, y: 8, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              initial={isMobile ? { opacity: 0, y: "100%" } : { opacity: 0, y: 8, scale: 0.98 }}
+              animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, scale: 1 }}
+              exit={isMobile ? { opacity: 0, y: "100%" } : { opacity: 0, y: 8, scale: 0.98 }}
               transition={{ duration: 0.22, ease: [0.22, 1.2, 0.36, 1] }}
               style={{
                 pointerEvents: "auto",
-                width: "min(520px, 100%)",
-                maxHeight: "min(78vh, 640px)",
+                width: isMobile ? "100%" : "min(520px, 100%)",
+                maxHeight: isMobile ? "90dvh" : "min(78vh, 640px)",
                 display: "flex",
                 flexDirection: "column",
                 background: "var(--surface-raised)",
                 border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-panel)",
+                borderRadius: isMobile
+                  ? "var(--radius-panel) var(--radius-panel) 0 0"
+                  : "var(--radius-panel)",
                 boxShadow: "var(--shadow-dialog)",
               }}
             >

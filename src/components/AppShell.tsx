@@ -5,18 +5,19 @@
  * and routes content. Handles keyboard shortcuts and theme bootstrap.
  */
 
-import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
+import { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { DetailPage } from "@/components/DetailPage";
 import { HintChip } from "@/components/HintChip";
-import { Sidebar } from "@/components/Sidebar";
+import { Sidebar, type SidebarProps } from "@/components/Sidebar";
 import { CommandPalette, type PaletteAction } from "@/components/CommandPalette";
 import { VaultConnectDialog } from "@/components/VaultConnectDialog";
 import { log } from "@/lib/log";
 import { useSheet } from "@/lib/hooks/useSheet";
 import { useVault } from "@/lib/hooks/useVault";
 import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
+import { useIsMobile } from "@/lib/hooks/useMediaQuery";
 import { formatDailyDate } from "@/lib/daily-note";
 import {
   type ThemeChoice,
@@ -53,8 +54,15 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const vault = useVault();
   const sheet = useSheet();
+  const isMobile = useIsMobile();
+  const prefersReducedMotion = useReducedMotion();
+  const drawerRef = useRef<HTMLElement | null>(null);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Drawer requested by user interaction; actual open state is derived from
+  // whether we're on mobile — prevents stale-open drawer on desktop resize.
+  const [drawerRequested, setDrawerOpen] = useState(false);
+  const drawerOpen = isMobile && drawerRequested;
   // NOTE: these start with SSR-safe defaults (closed / empty / system) and are
   // hydrated from storage in a post-mount effect below. Reading sessionStorage/
   // localStorage in a useState initializer makes the first client render differ
@@ -130,6 +138,37 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     try { localStorage.removeItem("cipher-recent"); } catch {}
   }, []);
 
+  // ── Focus-trap for mobile drawer ─────────────────────────────────────
+  useEffect(() => {
+    if (!drawerOpen || !drawerRef.current) return;
+    const el = drawerRef.current;
+    // Auto-focus the first interactive element in the drawer.
+    const focusable = el.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    focusable[0]?.focus();
+
+    // Trap Tab within the drawer.
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const items = Array.from(
+        el.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((x) => !x.hasAttribute("disabled"));
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener("keydown", trap);
+    return () => document.removeEventListener("keydown", trap);
+  }, [drawerOpen]);
+
   // ── Global shortcuts: ⌘K palette, Esc close top overlay. ───────────
   useKeyboardShortcuts([
     { key: "k", modifiers: ["meta"], handler: () => setPaletteOpen((v) => !v) },
@@ -138,6 +177,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       key: "Escape",
       handler: () => {
         if (paletteOpen) setPaletteOpen(false);
+        else if (drawerOpen) setDrawerOpen(false);
         else if (sheet.path) sheet.close();
       },
     },
@@ -159,12 +199,28 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     (query: string) => {
       const encoded = encodeURIComponent(query);
       router.push(`/chat?q=${encoded}`);
+      setDrawerOpen(false);
     },
     [router]
   );
   const handleHome = useCallback(() => {
     router.push("/browse");
+    setDrawerOpen(false);
   }, [router]);
+
+  const handleOpenPin = useCallback(
+    (path: string) => {
+      const isFile = /\.[a-z0-9]+$/i.test(path);
+      if (isFile) {
+        const parent = path.split("/").slice(0, -1).filter(Boolean).map(encodeURIComponent).join("/");
+        router.push(`/files/${parent}?file=${encodeURIComponent(path)}`);
+      } else {
+        router.push(`/files/${path.split("/").filter(Boolean).map(encodeURIComponent).join("/")}`);
+      }
+      setDrawerOpen(false);
+    },
+    [router]
+  );
 
   // ── Palette actions. ───────────────────────────────────────────────
   const paletteActions = useMemo<PaletteAction[]>(() => {
@@ -231,36 +287,180 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   // Active-state hint for sidebar — route-driven only, no view kind.
   const activeKind = null;
 
+  // Shared sidebar props — passed to both the desktop aside and the mobile drawer.
+  const sidebarProps: SidebarProps = {
+    onAsk: handleAsk,
+    onHome: handleHome,
+    onBrowse: () => { router.push("/files"); setDrawerOpen(false); },
+    onPalette: () => { setPaletteOpen(true); setDrawerOpen(false); },
+    onToggleTheme: handleCycleTheme,
+    themePref,
+    activeKind,
+    recentQueries,
+    onRemoveRecent: handleRemoveRecent,
+    onClearRecents: handleClearRecents,
+    onOpenPin: handleOpenPin,
+  };
+
+  // Drawer animation: no spring, single-axis slide.
+  // Respects prefers-reduced-motion by cutting the duration to near-zero.
+  const drawerTransition = {
+    duration: prefersReducedMotion ? 0.01 : 0.22,
+    ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
+  };
+
   return (
     <div className="app-shell" style={{ color: "var(--text-primary)" }}>
       <a href="#main-content" className="skip-link">Skip to content</a>
+
+      {/* ── Desktop sidebar (hidden at ≤880px via CSS) — UNCHANGED ── */}
       <aside className="chrome-panel chrome-panel--sidebar sidebar-container">
-        <Sidebar
-          onAsk={handleAsk}
-          onHome={handleHome}
-          onBrowse={() => router.push("/files")}
-          onPalette={() => setPaletteOpen(true)}
-          onToggleTheme={handleCycleTheme}
-          themePref={themePref}
-          activeKind={activeKind}
-          recentQueries={recentQueries}
-          onRemoveRecent={handleRemoveRecent}
-          onClearRecents={handleClearRecents}
-          onOpenPin={(path) => {
-            const isFile = /\.[a-z0-9]+$/i.test(path);
-            if (isFile) {
-              const parent = path.split("/").slice(0, -1).filter(Boolean).map(encodeURIComponent).join("/");
-              router.push(`/files/${parent}?file=${encodeURIComponent(path)}`);
-            } else {
-              router.push(`/files/${path.split("/").filter(Boolean).map(encodeURIComponent).join("/")}`);
-            }
-          }}
-        />
+        <Sidebar {...sidebarProps} />
       </aside>
 
       <main id="main-content" tabIndex={-1} className="chrome-panel chrome-panel--main" style={{ display: "flex", flexDirection: "column" }}>
         {children}
       </main>
+
+      {/* ══ MOBILE ONLY — gated on isMobile (false on server + first render) ══ */}
+
+      {/* Mobile top bar — 48px fixed chrome with hamburger + Cipher mark + ⌘K */}
+      {isMobile && (
+        <div
+          className="mobile-top-bar"
+          aria-label="Mobile navigation bar"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 48,
+            zIndex: 20,
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 12px",
+            background: "var(--bg-marketing)",
+            borderBottom: "1px solid var(--border-subtle)",
+          }}
+        >
+          {/* Hamburger — opens the off-canvas drawer */}
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open navigation menu"
+            aria-expanded={drawerOpen}
+            aria-controls="mobile-drawer"
+            className="focus-ring tap-44"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 36,
+              height: 36,
+              borderRadius: "var(--radius-comfortable)",
+              background: "transparent",
+              border: "none",
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+            }}
+          >
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+
+          {/* Cipher wordmark */}
+          <span
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: 17,
+              fontWeight: 600,
+              letterSpacing: "-0.015em",
+              color: "var(--text-primary)",
+            }}
+          >
+            Cipher
+          </span>
+
+          {/* ⌘K palette trigger */}
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            aria-label="Command palette (⌘K)"
+            className="focus-ring tap-44"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 36,
+              height: 36,
+              borderRadius: "var(--radius-comfortable)",
+              background: "transparent",
+              border: "none",
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+            }}
+          >
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Mobile off-canvas drawer */}
+      <AnimatePresence>
+        {isMobile && drawerOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="drawer-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: prefersReducedMotion ? 0.01 : 0.18 }}
+              onClick={() => setDrawerOpen(false)}
+              aria-hidden="true"
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 350,
+                background: "var(--overlay)",
+              }}
+            />
+            {/* Drawer panel */}
+            <motion.aside
+              key="drawer-panel"
+              id="mobile-drawer"
+              ref={drawerRef}
+              role="dialog"
+              aria-label="Navigation menu"
+              aria-modal="true"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={drawerTransition}
+              className="mobile-drawer-panel chrome-panel"
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                bottom: 0,
+                width: 240,
+                zIndex: 351,
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
+              }}
+            >
+              <Sidebar {...sidebarProps} />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Detail sheet — URL-driven via ?sheet=<path> */}
       <AnimatePresence mode="wait">
