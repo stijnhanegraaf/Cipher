@@ -456,9 +456,10 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
       // ─── Label pill ────────────────────────────────────────────────────────
       // Show when: hovered or 1-hop neighbour (any zoom), OR zoom-gated persistent.
       const isHub = node.degree >= 5;
+      // On hover, label ONLY the hovered node (not its neighbours) — keeps the
+      // focus on one node. Zoom-gated persistent labels are independent.
       const showLabel =
         isHovered ||
-        isNeighbour ||
         globalScale > 2.5 ||
         (isHub && globalScale > 1.2);
 
@@ -573,7 +574,7 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
 
       const isLight = document.documentElement.getAttribute("data-theme") === "light";
 
-      const restLw = Math.max(0.4, 1 / globalScale);
+      const restLw = Math.max(0.6, 1 / globalScale);
 
       ctx.save();
 
@@ -622,7 +623,7 @@ export function ForceGraph({ graph, visibleTags, onOpen, rainbow = false }: Prop
         const tgtNodeColor = rainbow
           ? resolveToken(tagColor(tgt.tag))
           : resolveToken(statusTagColor(tgt.tag));
-        const baseAlpha = isLight ? 0.18 : 0.25;
+        const baseAlpha = isLight ? 0.2 : 0.5;
         const grad = ctx.createLinearGradient(src.x, src.y, tgt.x, tgt.y);
         grad.addColorStop(0, withAlpha(srcNodeColor, baseAlpha));
         grad.addColorStop(1, withAlpha(tgtNodeColor, baseAlpha));
