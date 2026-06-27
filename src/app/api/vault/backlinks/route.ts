@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     log.error("vault-backlinks", "API error", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to get backlinks" },
+      { error: error instanceof Error ? error.message : "Failed to get backlinks", backlinks: [] },
       { status: 500 }
     );
   }

@@ -101,6 +101,24 @@ describe("extractMentionSnippets", () => {
     expect(() => extractMentionSnippets("[[q3-plan]] here", "")).not.toThrow();
     expect(extractMentionSnippets("[[q3-plan]] here", "")).toHaveLength(0);
   });
+
+  // Case 11: abbreviation guard — "Dr. " must NOT split the snippet boundary
+  it("does not split on an abbreviation '. ' preceded by an uppercase letter", () => {
+    const content = "Dr. Smith studied [[q3-plan]] in depth.";
+    const result = extractMentionSnippets(content, "q3-plan", 90);
+    expect(result).toHaveLength(1);
+    // The snippet must include "Dr. Smith" — not start after the false sentence boundary
+    expect(result[0].snippet).toContain("Dr. Smith");
+  });
+
+  // Case 12: ordinal guard — "1. " preceded by a digit must NOT split the snippet
+  it("does not split on an ordinal '. ' preceded by a digit", () => {
+    const content = "Step 1. Check [[q3-plan]] for details.";
+    const result = extractMentionSnippets(content, "q3-plan", 90);
+    expect(result).toHaveLength(1);
+    // Should include the leading "Step 1." context
+    expect(result[0].snippet).toContain("Step 1.");
+  });
 });
 
 // ─── extractMentionSnippet ────────────────────────────────────────────────────

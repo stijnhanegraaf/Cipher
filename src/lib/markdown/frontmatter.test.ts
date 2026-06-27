@@ -37,6 +37,19 @@ describe("parseFrontmatter", () => {
     expect(typeof r.frontmatter).toBe("object");
     expect(r.content).toBe("body");
   });
+
+  it("does NOT treat '---x' as a closing fence (right-anchor fix)", () => {
+    // '---x' after the block should not close the frontmatter.
+    const r = parseFrontmatter("---\ntitle: A\n---x\nbody");
+    expect(r.frontmatter).toEqual({});
+    expect(r.content).toBe("---\ntitle: A\n---x\nbody");
+  });
+
+  it("parses CRLF frontmatter correctly", () => {
+    const r = parseFrontmatter("---\r\ntitle: CRLFDoc\r\n---\r\nbody text");
+    expect(r.frontmatter).toEqual({ title: "CRLFDoc" });
+    expect(r.content).toBe("body text");
+  });
 });
 
 describe("stripFrontmatter", () => {

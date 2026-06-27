@@ -330,18 +330,33 @@ export function createMarkdownComponents({ onNavigate }: MarkdownComponentOption
         {children}
       </ul>
     ),
-    li: ({ children, ...props }) => {
-      // GFM task list: react-markdown passes `checked` prop when item is a task,
-      // though the Components type doesn't reflect that shape.
-      const checked = (props as { checked?: boolean | null }).checked;
-      const isTask = checked !== undefined && checked !== null;
+    li: ({ children, className, ...props }) => {
+      // GFM task list: in react-markdown v10, task-list items arrive with
+      // className="task-list-item" on the <li> node.  The `checked` boolean
+      // is no longer passed as a prop — read it from the hast node's first
+      // <input> child instead.
+      const isTask = className === "task-list-item";
+
+      let checked = false;
+      if (isTask) {
+        type HastChild = {
+          type: string;
+          tagName?: string;
+          properties?: Record<string, unknown>;
+        };
+        const node = (props as { node?: { children?: HastChild[] } }).node;
+        const inputChild = node?.children?.find(
+          (c) => c.type === "element" && c.tagName === "input",
+        );
+        checked = inputChild?.properties?.checked === true;
+      }
 
       if (isTask) {
         return (
           <li
             className={`flex items-start m-0 list-none ${checked ? "text-text-quaternary" : "text-text-secondary"}`}
           >
-            <CheckboxIndicator checked={!!checked} />
+            <CheckboxIndicator checked={checked} />
             <span className="flex-1" style={checked ? { textDecoration: "line-through" } : undefined}>
               {children}
             </span>

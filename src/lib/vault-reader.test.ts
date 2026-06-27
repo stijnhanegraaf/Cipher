@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach } from "vitest";
 import { mkdtemp, mkdir, writeFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -29,6 +29,11 @@ describe("getVaultLayout auditsDir probe", () => {
 
   beforeEach(async () => {
     vaultRoot = await mkdtemp(join(tmpdir(), "cipher-audit-"));
+  });
+
+  afterEach(async () => {
+    // Clean up the per-test tmpdir to avoid leaking temp directories.
+    await rm(vaultRoot, { recursive: true, force: true });
   });
 
   afterAll(async () => {

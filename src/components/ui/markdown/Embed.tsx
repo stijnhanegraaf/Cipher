@@ -354,22 +354,22 @@ function NoteEmbed({ target, anchor, isBlock, alias, guard, onNavigate }: NoteEm
   }
 
   // ── Resolved note: render nested MarkdownRenderer ─────────────────────────
+  // Note: no outer EmbedDepthProvider here — NestedNoteEmbed provides its own
+  // inner provider with the same depth/ancestors (avoiding a redundant double wrap).
   const { data } = state;
   const nextDepth = guard.depth + 1;
   const nextAncestors = [...guard.ancestors, data.resolvedPath];
   const displayName = alias ?? data.resolvedPath.replace(/.*\//, "").replace(/\.md$/, "");
 
   return (
-    <EmbedDepthProvider depth={nextDepth} ancestors={nextAncestors}>
-      <NestedNoteEmbed
-        body={data.body}
-        resolvedPath={data.resolvedPath}
-        displayName={displayName}
-        nextDepth={nextDepth}
-        nextAncestors={nextAncestors}
-        onNavigate={onNavigate}
-      />
-    </EmbedDepthProvider>
+    <NestedNoteEmbed
+      body={data.body}
+      resolvedPath={data.resolvedPath}
+      displayName={displayName}
+      nextDepth={nextDepth}
+      nextAncestors={nextAncestors}
+      onNavigate={onNavigate}
+    />
   );
 }
 

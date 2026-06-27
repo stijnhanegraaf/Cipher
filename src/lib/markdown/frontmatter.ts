@@ -1,6 +1,9 @@
 import { parse as parseYaml } from "yaml";
 
-const FM_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
+// The closing `---` fence must be followed by optional spaces/tabs and then
+// a line-end (or end-of-string).  This prevents `---trailing` from being
+// treated as a valid closing fence (which would silently leak body content).
+const FM_RE = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
 
 /**
  * Parse a leading YAML frontmatter block. Uses a real YAML parser so

@@ -70,18 +70,21 @@ describe("POST /api/daily", () => {
 
   // ── 200 + never-clobber guarantee ───────────────────────────────────────────
   it("returns 200 on second call and leaves sentinel bytes UNCHANGED", async () => {
-    // The file was created in the previous test. Overwrite it with a sentinel
-    // value that the route must NOT replace.
-    const absFile = join(root, "journal", "2026-06-27.md");
+    // Self-contained: create the file ourselves (first POST), then overwrite
+    // with a sentinel that the route must NOT replace.  We do not depend on
+    // the previous `it` having run first.
+    await POST(req({ date: "2026-06-28" })); // creates the file (201 or 200)
+
+    const absFile = join(root, "journal", "2026-06-28.md");
     const sentinel = "SENTINEL_BYTES_MUST_NOT_BE_OVERWRITTEN";
     await writeFile(absFile, sentinel, "utf-8");
 
     // Second POST for the same date — must open, never write.
-    const res = await POST(req({ date: "2026-06-27" }));
+    const res = await POST(req({ date: "2026-06-28" }));
     expect(res.status).toBe(200);
     const body = (await res.json()) as { path: string; created: boolean };
     expect(body.created).toBe(false);
-    expect(body.path).toContain("2026-06-27.md");
+    expect(body.path).toContain("2026-06-28.md");
 
     // The load-bearing assertion: file content must be the sentinel.
     const content = await readFile(absFile, "utf-8");

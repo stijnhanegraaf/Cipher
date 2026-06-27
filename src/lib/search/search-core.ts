@@ -110,7 +110,7 @@ export function scoreFileAgainstTerms(
   const contentLC = file.content.toLowerCase();
   const headingText = file.headings.join(" ").toLowerCase();
   const tagText = file.tags.join(" "); // already normalized/lowercased
-  const fmText = file.frontmatterText.toLowerCase();
+  const fmText = file.frontmatterText; // already lowercased by toScorable
 
   let totalContent = 0;
   let totalHeading = 0;
@@ -154,21 +154,22 @@ export function scoreFileAgainstTerms(
  * Add a recency boost to an already-scored file, but ONLY when it matched a
  * term. Fixes the bug where recency alone (score>0) surfaced zero-match files.
  *
- *   boost = max(0, 1 - daysSinceMtime / halfLifeDays) * maxBoost
+ *   boost = max(0, 1 - daysSinceMtime / linearDecayDays) * maxBoost
  *
+ * The decay is linear (not exponential), reaching 0 at `linearDecayDays`.
  * `now` is injected (not Date.now()) so the unit is deterministic/testable.
  * Returns the file unchanged when !matched (boost is a no-op).
  */
 export function applyRecencyBoost(
   scored: ScoredFile,
   now: number,
-  halfLifeDays = 90,
+  linearDecayDays = 90,
   maxBoost = 2,
 ): ScoredFile {
   if (!scored.matched) return scored;
 
   const daysSince = scored.mtime > 0 ? (now - scored.mtime) / (1000 * 60 * 60 * 24) : Infinity;
-  const boost = Math.max(0, 1 - daysSince / halfLifeDays) * maxBoost;
+  const boost = Math.max(0, 1 - daysSince / linearDecayDays) * maxBoost;
 
   return { ...scored, score: scored.score + boost };
 }
@@ -287,16 +288,19 @@ export async function collectVaultFiles(
     return [];
   }
 
-  const out: ScorableFile[] = [];
-  for (const rel of rels) {
-    if (restrictTo && !restrictTo.has(rel)) continue;
-    try {
-      const f = await readVaultFile(rel);
-      if (!f) continue;
-      out.push(toScorable(f));
-    } catch {
-      // Skip unreadable files; never throw.
-    }
-  }
-  return out;
+  const filtered = restrictTo ? rels.filter((r) => restrictTo.has(r)) : rels;
+
+  const results = await Promise.all(
+    filtered.map(async (rel) => {
+      try {
+        const f = await readVaultFile(rel);
+        if (!f) return null;
+        return toScorable(f);
+      } catch {
+        return null; // Skip unreadable files; never throw.
+      }
+    }),
+  );
+
+  return results.filter((f): f is ScorableFile => f !== null);
 }

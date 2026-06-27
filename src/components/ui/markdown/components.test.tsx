@@ -14,9 +14,9 @@
  *   interception branch (isVaultLink) is never taken in jsdom; both vault:// and
  *   external links fall through to the regular external link render path.
  * - In react-markdown v10, GFM task list items expose className="task-list-item" on
- *   the li node rather than a checked prop. The current li override does not read
- *   className, so task items render as plain <li> elements without the CheckboxIndicator.
- *   The input override (returning null) does suppress the raw <input> elements.
+ *   the li node. The checked state is read from the hast node's child <input>
+ *   properties. CheckboxIndicator renders with the correct checked state.
+ *   The input override (returning null) suppresses the raw <input> elements.
  */
 import React from "react";
 import { render } from "@testing-library/react";
@@ -102,6 +102,28 @@ describe("MarkdownRenderer behavior-pin (components map)", () => {
     expect(lis.length).toBe(2);
     // The input override returns null — no raw checkboxes in the DOM
     expect(container.querySelectorAll("input").length).toBe(0);
+  });
+
+  it("renders a checked task-list item with CheckboxIndicator showing checked state (svg present)", () => {
+    const { container } = render(
+      <MarkdownRenderer content={"- [x] done item"} />
+    );
+    const li = container.querySelector("li");
+    expect(li).toBeTruthy();
+    // CheckboxIndicator renders an <svg> when checked=true
+    const svg = li?.querySelector("svg");
+    expect(svg).toBeTruthy();
+  });
+
+  it("renders an unchecked task-list item with CheckboxIndicator showing unchecked state (no svg)", () => {
+    const { container } = render(
+      <MarkdownRenderer content={"- [ ] todo item"} />
+    );
+    const li = container.querySelector("li");
+    expect(li).toBeTruthy();
+    // CheckboxIndicator renders no <svg> when checked=false
+    const svg = li?.querySelector("svg");
+    expect(svg).toBeFalsy();
   });
 
   it("renders a blockquote", () => {

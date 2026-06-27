@@ -73,7 +73,11 @@ export interface ParsedCanvas {
 
 const DEFAULT_W = 250;
 const DEFAULT_H = 60;
-const EMPTY: ParsedCanvas = { nodes: [], edges: [] };
+
+/** Return a fresh empty canvas so callers cannot mutate a shared reference. */
+function emptyCanvas(): ParsedCanvas {
+  return { nodes: [], edges: [] };
+}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -188,13 +192,13 @@ export function parseCanvas(json: unknown): ParsedCanvas {
     try {
       data = JSON.parse(data);
     } catch {
-      return EMPTY;
+      return emptyCanvas();
     }
   }
 
   // Must be a non-null, non-array object
   if (data === null || typeof data !== "object" || Array.isArray(data)) {
-    return EMPTY;
+    return emptyCanvas();
   }
 
   const obj = data as Record<string, unknown>;

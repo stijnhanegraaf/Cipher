@@ -193,10 +193,10 @@ describe("applyRecencyBoost", () => {
     expect(result.score).toBe(4 + 2); // maxBoost since mtime==now
   });
 
-  it("boost decays to ~0 at halfLifeDays", () => {
+  it("boost decays to ~0 at linearDecayDays", () => {
     const match = { path: "x.md", score: 4, matched: true, hits: { content: 1, heading: 0, tag: 0, frontmatter: 0 }, mtime: NOW - 90 * DAY_MS };
     const result = applyRecencyBoost(match, NOW, 90, 2);
-    // At exactly halfLife, boost should be ~0
+    // At exactly linearDecayDays, boost should be ~0
     expect(result.score).toBeCloseTo(4, 1);
   });
 

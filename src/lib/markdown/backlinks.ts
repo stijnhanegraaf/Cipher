@@ -119,10 +119,15 @@ function buildSnippet(
 
   // Expand/shrink to a sentence or line boundary when possible.
   // For the leading edge: walk LEFT to find a previous newline or ". " (sentence end).
+  // Skip ". " preceded by an uppercase letter or digit — those are abbreviations
+  // or ordinals ("Dr. ", "1. ") not real sentence boundaries.
   const leftClipped = start > 0;
   if (leftClipped) {
     const searchLeft = content.lastIndexOf("\n", offset - 1);
-    const sentLeft = content.lastIndexOf(". ", offset - 1);
+    let sentLeft = content.lastIndexOf(". ", offset - 1);
+    if (sentLeft > 0 && /[A-Z0-9]/.test(content[sentLeft - 1])) {
+      sentLeft = -1; // abbreviation/ordinal — discard as sentence boundary
+    }
     const boundary = Math.max(searchLeft, sentLeft);
     if (boundary !== -1 && boundary > start) {
       // Move start to just after the boundary marker
@@ -131,10 +136,14 @@ function buildSnippet(
   }
 
   // For the trailing edge: walk RIGHT to find next newline or ". ".
+  // Same guard: skip ". " preceded by uppercase or digit (abbreviations/ordinals).
   const rightClipped = end < total;
   if (rightClipped) {
     const nlRight = content.indexOf("\n", offset + matchLen);
-    const sentRight = content.indexOf(". ", offset + matchLen);
+    let sentRight = content.indexOf(". ", offset + matchLen);
+    if (sentRight > 0 && /[A-Z0-9]/.test(content[sentRight - 1])) {
+      sentRight = -1; // abbreviation/ordinal — discard
+    }
     let boundary = -1;
     if (nlRight !== -1 && sentRight !== -1) {
       boundary = Math.min(nlRight, sentRight);
