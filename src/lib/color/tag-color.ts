@@ -1,23 +1,24 @@
 /**
  * tagColor — pure, DOM-free, deterministic tag → CSS custom-property name.
  *
- * Returns a --hue-* token NAME (e.g. "--hue-idea"), never a literal color.
- * Resolution from token name to a canvas-usable literal happens at the
- * draw boundary via getComputedStyle (see GraphCanvas.tsx).
+ * Returns a CSS custom-property token name (e.g. "--hue-idea" or
+ * "--text-tertiary"). Resolution from token name to a canvas-usable literal
+ * happens at the draw boundary via getComputedStyle (see GraphCanvas.tsx).
  *
  * Two layers:
  *   1. Semantic overrides — well-known tag names map to intent tokens.
- *   2. FNV-1a hash fallback — any other tag hashes deterministically into
- *      the HUE_PALETTE ring.
+ *   2. Default — unknown tags return "--text-tertiary" (no random colors).
  *
- * "" → "--hue-tag" (the generic untagged color).
+ * For the status-restrained default path (fewer colors), use statusTagColor.
+ *
+ * "" → "--text-tertiary" (untagged is neutral by default).
  */
 
 // ─── Palette ─────────────────────────────────────────────────────────────────
 
 /**
- * The full set of --hue-* tokens that tagColor may return.
- * Order is preserved for the hash ring — changing order changes assignments.
+ * The full set of --hue-* tokens in the semantic palette.
+ * Kept for reference and for GraphLegend / rainbow-mode consumers.
  */
 export const HUE_PALETTE = [
   "--hue-tag",
@@ -34,7 +35,7 @@ export type HueToken = `--hue-${string}`;
 
 // ─── Semantic overrides ───────────────────────────────────────────────────────
 
-const SEMANTIC: Readonly<Record<string, HueToken>> = {
+const SEMANTIC: Readonly<Record<string, string>> = {
   // idea / amber
   idea:     "--hue-idea",
   // question / blue
@@ -60,40 +61,48 @@ const SEMANTIC: Readonly<Record<string, HueToken>> = {
   example:  "--hue-example",
 };
 
-// ─── FNV-1a hash fallback ─────────────────────────────────────────────────────
+// ─── Status overrides (restrained: success + danger only) ────────────────────
 
-/**
- * FNV-1a 32-bit hash (unsigned). Deterministic across JS engines.
- * Returns a non-negative integer.
- */
-function fnv1a32(s: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    // 32-bit multiply via the FNV prime (0x01000193)
-    h = Math.imul(h, 0x01000193);
-  }
-  // Convert signed int32 to unsigned via >>> 0
-  return h >>> 0;
-}
+const STATUS_SUCCESS = new Set(["done", "success", "tip", "hint"]);
+const STATUS_DANGER  = new Set(["bug", "blocked", "danger", "error"]);
 
 // ─── tagColor ─────────────────────────────────────────────────────────────────
 
 /**
- * Map a tag string to a --hue-* CSS custom-property name.
+ * Map a tag string to a CSS custom-property token name.
+ *
+ * This is the "rainbow" / full-color path — use it only when the rainbow
+ * toggle is active. Semantic tags map to their intent token; unknown tags
+ * return "--text-tertiary" (no random colors).
  *
  * @param tag - Normalized tag (no leading #). Use "" for untagged notes.
- * @returns   A token name like "--hue-idea". Never a literal color value.
+ * @returns   A token name like "--hue-idea" or "--text-tertiary".
  */
-export function tagColor(tag: string): HueToken {
-  if (!tag) return "--hue-tag";
+export function tagColor(tag: string): string {
+  if (!tag) return "--text-tertiary";
+
+  const lower = tag.toLowerCase();
+  return SEMANTIC[lower] ?? "--text-tertiary";
+}
+
+// ─── statusTagColor ───────────────────────────────────────────────────────────
+
+/**
+ * Map a tag string to a restrained status color token.
+ *
+ * This is the DEFAULT (mono + 2-hue) path shown before the user opts in to
+ * the rainbow palette. Only status-meaningful tags get color; everything else
+ * is neutral.
+ *
+ * @param tag - Normalized tag (no leading #). Use "" for untagged notes.
+ * @returns   "--hue-success", "--hue-danger", or "--text-tertiary".
+ */
+export function statusTagColor(tag: string): string {
+  if (!tag) return "--text-tertiary";
 
   const lower = tag.toLowerCase();
 
-  const override = SEMANTIC[lower];
-  if (override !== undefined) return override;
-
-  // Fallback: hash into the HUE_PALETTE ring.
-  const idx = fnv1a32(lower) % HUE_PALETTE.length;
-  return HUE_PALETTE[idx] as HueToken;
+  if (STATUS_SUCCESS.has(lower)) return "--hue-success";
+  if (STATUS_DANGER.has(lower))  return "--hue-danger";
+  return "--text-tertiary";
 }
