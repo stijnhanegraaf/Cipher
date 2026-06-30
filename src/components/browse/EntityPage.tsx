@@ -35,6 +35,7 @@ export function EntityPage({ name }: { name: string }) {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setError(null); // clear any prior error so a successful re-fetch isn't blocked
       try {
         const { view, data } = await fetchEntity(name);
         if (!cancelled) {
@@ -76,9 +77,29 @@ export function EntityPage({ name }: { name: string }) {
       }
     >
       <div style={{ padding: "24px 32px 80px" }}>
-        {loading && <p className="small" style={{ color: "var(--text-quaternary)" }}>Loading…</p>}
+        {loading && (
+          <div>
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="animate-shimmer"
+                style={{ height: 40, marginBottom: 4, borderRadius: 6, animationDelay: `${i * 0.12}s` }}
+              />
+            ))}
+          </div>
+        )}
         {!loading && error && (
-          <p className="small" style={{ color: "var(--status-blocked)" }}>{error}</p>
+          <div>
+            <p className="caption-large" style={{ color: "var(--status-blocked)", marginBottom: 8 }}>
+              Couldn&#39;t load entity
+            </p>
+            <p className="small" style={{ color: "var(--text-tertiary)" }}>{error}</p>
+          </div>
+        )}
+        {!loading && !error && !data && (
+          <p className="small" style={{ color: "var(--text-quaternary)", margin: 0 }}>
+            No data found for &ldquo;{name}&rdquo;.
+          </p>
         )}
         {!loading && !error && data && (
           <>

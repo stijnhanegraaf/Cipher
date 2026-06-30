@@ -554,7 +554,7 @@ export async function detectIntent(query: string): Promise<IntentResult> {
 
   try {
     // Dynamic import — only resolves server-side
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     const vrMod: typeof import("./vault-reader") = await import(/* webpackIgnore: true */ `./vault-reader`);
     [entityFiles, projectFiles, researchDirs] = await Promise.all([
       vrMod.getEntityIndex(),

@@ -6,14 +6,13 @@
  * palette opens are instant.
  */
 import { NextResponse } from "next/server";
-import { readdir } from "fs/promises";
-import { join, extname } from "path";
 import {
   getVaultPath,
   getEntityIndex,
   getProjectIndex,
   getHubFiles,
 } from "@/lib/vault-reader";
+import { walkFiles } from "@/lib/fs/walk";
 
 export interface VaultIndex {
   files: { path: string; name: string; folder: string }[];
@@ -25,27 +24,6 @@ export interface VaultIndex {
 const _cache = new Map<string, { builtAt: number; index: VaultIndex }>();
 const TTL_MS = 60 * 1000;
 
-async function walkMd(root: string): Promise<string[]> {
-  const out: string[] = [];
-  async function walk(absDir: string, rel: string, depth: number) {
-    if (depth > 8) return;
-    let entries: import("fs").Dirent[];
-    try { entries = await readdir(absDir, { withFileTypes: true }); }
-    catch { return; }
-    for (const e of entries) {
-      if (e.name.startsWith(".")) continue;
-      if (e.isDirectory()) {
-        if (e.name === "node_modules" || e.name === ".git" || e.name === ".obsidian") continue;
-        await walk(join(absDir, e.name), rel ? `${rel}/${e.name}` : e.name, depth + 1);
-      } else if (e.isFile() && extname(e.name).toLowerCase() === ".md") {
-        out.push(rel ? `${rel}/${e.name}` : e.name);
-      }
-    }
-  }
-  await walk(root, "", 0);
-  return out;
-}
-
 export async function GET() {
   const root = getVaultPath();
   if (!root) {
@@ -56,7 +34,7 @@ export async function GET() {
     return NextResponse.json(cached.index);
   }
   const [paths, entities, projects, hubs] = await Promise.all([
-    walkMd(root),
+    walkFiles(root, { extensions: [".md"] }),
     getEntityIndex(),
     getProjectIndex(),
     getHubFiles(),

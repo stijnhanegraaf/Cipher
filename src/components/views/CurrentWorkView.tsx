@@ -19,7 +19,7 @@ const filterLabels: Record<StatusFilter, string> = {
   done: "Done",
 };
 
-export function CurrentWorkView({ data, view, onToggle, onAsk, onNavigate }: { data: unknown; view: ViewModel; onToggle?: (itemId: string, checked: boolean) => void; onAsk?: (query: string) => void; onNavigate?: (path: string) => void }) {
+export function CurrentWorkView({ data, view: _view, onToggle, onAsk, onNavigate }: { data: unknown; view: ViewModel; onToggle?: (itemId: string, checked: boolean) => void; onAsk?: (query: string) => void; onNavigate?: (path: string) => void }) {
   const workData = data as CurrentWorkData;
   const [filter, setFilter] = useState<StatusFilter>("all");
 

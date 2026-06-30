@@ -14,7 +14,7 @@
 import { useState, useEffect } from "react";
 import { ViewRenderer } from "@/components/views/ViewRenderer";
 import type { ResponseEnvelope } from "@/lib/view-models";
-import { StreamingText } from "./StreamingText";
+import { StreamingMarkdown } from "./StreamingMarkdown";
 import { CitationPill } from "./CitationPill";
 
 export interface QATurnCitation {
@@ -85,7 +85,7 @@ export function QACard({ turn }: Props) {
       )}
 
       {!turn.envelope && !turn.error && (turn.text.length > 0 || turn.status === "streaming") && (
-        <StreamingText
+        <StreamingMarkdown
           text={turn.text}
           active={turn.status === "streaming"}
           onCitationClick={flash}

@@ -27,14 +27,28 @@ interface Health {
     source: "openai" | "ollama-local" | "ollama-cloud" | "keyword-only";
     label: string;
   };
+  cli?: CliInfo;
+}
+
+interface ProviderConn {
+  hasKey: boolean;
+  baseUrl: string | null;
+  mode: "api" | "cli";
+  cliPath: string | null;
 }
 
 interface Conn {
   provider: ProviderId;
-  ollamaLocal: { hasKey: boolean; baseUrl: string | null };
-  ollamaCloud: { hasKey: boolean; baseUrl: string | null };
-  openai: { hasKey: boolean; baseUrl: string | null };
-  anthropic: { hasKey: boolean; baseUrl: string | null };
+  ollamaLocal: ProviderConn;
+  ollamaCloud: ProviderConn;
+  openai: ProviderConn;
+  anthropic: ProviderConn;
+}
+
+interface CliInfo {
+  available: boolean;
+  version?: string;
+  path?: string;
 }
 
 const PROVIDER_META: Record<ProviderId, {
@@ -74,6 +88,17 @@ const PROVIDER_META: Record<ProviderId, {
   },
 };
 
+interface IndexStatus {
+  built: boolean;
+  count: number;
+  stale: boolean;
+}
+
+interface IndexBuildProgress {
+  done: number;
+  total: number;
+}
+
 interface Props {
   current: string;
   onChange: (model: string) => void;
@@ -82,15 +107,31 @@ interface Props {
 export function ModelPicker({ current, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
+  const [healthFetching, setHealthFetching] = useState(true);
   const [conn, setConn] = useState<Conn | null>(null);
   const [apiKey, setApiKey] = useState("");
+  const [cliPathInput, setCliPathInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedFired, setSavedFired] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [indexStatus, setIndexStatus] = useState<IndexStatus | null>(null);
+  const [indexBuilding, setIndexBuilding] = useState(false);
+  const [indexProgress, setIndexProgress] = useState<IndexBuildProgress | null>(null);
+  const [indexError, setIndexError] = useState<string | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
 
+  const refreshIndex = useCallback(async () => {
+    try {
+      const res = await fetch("/api/chat/index", { cache: "no-store" });
+      if (res.ok) setIndexStatus((await res.json()) as IndexStatus);
+    } catch {
+      // ignore — index status is optional
+    }
+  }, []);
+
   const refresh = useCallback(async () => {
+    setHealthFetching(true);
     try {
       const [hRes, cRes] = await Promise.all([
         fetch("/api/chat/health", { cache: "no-store" }),
@@ -98,12 +139,64 @@ export function ModelPicker({ current, onChange }: Props) {
       ]);
       if (hRes.ok) setHealth((await hRes.json()) as Health);
       if (cRes.ok) setConn((await cRes.json()) as Conn);
-    } catch { /* ignore */ }
+    } catch {
+      // Network error — healthFetching clears in finally, surfacing offline state.
+    } finally {
+      setHealthFetching(false);
+    }
   }, []);
 
+  const buildIndex = useCallback(async () => {
+    setIndexBuilding(true);
+    setIndexProgress(null);
+    setIndexError(null);
+    try {
+      const res = await fetch("/api/chat/index", { method: "POST", cache: "no-store" });
+      const reader = res.body?.getReader();
+      if (!reader) return;
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const ev = JSON.parse(line) as { type: string; done?: number; total?: number; message?: string };
+            if (ev.type === "index-progress" && typeof ev.done === "number" && typeof ev.total === "number") {
+              setIndexProgress({ done: ev.done, total: ev.total });
+            } else if (ev.type === "error" && ev.message) {
+              setIndexError(ev.message);
+            }
+          } catch {
+            // malformed line — skip
+          }
+        }
+      }
+    } catch {
+      setIndexError("Index build failed. Try again.");
+    } finally {
+      setIndexBuilding(false);
+      setIndexProgress(null);
+      await refreshIndex();
+    }
+  }, [refreshIndex]);
+
+  // Fetch health on mount so the pill resolves at rest (not only on popover open).
   useEffect(() => {
-    if (open) refresh();
-  }, [open, refresh]);
+    void refresh();
+    void refreshIndex();
+  }, [refresh, refreshIndex]);
+
+  useEffect(() => {
+    if (open) {
+      void refresh();
+      void refreshIndex();
+    }
+  }, [open, refresh, refreshIndex]);
 
   // Auto-correct model when the provider's list changes and current is invalid.
   useEffect(() => {
@@ -163,6 +256,22 @@ export function ModelPicker({ current, onChange }: Props) {
 
   const switchProvider = (p: ProviderId) => patch({ provider: p });
 
+  // Which providers support CLI mode.
+  const cliCapable = activeProvider === "anthropic" || activeProvider === "ollama-local";
+  const activeMode = providerConn?.mode ?? "api";
+
+  const switchMode = (mode: "api" | "cli") => {
+    const slot = activeProvider === "ollama-local" ? "ollamaLocal" : activeProvider;
+    patch({ [slot]: { mode } });
+  };
+
+  const saveCliPath = () => {
+    const p = cliPathInput.trim();
+    const slot = activeProvider === "ollama-local" ? "ollamaLocal" : activeProvider;
+    patch({ [slot]: { cliPath: p } });
+    setCliPathInput("");
+  };
+
   const saveKey = () => {
     const key = apiKey.trim();
     if (!key) return;
@@ -183,10 +292,11 @@ export function ModelPicker({ current, onChange }: Props) {
   const activeMeta = PROVIDER_META[activeProvider];
   const isConnected = !!health?.ok && !health.needsKey && health.models.length > 0;
   const labelText =
-    !health              ? "Checking…" :
-    health.needsKey      ? `Connect ${activeMeta.short}` :
-    !health.ok           ? `${activeMeta.short} offline` :
-    health.models.length === 0 ? "No models" :
+    (!health && healthFetching)  ? "Checking…" :
+    !health                      ? `${activeMeta.short} offline` :
+    health.needsKey              ? `Connect ${activeMeta.short}` :
+    !health.ok                   ? `${activeMeta.short} offline` :
+    health.models.length === 0   ? "No models" :
     current;
 
   return (
@@ -279,6 +389,7 @@ export function ModelPicker({ current, onChange }: Props) {
                       fontWeight: active ? 500 : 400,
                       cursor: active ? "default" : "pointer",
                       fontSize: 11,
+                      // eslint-disable-next-line cipher-design/no-raw-color -- drop-shadow with no equivalent shadow token; pure black alpha overlay
                       boxShadow: active ? "0 1px 2px rgba(0,0,0,0.2)" : "none",
                       transition: "background var(--motion-hover) var(--ease-default)",
                     }}
@@ -293,13 +404,131 @@ export function ModelPicker({ current, onChange }: Props) {
               {activeMeta.tagline}
             </div>
 
+            {/* ── API / CLI mode toggle (Claude + Ollama local only) ── */}
+            {cliCapable && (
+              <div style={{ marginTop: 10 }}>
+                <div className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.08em", fontSize: 10, marginBottom: 6 }}>
+                  MODE
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 3,
+                    padding: 3,
+                    background: "var(--bg-surface-alpha-2)",
+                    border: "1px solid var(--border-subtle)",
+                    borderRadius: 8,
+                  }}
+                >
+                  {(["api", "cli"] as const).map((m) => {
+                    const isActive = activeMode === m;
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        disabled={saving || isActive}
+                        onClick={() => switchMode(m)}
+                        className="focus-ring caption"
+                        style={{
+                          padding: "6px 4px",
+                          borderRadius: 6,
+                          border: "none",
+                          background: isActive ? "var(--surface-raised)" : "transparent",
+                          color: isActive ? "var(--text-primary)" : "var(--text-tertiary)",
+                          fontWeight: isActive ? 500 : 400,
+                          cursor: isActive ? "default" : "pointer",
+                          fontSize: 11,
+                          // eslint-disable-next-line cipher-design/no-raw-color -- drop-shadow with no equivalent shadow token; pure black alpha overlay
+                          boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.2)" : "none",
+                          transition: "background var(--motion-hover) var(--ease-default)",
+                        }}
+                      >
+                        {m === "api" ? "API key" : "Use CLI"}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* CLI mode: show binary status + path override */}
+                {activeMode === "cli" && (
+                  <div style={{ marginTop: 8 }}>
+                    {health?.cli?.available ? (
+                      <div className="caption" style={{ color: "var(--text-tertiary)", lineHeight: 1.5 }}>
+                        <span style={{ color: "var(--success, #34d399)" }}>●</span>{" "}
+                        {health.cli.path ?? (activeProvider === "anthropic" ? "claude" : "ollama")}
+                        {health.cli.version ? ` v${health.cli.version}` : ""}
+                      </div>
+                    ) : health?.cli && !health.cli.available ? (
+                      <div className="caption" style={{ color: "var(--status-warning, #d19a66)", lineHeight: 1.5 }}>
+                        Binary not found. Install it:
+                        <code style={{ display: "block", marginTop: 4, padding: "4px 6px", fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--bg-surface)", borderRadius: 4, color: "var(--text-secondary)" }}>
+                          {activeProvider === "anthropic" ? "npm install -g @anthropic-ai/claude-code" : "brew install ollama"}
+                        </code>
+                      </div>
+                    ) : (
+                      <div className="caption" style={{ color: "var(--text-quaternary)" }}>Checking binary…</div>
+                    )}
+                    <div style={{ marginTop: 6 }}>
+                      <div className="caption" style={{ color: "var(--text-quaternary)", marginBottom: 4 }}>
+                        {providerConn?.cliPath ? `Path: ${providerConn.cliPath}` : "Path override (optional)"}
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <input
+                          type="text"
+                          value={cliPathInput}
+                          onChange={(e) => setCliPathInput(e.target.value)}
+                          placeholder={providerConn?.cliPath ?? "/usr/local/bin/claude"}
+                          aria-label="CLI binary path"
+                          className="focus-ring"
+                          style={{
+                            flex: 1,
+                            height: 28,
+                            padding: "0 8px",
+                            fontSize: 12,
+                            lineHeight: "28px",
+                            fontFamily: "var(--font-mono)",
+                            border: "1px solid var(--border-standard)",
+                            borderRadius: 6,
+                            background: "var(--bg-surface)",
+                            color: "var(--text-primary)",
+                            outline: "none",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          disabled={saving || !cliPathInput.trim()}
+                          onClick={saveCliPath}
+                          className="focus-ring caption"
+                          style={{
+                            height: 28,
+                            padding: "0 10px",
+                            border: "1px solid var(--border-standard)",
+                            borderRadius: 6,
+                            background: "var(--accent-brand)",
+                            color: "var(--text-on-brand, white)",
+                            fontWeight: 500,
+                            cursor: cliPathInput.trim() ? "pointer" : "not-allowed",
+                            opacity: cliPathInput.trim() ? 1 : 0.5,
+                          }}
+                        >
+                          Set
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {saveError && (
               <div className="caption" style={{ marginTop: 6, color: "var(--status-danger, #c0392b)" }}>
                 {saveError}
               </div>
             )}
 
-            {activeMeta.needsKey && (
+            {/* API key input — only shown in api mode */}
+            {activeMeta.needsKey && activeMode !== "cli" && (
               <div style={{ marginTop: 10 }}>
                 <div className="caption" style={{ color: "var(--text-tertiary)", marginBottom: 6 }}>
                   {providerConn?.hasKey ? `${activeMeta.keyLabel} saved` : `Paste your ${activeMeta.keyLabel}`}
@@ -396,6 +625,59 @@ export function ModelPicker({ current, onChange }: Props) {
                 {health.embed.label}
               </div>
             )}
+
+            {/* ── Vault index status ──────────────────────────── */}
+            <div style={{ marginTop: 10 }}>
+              <div className="mono-label" style={{ color: "var(--text-quaternary)", letterSpacing: "0.08em", fontSize: 10, marginBottom: 6 }}>
+                VAULT INDEX
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <div className="caption" style={{ color: "var(--text-tertiary)", lineHeight: 1.4, flex: 1 }}>
+                  {indexBuilding && indexProgress ? (
+                    <span>
+                      Indexing{"…"} {indexProgress.done}/{indexProgress.total}
+                    </span>
+                  ) : indexBuilding ? (
+                    <span>Starting{"…"}</span>
+                  ) : indexStatus?.built ? (
+                    <span>
+                      {indexStatus.count.toLocaleString()} chunks
+                      {" - "}
+                      <span style={{ color: indexStatus.stale ? "var(--status-warning, #d19a66)" : "var(--success, #34d399)" }}>
+                        {indexStatus.stale ? "stale" : "up to date"}
+                      </span>
+                    </span>
+                  ) : (
+                    <span style={{ color: "var(--status-warning, #d19a66)" }}>not built</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  disabled={indexBuilding}
+                  onClick={() => { void buildIndex(); }}
+                  className="focus-ring caption"
+                  style={{
+                    flexShrink: 0,
+                    height: 24,
+                    padding: "0 8px",
+                    border: "1px solid var(--border-standard)",
+                    borderRadius: 5,
+                    background: "var(--bg-surface-alpha-4)",
+                    color: indexBuilding ? "var(--text-quaternary)" : "var(--text-secondary)",
+                    cursor: indexBuilding ? "not-allowed" : "pointer",
+                    fontSize: 11,
+                    opacity: indexBuilding ? 0.5 : 1,
+                  }}
+                >
+                  {indexBuilding ? "Indexing…" : indexStatus?.built ? "Re-index" : "Index vault"}
+                </button>
+              </div>
+              {indexError && (
+                <div className="caption" style={{ marginTop: 4, color: "var(--status-danger, #c0392b)" }}>
+                  {indexError}
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={{ height: 1, background: "var(--border-subtle)", margin: "0 4px" }} />
@@ -405,9 +687,15 @@ export function ModelPicker({ current, onChange }: Props) {
             MODELS {health?.ok && !health.needsKey && health.models.length > 0 ? "· CONNECTED" : "· OFFLINE"}
           </div>
 
-          {!health && (
+          {!health && healthFetching && (
             <div className="caption" style={{ padding: "4px 10px 10px", color: "var(--text-tertiary)" }}>
               Checking…
+            </div>
+          )}
+
+          {!health && !healthFetching && (
+            <div className="caption" style={{ padding: "4px 10px 10px", color: "var(--text-tertiary)" }}>
+              {activeMeta.short} offline
             </div>
           )}
 
@@ -419,7 +707,7 @@ export function ModelPicker({ current, onChange }: Props) {
 
           {health && !health.ok && !health.needsKey && activeProvider === "ollama-local" && (
             <div className="caption" style={{ padding: "4px 10px 12px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
-              Ollama isn't running. Start it in Terminal:
+              Ollama isn&#39;t running. Start it in Terminal:
               <code style={{ display: "block", marginTop: 4, padding: "4px 6px", fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--bg-surface)", borderRadius: 4, color: "var(--text-secondary)" }}>
                 ollama serve
               </code>
@@ -429,7 +717,7 @@ export function ModelPicker({ current, onChange }: Props) {
                 rel="noreferrer"
                 style={{ display: "inline-block", marginTop: 6, color: "var(--text-quaternary)", textDecoration: "underline" }}
               >
-                Don't have Ollama? Download it here
+                Don&#39;t have Ollama? Download it here
               </a>
             </div>
           )}

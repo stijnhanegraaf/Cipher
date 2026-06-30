@@ -4,6 +4,7 @@ import { MarkdownPreview } from "./MarkdownPreview";
 import { ImagePreview } from "./ImagePreview";
 import { PdfPreview } from "./PdfPreview";
 import { GenericPreview } from "./GenericPreview";
+import { CanvasView } from "./CanvasView";
 import { fileKindForExt } from "@/lib/browse/file-kind";
 
 interface Props {
@@ -39,5 +40,6 @@ export function PreviewPane({ filePath, mode, onToggleMode, onNavigate }: Props)
   if (kind === "md") return <MarkdownPreview filePath={filePath} mode={mode} onNavigate={onNavigate} onToggleMode={onToggleMode} />;
   if (kind === "image") return <ImagePreview filePath={filePath} />;
   if (kind === "pdf") return <PdfPreview filePath={filePath} />;
+  if (kind === "canvas") return <CanvasView filePath={filePath} onNavigate={onNavigate} />;
   return <GenericPreview filePath={filePath} />;
 }

@@ -8,8 +8,13 @@
  */
 
 import "server-only";
-import { readFile, stat, readdir } from "fs/promises";
+import { existsSync, statSync, readFileSync, readdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { readFile, stat } from "fs/promises";
 import { join } from "path";
+import { walkFiles } from "@/lib/fs/walk";
+import { parseFrontmatter } from "@/lib/markdown/frontmatter";
+import { WIKILINK_RE } from "@/lib/markdown/wikilink";
 
 // ─── Vault path (hot-swappable) ────────────────────────────────────────
 // Initialized from VAULT_PATH env var OR common user-home candidates.
@@ -18,15 +23,14 @@ import { join } from "path";
 
 function detectInitialVaultPath(): string | null {
   if (process.env.VAULT_PATH) return process.env.VAULT_PATH;
-  const { existsSync } = require('fs');
-  const homedir = require('os').homedir();
+  const home = homedir();
   const candidates = [
     join(process.cwd(), '..', 'Obsidian'),
     join(process.cwd(), 'Obsidian'),
-    join(homedir, 'Obsidian'),
-    join(homedir, 'Documents', 'Obsidian'),
-    join(homedir, 'Projects', 'Obsidian'),
-    join(homedir, 'Developer', 'Obsidian'),
+    join(home, 'Obsidian'),
+    join(home, 'Documents', 'Obsidian'),
+    join(home, 'Projects', 'Obsidian'),
+    join(home, 'Developer', 'Obsidian'),
   ];
   for (const p of candidates) {
     try { if (existsSync(p)) return p; } catch { /* ignore */ }
@@ -53,6 +57,9 @@ export function setVaultPath(path: string | null): void {
   cache.clear();
   // Also clear the basename index used by resolveLink.
   _basenameIndex.clear();
+  // Clear tag cache — it depends on the vault path.
+  // Imported lazily to avoid circular dependency issues.
+  import("@/lib/vault-tags").then(({ invalidateTagCache }) => invalidateTagCache()).catch(() => { /* ignore */ });
 }
 
 /** Safe root getter for internal readers — returns "" when no vault is connected so callers short-circuit naturally. */
@@ -73,13 +80,14 @@ export interface VaultLayout {
   researchDir: string | null;
   workDir: string | null;
   systemDir: string | null;
+  /** Relative path to the audits directory within the vault, or null when absent. */
+  auditsDir: string | null;
   hubFile: string | null;
 }
 
 const _layoutCache = new Map<string, VaultLayout>();
 
 function firstExistingFolder(root: string, candidates: string[]): string | null {
-  const { existsSync, statSync } = require('fs');
   for (const c of candidates) {
     try {
       const full = join(root, c);
@@ -90,7 +98,6 @@ function firstExistingFolder(root: string, candidates: string[]): string | null 
 }
 
 function firstExistingFile(root: string, candidates: string[]): string | null {
-  const { existsSync } = require('fs');
   for (const c of candidates) {
     try {
       if (existsSync(join(root, c))) return c;
@@ -120,7 +127,6 @@ export function getVaultLayout(): VaultLayout | null {
   const cached = _layoutCache.get(root);
   if (cached) return cached;
 
-  const { existsSync, statSync, readFileSync, readdirSync } = require('fs');
   const wikiPath = join(root, 'wiki');
   const hasWiki = (() => {
     try { return existsSync(wikiPath) && statSync(wikiPath).isDirectory(); } catch { return false; }
@@ -158,6 +164,7 @@ export function getVaultLayout(): VaultLayout | null {
         researchDir: typeof parsed.researchDir === 'string' ? parsed.researchDir : undefined,
         workDir:     typeof parsed.workDir     === 'string' ? parsed.workDir     : undefined,
         systemDir:   typeof parsed.systemDir   === 'string' ? parsed.systemDir   : undefined,
+        auditsDir:   typeof parsed.auditsDir   === 'string' ? parsed.auditsDir   : undefined,
         hubFile:     typeof parsed.hubFile     === 'string' ? parsed.hubFile     : undefined,
       } as Partial<VaultLayout>;
     }
@@ -170,6 +177,9 @@ export function getVaultLayout(): VaultLayout | null {
   const RESEARCH_NAMES = ['knowledge/research', 'research', 'literature'];
   const WORK_NAMES     = ['work', 'tasks', 'todo', 'todos'];
   const SYSTEM_NAMES   = ['system', 'meta', 'ops'];
+  // 'system/audits' matches wiki/system/audits automatically via the wiki/ prefix
+  // probe in findFolder, covering legacy vault layouts.
+  const AUDIT_NAMES    = ['audits', 'system/audits', 'meta/audits', 'reviews'];
   const HUB_FILES      = ['dashboard.md', 'index.md', 'home.md', 'README.md'];
 
   const byName: Partial<VaultLayout> = {
@@ -179,6 +189,7 @@ export function getVaultLayout(): VaultLayout | null {
     researchDir: findFolder(RESEARCH_NAMES),
     workDir:     findFolder(WORK_NAMES),
     systemDir:   findFolder(SYSTEM_NAMES),
+    auditsDir:   findFolder(AUDIT_NAMES),
     hubFile:     findFile(HUB_FILES),
   };
 
@@ -284,6 +295,20 @@ export function getVaultLayout(): VaultLayout | null {
     return null;
   };
 
+  // Derive auditsDir from systemDir as final fallback: covers vaults whose
+  // system folder isn't named "system" (so the AUDIT_NAMES probe misses it)
+  // but whose audits folder lives inside the detected systemDir.
+  const derivedAuditsDir = (() => {
+    if (pick('auditsDir')) return null; // already resolved — no need to derive
+    const sysDir = pick('systemDir');
+    if (!sysDir) return null;
+    const candidate = `${sysDir}/audits`;
+    try {
+      if (existsSync(join(root, candidate)) && statSync(join(root, candidate)).isDirectory()) return candidate;
+    } catch { /* ignore */ }
+    return null;
+  })();
+
   const layout: VaultLayout = {
     root,
     hasWiki,
@@ -293,6 +318,7 @@ export function getVaultLayout(): VaultLayout | null {
     researchDir: pick('researchDir'),
     workDir:     pick('workDir'),
     systemDir:   pick('systemDir'),
+    auditsDir:   pick('auditsDir') ?? derivedAuditsDir,
     hubFile:     pick('hubFile'),
   };
   _layoutCache.set(root, layout);
@@ -376,13 +402,6 @@ export interface ObsidianLink {
   path: string;
 }
 
-export interface SearchResult {
-  path: string;
-  excerpt: string;
-  score: number;
-  kind: string;
-}
-
 export interface HubFile {
   name: string;
   path: string;
@@ -424,37 +443,9 @@ export async function readVaultFile(relPath: string): Promise<ParsedFile | null>
 // ─── Parse markdown ───────────────────────────────────────────────────
 
 function parseMarkdown(raw: string, relPath: string): ParsedFile {
-  const { frontmatter, content } = extractFrontmatter(raw);
+  const { frontmatter, content } = parseFrontmatter(raw);
   const sections = extractSections(content);
   return { path: relPath, content, frontmatter, sections, mtime: 0 };
-}
-
-// ─── Frontmatter ─────────────────────────────────────────────────────
-
-function extractFrontmatter(raw: string): { frontmatter: Record<string, unknown>; content: string } {
-  const frontmatter: Record<string, unknown> = {};
-  if (!raw.startsWith("---")) {
-    return { frontmatter, content: raw };
-  }
-  const end = raw.indexOf("\n---", 3);
-  if (end === -1) return { frontmatter, content: raw };
-
-  const fmText = raw.slice(3, end).trim();
-  for (const line of fmText.split("\n")) {
-    const colonIdx = line.indexOf(":");
-    if (colonIdx === -1) continue;
-    const key = line.slice(0, colonIdx).trim();
-    let value: unknown = line.slice(colonIdx + 1).trim();
-    if (value === "true") value = true;
-    else if (value === "false") value = false;
-    else if (typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value)) value = Number(value);
-    else if (typeof value === "string" && value.startsWith("[") && value.endsWith("]")) {
-      try { value = JSON.parse(value.replace(/'/g, '"')); } catch { /* keep as string */ }
-    }
-    frontmatter[key] = value;
-  }
-  const content = raw.slice(end + 4).trimStart();
-  return { frontmatter, content };
 }
 
 // ─── Sections ─────────────────────────────────────────────────────────
@@ -582,12 +573,10 @@ export function parseTable(text: string): TableData {
  */
 export function extractLinks(text: string): ObsidianLink[] {
   const links: ObsidianLink[] = [];
-  // Character class [^\]\\|] correctly excludes ], \, and | so an escaped
-  // pipe inside a Markdown table (e.g. [[work/work\|Work]]) terminates the
-  // path at `work/work` instead of letting the trailing `\` leak into the
-  // captured path. Safety net: strip any residual trailing backslash from
-  // both path and label.
-  const re = /\[\[([^\]\\|]+?)(?:\|([^\]]+?))?\]\]/g;
+  // Use the shared WIKILINK_RE from wikilink.ts (same character class, same
+  // escaped-pipe / table-cell tolerance).  Safety net: strip any residual
+  // trailing backslash from both path and label.
+  const re = new RegExp(WIKILINK_RE.source, WIKILINK_RE.flags);
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
     const rawPath = match[1].trim().replace(/\\+$/, "");
@@ -727,13 +716,6 @@ export async function parseEntity(file: ParsedFile): Promise<EntityData> {
 
 // ─── Research project parsing ─────────────────────────────────────────
 
-const RESEARCH_OUTPUT_FILES = [
-  "executive-summary.md",
-  "deep-dive.md",
-  "key-players.md",
-  "open-questions.md",
-] as const;
-
 /**
  * Read the four canonical research-project files from a directory.
  *
@@ -780,31 +762,14 @@ async function buildBasenameIndex(root: string): Promise<Map<string, string[]>> 
   const cached = _basenameIndex.get(root);
   if (cached) return cached;
   const index = new Map<string, string[]>();
-  // Bounded walk: depth 5 is plenty for normal vaults (wiki/knowledge/entities/foo/bar.md).
-  async function walk(dir: string, relDir: string, depth: number) {
-    if (depth > 5) return;
-    let entries: Array<{ name: string; isFile: boolean; isDir: boolean }> = [];
-    try {
-      const rawEntries = await readdir(join(root, relDir || "."), { withFileTypes: true });
-      entries = rawEntries
-        .filter((e) => !e.name.startsWith("."))
-        .map((e) => ({ name: e.name, isFile: e.isFile(), isDir: e.isDirectory() }));
-    } catch { return; }
-    for (const entry of entries) {
-      const nextRel = relDir ? `${relDir}/${entry.name}` : entry.name;
-      if (entry.isFile && entry.name.toLowerCase().endsWith(".md")) {
-        const base = entry.name.slice(0, -3).toLowerCase();
-        const list = index.get(base);
-        if (list) list.push(nextRel);
-        else index.set(base, [nextRel]);
-      } else if (entry.isDir) {
-        // Skip node_modules, .git, .obsidian etc.
-        if (entry.name === "node_modules" || entry.name === ".git" || entry.name === ".obsidian") continue;
-        await walk(join(root, nextRel), nextRel, depth + 1);
-      }
-    }
+  const rels = await walkFiles(root, { extensions: [".md"], maxDepth: 5 });
+  for (const rel of rels) {
+    const name = rel.slice(rel.lastIndexOf("/") + 1);
+    const base = name.slice(0, -3).toLowerCase();
+    const list = index.get(base);
+    if (list) list.push(rel);
+    else index.set(base, [rel]);
   }
-  await walk(root, "", 0);
   _basenameIndex.set(root, index);
   return index;
 }
@@ -877,54 +842,25 @@ export async function resolveLink(linkPath: string): Promise<string | null> {
     const key = (lastSegment.endsWith(".md") ? lastSegment.slice(0, -3) : lastSegment).toLowerCase();
     const hits = index.get(key);
     if (hits && hits.length > 0) {
-      // For nested paths (e.g. "knowledge/research/lenses/contrarian"),
-      // prefer hits that match the full path structure.
+      // For nested paths, prefer hits that match the full path structure.
       const fullKey = trimmed.toLowerCase().replace(/\.md$/, "");
-      const structuralMatch = hits.find(h => h.toLowerCase().includes(fullKey));
+      const structuralMatch = hits.find((h) => h.toLowerCase().includes(fullKey));
       const best = structuralMatch || [...hits].sort((a, b) => a.length - b.length)[0];
       return anchor ? best + "#" + anchor : best;
+    }
+    // Normalized fallback: treat spaces and hyphens as equivalent so a
+    // display-text link like "Q3 Plan" matches a file named "q3-plan.md".
+    const normalize = (s: string) => s.toLowerCase().replace(/[\s-]+/g, " ").trim();
+    const wanted = normalize(key);
+    for (const [k, paths] of index) {
+      if (paths.length > 0 && normalize(k) === wanted) {
+        const best = [...paths].sort((a, b) => a.length - b.length)[0];
+        return anchor ? best + "#" + anchor : best;
+      }
     }
   } catch { /* fall through */ }
 
   return null;
-}
-
-/** Internal: invalidated by setVaultPath (already wired in this module). */
-function _invalidateResolverCaches() {
-  _basenameIndex.clear();
-}
-
-/** Join a layout-provided dir with a filename, handling null dirs gracefully. */
-function inDir(dir: string | null, ...parts: string[]): string | null {
-  if (!dir) return null;
-  return [dir, ...parts].filter(Boolean).join("/");
-}
-
-/** Try a list of candidate paths; return the first that readVaultFile() can open. */
-async function firstReadable(candidates: (string | null)[]): Promise<ParsedFile | null> {
-  for (const c of candidates) {
-    if (!c) continue;
-    const file = await readVaultFile(c);
-    if (file) return file;
-  }
-  return null;
-}
-
-/**
- * Build a list of candidate paths for a file that might live in either a
- * probed layout directory, a vault-root variant, or a legacy wiki/ path.
- * Used by all "read the canonical X file" helpers below.
- */
-function hubCandidates(dir: string | null, fileName: string): string[] {
-  const out: string[] = [];
-  const from = inDir(dir, fileName);
-  if (from) out.push(from);
-  // Root-level fallback (some vaults put system files at root).
-  out.push(fileName);
-  // wiki/ prefix fallback — if the layout didn't detect a specific dir
-  // but the vault still uses wiki/ structure, try the legacy paths.
-  if (!dir?.startsWith("wiki/")) out.push(`wiki/${fileName}`);
-  return out;
 }
 
 // ─── Re-exports from split modules ────────────────────────────────────
@@ -941,6 +877,7 @@ export {
   readWorkLog,
   readWorkWeek,
   readResearchProject,
+  readAuditDashboard,
 } from "./vault-readers";
 
 export {
@@ -951,7 +888,4 @@ export {
   getResearchProjects,
 } from "./vault-indexes";
 
-export {
-  listVaultFiles,
-  searchVault,
-} from "./vault-search";
+export { listVaultFiles } from "./vault-search";

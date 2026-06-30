@@ -53,7 +53,7 @@ function OverallIndicator({ status, label }: { status: Status; label: string }) 
   );
 }
 
-export function SystemStatusView({ data, view, onNavigate }: { data: unknown; view: ViewModel; onNavigate?: (path: string) => void }) {
+export function SystemStatusView({ data, view: _view, onNavigate }: { data: unknown; view: ViewModel; onNavigate?: (path: string) => void }) {
   const status = data as SystemStatusData;
 
   return (

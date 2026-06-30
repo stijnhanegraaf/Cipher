@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import { createReadStream } from "fs";
 import { stat } from "fs/promises";
-import { join, extname, basename } from "path";
+import { extname, basename } from "path";
 import { getVaultPath } from "@/lib/vault-reader";
+import { safeJoin } from "@/lib/fs/safe-join";
 
 const MIME: Record<string, string> = {
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp",
@@ -12,13 +13,6 @@ const MIME: Record<string, string> = {
   json: "application/json; charset=utf-8", csv: "text/csv; charset=utf-8",
   mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime",
 };
-
-function safeJoin(root: string, rel: string): string | null {
-  const abs = join(root, rel);
-  const normalisedRoot = root.endsWith("/") ? root : root + "/";
-  if (abs !== root && !abs.startsWith(normalisedRoot)) return null;
-  return abs;
-}
 
 export async function GET(req: NextRequest) {
   const root = getVaultPath();

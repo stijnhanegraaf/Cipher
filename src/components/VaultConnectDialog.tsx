@@ -15,6 +15,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useVault } from "@/lib/hooks/useVault";
+import { useIsMobile } from "@/lib/hooks/useMediaQuery";
+import {
+  type RecentVault,
+  getRecentVaults,
+  saveRecentVault,
+} from "@/lib/browse/recent-vaults";
 
 interface Props {
   open: boolean;
@@ -31,12 +37,17 @@ interface FsResponse {
 
 export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
   const vault = useVault();
+  const isMobile = useIsMobile();
   const [path, setPath] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [browseOpen, setBrowseOpen] = useState(false);
   const [fs, setFs] = useState<FsResponse | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // SSR-safe: start empty, hydrate from localStorage after mount.
+  const [recents, setRecents] = useState<RecentVault[]>([]);
+  // Non-null while a switch is in flight — drives the loading overlay + reload.
+  const [switching, setSwitching] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -46,6 +57,13 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
     const t = setTimeout(() => inputRef.current?.focus(), 40);
     return () => clearTimeout(t);
   }, [open, vault.path]);
+
+  // Refresh recents from localStorage each time the dialog opens (SSR-safe:
+  // getRecentVaults() returns [] on server; this runs only on the client).
+  useEffect(() => {
+    if (!open) return;
+    setRecents(getRecentVaults());
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -74,6 +92,14 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
     if (open && browseOpen && !fs) loadFs();
   }, [open, browseOpen, fs, loadFs]);
 
+  // Once the loading overlay has painted, hard-navigate to the dashboard so
+  // every route + client data fetch reflects the newly-connected vault. (A full
+  // load is the reliable way to reset all per-vault state; the switch is rare.)
+  useEffect(() => {
+    if (switching === null) return;
+    window.location.assign("/browse");
+  }, [switching]);
+
   const submit = async (next?: string) => {
     const trimmed = (next ?? path).trim();
     if (!trimmed) { setError("Path is required."); return; }
@@ -83,11 +109,56 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
     const res = await vault.connect(trimmed);
     setBusy(false);
     if (!res.ok) { setError(res.error ?? "Couldn't connect."); return; }
+    // eslint-disable-next-line react-hooks/purity -- Date.now() in an async event handler (not render); timestamp is needed for recency ordering
+    const now = Date.now();
+    saveRecentVault({
+      path: trimmed,
+      name: res.name ?? trimmed.split("/").at(-1) ?? trimmed,
+      lastOpened: now,
+    });
+    const connectedName = res.name ?? trimmed.split("/").at(-1) ?? trimmed;
     onConnected?.(trimmed, res.name ?? "");
-    onClose();
+    // Show the loading overlay and reload into the new vault (effect above).
+    setSwitching(connectedName);
   };
 
   if (typeof document === "undefined") return null;
+
+  // Switching: full-screen loading state while we reload into the new vault.
+  if (switching !== null) {
+    return createPortal(
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 500,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+          background: "var(--bg-marketing)",
+        }}
+      >
+        <div
+          className="animate-spin"
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            border: "2px solid var(--border-subtle)",
+            borderTopColor: "var(--accent-brand)",
+          }}
+        />
+        <div className="caption-large" style={{ color: "var(--text-secondary)" }}>
+          Opening {switching}…
+        </div>
+      </div>,
+      document.body,
+    );
+  }
 
   return createPortal(
     <AnimatePresence>
@@ -103,6 +174,7 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
             style={{
               position: "fixed",
               inset: 0,
+              // eslint-disable-next-line cipher-design/no-raw-color -- modal overlay at 0.55 opacity; no token at this alpha exists
               background: "rgba(0,0,0,0.55)",
               zIndex: 400,
               backdropFilter: "blur(4px)",
@@ -114,9 +186,9 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
               position: "fixed",
               inset: 0,
               display: "flex",
-              alignItems: "center",
+              alignItems: isMobile ? "flex-end" : "center",
               justifyContent: "center",
-              padding: 16,
+              padding: isMobile ? 0 : 16,
               pointerEvents: "none",
               zIndex: 401,
             }}
@@ -125,19 +197,21 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
               role="dialog"
               aria-modal="true"
               aria-labelledby="vault-connect-title"
-              initial={{ opacity: 0, y: 8, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              initial={isMobile ? { opacity: 0, y: "100%" } : { opacity: 0, y: 8, scale: 0.98 }}
+              animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, scale: 1 }}
+              exit={isMobile ? { opacity: 0, y: "100%" } : { opacity: 0, y: 8, scale: 0.98 }}
               transition={{ duration: 0.22, ease: [0.22, 1.2, 0.36, 1] }}
               style={{
                 pointerEvents: "auto",
-                width: "min(520px, 100%)",
-                maxHeight: "min(78vh, 640px)",
+                width: isMobile ? "100%" : "min(520px, 100%)",
+                maxHeight: isMobile ? "90dvh" : "min(78vh, 640px)",
                 display: "flex",
                 flexDirection: "column",
                 background: "var(--surface-raised)",
                 border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-panel)",
+                borderRadius: isMobile
+                  ? "var(--radius-panel) var(--radius-panel) 0 0"
+                  : "var(--radius-panel)",
                 boxShadow: "var(--shadow-dialog)",
               }}
             >
@@ -163,6 +237,76 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
 
               {!browseOpen ? (
                 <div style={{ padding: 20 }}>
+                  {recents.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div
+                        className="mono-label"
+                        style={{
+                          color: "var(--text-quaternary)",
+                          letterSpacing: "0.04em",
+                          marginBottom: 6,
+                        }}
+                      >
+                        Recent
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        {recents.map((rv) => (
+                          <div
+                            key={rv.path}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => { void submit(rv.path); }}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void submit(rv.path); } }}
+                            className="focus-ring vault-fs-row"
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "center",
+                              gap: 1,
+                              height: 40,
+                              padding: "0 10px",
+                              borderRadius: "var(--radius-row)",
+                              cursor: "pointer",
+                              transition: "background var(--motion-micro) var(--ease-default)",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 500,
+                                color: "var(--text-primary)",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {rv.name}
+                            </span>
+                            <span
+                              className="mono-label"
+                              style={{
+                                color: "var(--text-quaternary)",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {rv.path}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div
+                        style={{
+                          height: 1,
+                          background: "var(--border-subtle)",
+                          margin: "14px 0",
+                        }}
+                      />
+                    </div>
+                  )}
                   <input
                     ref={inputRef}
                     type="text"
@@ -242,7 +386,7 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
                         padding: "8px 16px",
                         border: "none",
                         background: "var(--accent-brand)",
-                        color: "var(--text-on-brand, #fff)",
+                        color: "var(--text-on-brand)",
                         cursor: busy || !path.trim() ? "default" : "pointer",
                         opacity: busy || !path.trim() ? 0.55 : 1,
                         fontSize: 13,
@@ -276,7 +420,7 @@ export function VaultConnectDialog({ open, onClose, onConnected }: Props) {
 }
 
 function BrowseView({
-  fs, error, onNavigate, onBack, onPick, onConnect, busy,
+  fs, error, onNavigate, onBack, onConnect, busy,
 }: {
   fs: FsResponse | null;
   error: string | null;
@@ -426,7 +570,7 @@ function BrowseView({
                 borderRadius: "var(--radius-small)",
                 transition: "background var(--motion-micro) var(--ease-default), color var(--motion-micro) var(--ease-default), border-color var(--motion-micro) var(--ease-default)",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-brand)"; e.currentTarget.style.color = "var(--text-on-brand, #fff)"; e.currentTarget.style.borderColor = "var(--accent-brand)"; }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-brand)"; e.currentTarget.style.color = "var(--text-on-brand)"; e.currentTarget.style.borderColor = "var(--accent-brand)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-tertiary)"; e.currentTarget.style.borderColor = "var(--border-subtle)"; }}
             >
               Use
@@ -470,7 +614,7 @@ function BrowseView({
             padding: "8px 16px",
             border: "none",
             background: "var(--accent-brand)",
-            color: "var(--text-on-brand, #fff)",
+            color: "var(--text-on-brand)",
             cursor: fs?.cwd && !busy ? "pointer" : "default",
             opacity: fs?.cwd && !busy ? 1 : 0.55,
             fontSize: 13,

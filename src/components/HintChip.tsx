@@ -25,6 +25,7 @@ export function HintChip({ hidden = false }: HintChipProps) {
 
   // Avoid hydration mismatch (window is unavailable server-side).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount flag to avoid SSR hydration mismatch
     setMounted(true);
   }, []);
 

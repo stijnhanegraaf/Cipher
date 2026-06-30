@@ -6,8 +6,9 @@
  * consumed by /api/query (system_status) and /browse/system.
  */
 import "server-only";
-import { readdir, stat } from "fs/promises";
-import { join, extname } from "path";
+import { stat } from "fs/promises";
+import { join } from "path";
+import { walkFiles } from "@/lib/fs/walk";
 import {
   getVaultPath,
   getVaultLayout,
@@ -59,29 +60,6 @@ function activeFolders(): string[] {
   return Array.from(new Set([...dirs, ...umbrellas]));
 }
 
-async function walkMd(root: string): Promise<string[]> {
-  const out: string[] = [];
-  async function walk(absDir: string, rel: string, depth: number) {
-    if (depth > 8) return;
-    let entries: import("fs").Dirent[];
-    try {
-      entries = await readdir(absDir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (entry.name.startsWith(".")) continue;
-      if (entry.isDirectory()) {
-        if (entry.name === "node_modules" || entry.name === ".git" || entry.name === ".obsidian") continue;
-        await walk(join(absDir, entry.name), rel ? `${rel}/${entry.name}` : entry.name, depth + 1);
-      } else if (entry.isFile() && extname(entry.name).toLowerCase() === ".md") {
-        out.push(rel ? `${rel}/${entry.name}` : entry.name);
-      }
-    }
-  }
-  await walk(root, "", 0);
-  return out;
-}
 
 function titleFromPath(p: string): string {
   return (p.split("/").pop() || p).replace(/\.md$/i, "").replace(/[-_]+/g, " ");
@@ -116,7 +94,7 @@ export async function buildVaultHealth(): Promise<VaultHealthMetrics | null> {
   const cached = _cache.get(root);
   if (cached && Date.now() - cached.builtAt < TTL_MS) return cached.metrics;
 
-  const paths = await walkMd(root);
+  const paths = await walkFiles(root, { extensions: [".md"] });
   if (paths.length === 0) return null;
 
   const now = Date.now();

@@ -5,8 +5,8 @@
  * /api/today and /browse (TodayPage).
  */
 import "server-only";
-import { readdir, stat } from "fs/promises";
-import { extname, join } from "path";
+import { readdir } from "fs/promises";
+import { join } from "path";
 import {
   readVaultFile,
   parseCheckboxes,

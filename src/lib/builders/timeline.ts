@@ -6,6 +6,7 @@
 import type { ViewModel, TimelineSynthesisData, ThemeGroup, TimelineItem } from "../view-models";
 import { readVaultFile, getVaultLayout, type ParsedFile } from "../vault-reader";
 import { uid, sourceRef, inferTheme, currentMonthPaths, monthLogPath, nameFromPath } from "./shared";
+import { slugifyHeading } from "@/lib/markdown/anchors";
 
 export async function buildTimelineSynthesis(): Promise<ViewModel> {
   const monthNames = [
@@ -187,10 +188,6 @@ export async function buildTimelineSynthesis(): Promise<ViewModel> {
     sourceFile: paths.current,
     meta: { confidence: 0.8, freshness: "recent", generatedAt: new Date().toISOString(), primarySourceCount: sourceFiles.length },
   };
-}
-
-function slugifyHeading(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
 function extractDayEntries(

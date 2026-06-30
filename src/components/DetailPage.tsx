@@ -7,50 +7,25 @@
  * edit mode. Anchor scrolls + highlights on mount.
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import { MarkdownRenderer, Breadcrumbs } from "@/components/ui";
-import { scrollReveal, springs } from "@/lib/motion";
+import { scrollReveal } from "@/lib/motion";
 import { useRecentFiles } from "@/lib/hooks/useRecentFiles";
+import { useVault } from "@/lib/hooks/useVault";
+import { useFileContent } from "@/lib/hooks/useFileContent";
+import { useAnchorScroll } from "@/lib/hooks/useAnchorScroll";
+import { useActiveHeading } from "@/lib/hooks/useActiveHeading";
+import { buildObsidianUri } from "@/lib/obsidian-uri";
 import { log } from "@/lib/log";
-import { slugify } from "@/lib/slug";
-
-// Theme-aware token indirection — values point to CSS custom properties
-// defined in globals.css, so light/dark mode switching is automatic.
-const theme = {
-  bg: {
-    marketing: "var(--bg-marketing)",
-    panel: "var(--bg-panel)",
-    surface: "var(--bg-surface)",
-    secondary: "var(--bg-elevated)",
-  },
-  text: {
-    primary: "var(--text-primary)",
-    secondary: "var(--text-secondary)",
-    tertiary: "var(--text-tertiary)",
-    quaternary: "var(--text-quaternary)",
-  },
-  brand: {
-    indigo: "var(--accent-brand)",
-    violet: "var(--accent-violet)",
-    hover: "var(--accent-hover)",
-  },
-  border: {
-    subtle: "var(--border-subtle)",
-    standard: "var(--border-standard)",
-    solid: "var(--border-solid-primary)",
-  },
-};
+import { theme } from "@/components/detail/detail-theme";
+import { DetailSkeleton, DetailError } from "@/components/detail/DetailStates";
+import { TableOfContents } from "@/components/detail/TableOfContents";
+import { BacklinksPanel } from "@/components/browse/BacklinksPanel";
+import { OutgoingLinksPanel } from "@/components/browse/OutgoingLinksPanel";
+import { PropertiesPanel } from "@/components/detail/PropertiesPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────
-
-interface FileData {
-  path: string;
-  title: string;
-  frontmatter: Record<string, unknown>;
-  content: string;
-  sections: { heading: string; level: number; body: string }[];
-}
 
 interface DetailPageProps {
   path: string;
@@ -66,96 +41,6 @@ interface DetailPageProps {
    *  folder's page (or opens a scoped drawer) — does NOT run a chat query. */
   onOpenSection?: (section: string, folderPath: string) => void;
   layoutId?: string;
-}
-
-// ─── Badge variant mapping for frontmatter fields ─────────────────────
-
-function getBadgeVariant(value: string): "default" | "success" | "warning" | "indigo" | "outline" {
-  const lower = value.toLowerCase();
-  if (["active", "done", "complete", "healthy", "ok", "fresh", "live"].includes(lower)) return "success";
-  if (["stale", "deprecated", "archived", "inactive"].includes(lower)) return "warning";
-  if (["project", "entity", "system", "area"].includes(lower)) return "indigo";
-  return "outline";
-}
-
-// ─── Table of Contents ─────────────────────────────────────────────────
-
-function TableOfContents({
-  sections,
-  activeId,
-  onItemClick,
-}: {
-  sections: { heading: string; level: number }[];
-  activeId: string | null;
-  onItemClick: (id: string) => void;
-}) {
-  return (
-    <nav
-      style={{
-        position: "sticky",
-        top: 64,
-        maxHeight: "calc(100vh - 96px)",
-        overflowY: "auto",
-        width: 180,
-        flexShrink: 0,
-      }}
-    >
-      <p
-        style={{
-          fontSize: 11,
-          fontWeight: 510,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase" as const,
-          color: theme.text.quaternary,
-          marginBottom: 12,
-        }}
-      >
-        On this page
-      </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {sections.map((section) => {
-          const id = `heading-${slugify(section.heading)}`;
-          const isActive = activeId === id;
-          const paddingLeft = (section.level - 1) * 16;
-
-          return (
-            <button
-              key={id}
-              onClick={() => onItemClick(id)}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: `4px ${12 + paddingLeft}px`,
-                fontSize: 12,
-                fontWeight: isActive ? 510 : 400,
-                lineHeight: 1.5,
-                color: isActive ? theme.text.secondary : theme.text.quaternary,
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                borderRadius: 8,
-                transition: "color var(--motion-hover) var(--ease-default), background var(--motion-hover) var(--ease-default)",
-                textOverflow: "ellipsis",
-                overflow: "hidden",
-                whiteSpace: "nowrap" as const,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = theme.text.secondary;
-                e.currentTarget.style.background = "var(--bg-surface-alpha-2)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = isActive ? theme.text.secondary : theme.text.quaternary;
-                e.currentTarget.style.background = "transparent";
-              }}
-            >
-              {section.heading}
-            </button>
-          );
-        })}
-      </div>
-    </nav>
-  );
 }
 
 // ─── ScrollRevealSection (E8) ──────────────────────────────────────────
@@ -233,16 +118,18 @@ function Toast({ message, type, onDismiss }: { message: string; type: "success" 
  * failures. Breadcrumbs + onBack/onHome route back out of the sheet.
  */
 export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, onOpenSection, layoutId }: DetailPageProps) {
-  const [data, setData] = useState<FileData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeHeading, setActiveHeading] = useState<string | null>(null);
+  const { data, loading, error, reload } = useFileContent(path);
+  // savedContent tracks the last successfully saved text so the renderer
+  // reflects unsaved changes without requiring a re-fetch (replaces the
+  // old setData optimistic update that mutated hook-owned state).
+  const [savedContent, setSavedContent] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editContent, setEditContent] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const { push: pushRecent } = useRecentFiles();
+  const vault = useVault();
 
   useEffect(() => {
     if (path) pushRecent(path);
@@ -252,118 +139,23 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch file data
-  const fetchData = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    setEditMode(false);
+  // Anchor scroll: fires after data is ready and MarkdownRenderer has painted.
+  useAnchorScroll(scrollRef, data !== null, anchor);
 
-    fetch(`/api/file?path=${encodeURIComponent(path)}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(res.status === 404 ? "File not found" : "Failed to load file");
-        return res.json();
-      })
-      .then((json) => {
-        setData(json);
-        setLoading(false);
-      })
-      // Scroll to anchor (if any) once content is rendered, then flash a
-      // 2s brand-tinted highlight on the landed heading so the user sees
-      // where the deep-link dropped them.
-      .then(() => {
-        if (!anchor) return;
-        const id = `heading-${anchor}`;
-        // Two rAF ticks so MarkdownRenderer has painted.
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => {
-            const el = scrollRef.current?.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null;
-            if (!el) return;
-            el.scrollIntoView({ block: "start", behavior: "smooth" });
-            // Retrigger animation each time the path/anchor combination
-            // changes by toggling the class.
-            el.classList.remove("anchor-highlight");
-            void el.offsetWidth;
-            el.classList.add("anchor-highlight");
-            window.setTimeout(() => el.classList.remove("anchor-highlight"), 2100);
-          })
-        );
-      })
-      .catch((err) => {
-        setError(err.message || "Failed to load file");
-        setLoading(false);
-      });
-  }, [path, anchor]);
+  // Active heading tracking via IntersectionObserver (extracted to hook).
+  const activeHeading = useActiveHeading(scrollRef, data?.sections ?? []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Reset scroll on path change
+  // Reset scroll + saved content override on path change
   useEffect(() => {
     scrollRef.current?.scrollTo(0, 0);
+    setSavedContent(null);
   }, [path]);
-
-  // Intersection observer for active heading tracking
-  useEffect(() => {
-    if (!data || data.sections.length < 4) return;
-
-    const container = scrollRef.current;
-    if (!container) return;
-
-    const headingElements = data.sections
-      .map((s) => {
-        const id = `heading-${slugify(s.heading)}`;
-        return document.getElementById(id);
-      })
-      .filter(Boolean) as HTMLElement[];
-
-    if (headingElements.length === 0) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveHeading(entry.target.id);
-          }
-        }
-      },
-      {
-        root: container,
-        rootMargin: "-80px 0px -60% 0px",
-        threshold: 0,
-      }
-    );
-
-    headingElements.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, [data]);
-
-  // Scroll to heading
-  const scrollToHeading = useCallback((id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, []);
-
-  // Determine which frontmatter keys to show as badges
-  const frontmatterBadges = useMemo(() => {
-    if (!data) return [];
-    const badgeKeys = ["type", "area", "status", "kind", "priority", "freshness"];
-    return badgeKeys
-      .filter((key) => data.frontmatter[key] !== undefined)
-      .map((key) => ({
-        key,
-        value: String(data.frontmatter[key]),
-        variant: getBadgeVariant(String(data.frontmatter[key])),
-      }));
-  }, [data]);
 
   // Determine whether to show TOC
   const showToc = data && data.sections.length >= 4;
 
   // Obsidian URL for "Open in Obsidian" link
-  const obsidianUrl = `obsidian://open?vault=Obsidian&file=${encodeURIComponent(path)}`;
+  const obsidianUrl = buildObsidianUri(vault.name, path);
 
   // ─── Save function ────────────────────────────────────────────────
   // Throws on non-ok so callers (e.g. exitEditMode with save=true) can stay
@@ -388,7 +180,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
         throw new Error(message);
       }
       setSaveStatus("saved");
-      setData((prev) => prev ? { ...prev, content } : prev);
+      setSavedContent(content);
       setToastMessage({ text: "✓ Saved", type: "success" });
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
       toastTimerRef.current = setTimeout(() => {
@@ -647,6 +439,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
         }}
       >
         <div
+          className="detail-content-layout"
           style={{
             maxWidth: showToc ? 920 : 720,
             margin: "0 auto",
@@ -658,156 +451,15 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
           {/* ── Main content column ──────────────────────────────────────── */}
           <div style={{ flex: 1, minWidth: 0, maxWidth: 720 }}>
             <AnimatePresence mode="wait">
-              {loading && (
-                <motion.div
-                  key="loading"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  style={{ paddingTop: 160, maxWidth: 720 }}
-                >
-                  {/* Skeleton shimmer lines */}
-                  <div className="skeleton-line" style={{ width: "60%", height: 32, borderRadius: 8 }} />
-                  <div className="skeleton-line" style={{ width: "80%", height: 16, borderRadius: 4, marginTop: 16 }} />
-                  <div className="skeleton-line" style={{ width: "100%", height: 14, borderRadius: 4, marginTop: 32 }} />
-                  <div className="skeleton-line" style={{ width: "90%", height: 14, borderRadius: 4, marginTop: 8 }} />
-                  <div className="skeleton-line" style={{ width: "70%", height: 14, borderRadius: 4, marginTop: 8 }} />
-                  <div className="skeleton-line" style={{ width: "85%", height: 14, borderRadius: 4, marginTop: 8 }} />
-                </motion.div>
-              )}
+              {loading && <DetailSkeleton />}
 
-              {/* F5: Error state with retry */}
               {error && (
-                <motion.div
-                  key="error"
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                  style={{ paddingTop: 160, textAlign: "center" as const }}
-                >
-                  <svg
-                    width={40}
-                    height={40}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke={theme.text.quaternary}
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ margin: "0 auto 24px" }}
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M12 8v4" />
-                    <path d="M12 16h.01" />
-                  </svg>
-                  {(() => {
-                    const isNotFound = /not found|404/i.test(error || "");
-                    const fileName = (path.split("/").pop() || path).replace(/\.md$/i, "");
-                    return (
-                      <>
-                        <p
-                          style={{
-                            fontSize: 15,
-                            fontWeight: 510,
-                            color: theme.text.primary,
-                            margin: 0,
-                          }}
-                        >
-                          {isNotFound ? `Couldn't find "${fileName}"` : "Couldn't load this file"}
-                        </p>
-                        <p
-                          style={{
-                            fontSize: 13,
-                            color: theme.text.quaternary,
-                            marginTop: 8,
-                            maxWidth: 420,
-                            marginLeft: "auto",
-                            marginRight: "auto",
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          {isNotFound
-                            ? "This link referenced a file that isn't in your vault. It may have been renamed, moved, or never existed."
-                            : error}
-                        </p>
-                        <div
-                          style={{
-                            marginTop: 24,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 8,
-                            flexWrap: "wrap",
-                            justifyContent: "center",
-                          }}
-                        >
-                          {isNotFound && onAsk && (
-                            <button
-                              onClick={() => onAsk(`search for ${fileName}`)}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                                padding: "8px 16px",
-                                borderRadius: 6,
-                                fontSize: 13,
-                                fontWeight: 510,
-                                color: "var(--text-on-brand)",
-                                background: theme.brand.indigo,
-                                border: "none",
-                                cursor: "pointer",
-                                transition: "background 120ms cubic-bezier(0.25, 0.1, 0.25, 1)",
-                              }}
-                              onMouseEnter={(e) => { e.currentTarget.style.background = theme.brand.violet; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.background = theme.brand.indigo; }}
-                            >
-                              Search for "{fileName}"
-                              <svg width={13} height={13} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                              </svg>
-                            </button>
-                          )}
-                          <button
-                            onClick={fetchData}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 6,
-                              padding: "8px 16px",
-                              borderRadius: 6,
-                              fontSize: 13,
-                              fontWeight: 510,
-                              color: "var(--text-secondary)",
-                              background: "var(--bg-surface-alpha-2)",
-                              border: "1px solid var(--border-standard)",
-                              cursor: "pointer",
-                              transition: "background 120ms cubic-bezier(0.25, 0.1, 0.25, 1)",
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-4)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; }}
-                          >
-                            <svg width={13} height={13} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M1 4v6h6" />
-                              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                            </svg>
-                            Try again
-                          </button>
-                        </div>
-                        <p
-                          style={{
-                            marginTop: 24,
-                            fontSize: 11,
-                            color: "var(--text-quaternary)",
-                            fontFamily: "var(--font-mono)",
-                            letterSpacing: "0.02em",
-                          }}
-                        >
-                          {path}
-                        </p>
-                      </>
-                    );
-                  })()}
-                </motion.div>
+                <DetailError
+                  error={error}
+                  path={path}
+                  onAsk={onAsk}
+                  onRetry={reload}
+                />
               )}
 
               {data && (
@@ -850,61 +502,11 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
                   </div>
 
                   <ScrollRevealSection delay={0.16}>
-                    {/* ── Frontmatter badges ────────────────────────────────── */}
-                    {frontmatterBadges.length > 0 && (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap" as const,
-                          gap: 8,
-                          marginTop: 16,
-                        }}
-                      >
-                        {frontmatterBadges.map((badge) => (
-                          <span
-                            key={badge.key}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 4,
-                              padding: "4px 12px",
-                              borderRadius: 9999,
-                              fontSize: 12,
-                              fontWeight: 510,
-                              lineHeight: 1.4,
-                              background:
-                                badge.variant === "success"
-                                  ? "color-mix(in srgb, var(--status-done) 12%, transparent)"
-                                  : badge.variant === "warning"
-                                    ? "color-mix(in srgb, var(--status-warning) 12%, transparent)"
-                                    : badge.variant === "indigo"
-                                      ? "color-mix(in srgb, var(--accent-brand) 12%, transparent)"
-                                      : "transparent",
-                              color:
-                                badge.variant === "success"
-                                  ? "var(--status-done)"
-                                  : badge.variant === "warning"
-                                    ? "var(--status-warning)"
-                                    : badge.variant === "indigo"
-                                      ? theme.brand.violet
-                                      : theme.text.tertiary,
-                              border:
-                                badge.variant === "outline"
-                                  ? `1px solid ${theme.border.subtle}`
-                                  : badge.variant === "default"
-                                    ? `1px solid ${theme.border.solid}`
-                                    : badge.variant === "success"
-                                      ? "1px solid color-mix(in srgb, var(--status-done) 20%, transparent)"
-                                      : badge.variant === "warning"
-                                        ? "1px solid color-mix(in srgb, var(--status-warning) 20%, transparent)"
-                                        : "1px solid color-mix(in srgb, var(--accent-brand) 20%, transparent)",
-                            }}
-                          >
-                            {badge.value}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    {/* ── Properties (frontmatter badges + tags) ────────────── */}
+                    <PropertiesPanel
+                      frontmatter={data.frontmatter}
+                      content={data.content}
+                    />
                   </ScrollRevealSection>
 
                   <ScrollRevealSection delay={0.24}>
@@ -967,7 +569,7 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
                           transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
                         >
                           <MarkdownRenderer
-                            content={data.content}
+                            content={savedContent ?? data.content}
                             onNavigate={onNavigate}
                           />
                         </motion.div>
@@ -977,6 +579,16 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* ── Outgoing links (forward links + broken) ───────────────── */}
+            {data && !editMode && (
+              <OutgoingLinksPanel path={path} onNavigate={onNavigate} variant="sidebar" />
+            )}
+
+            {/* ── Backlinks (linked mentions) ────────────────────────────── */}
+            {data && !editMode && (
+              <BacklinksPanel path={path} onNavigate={onNavigate} variant="sidebar" />
+            )}
           </div>
 
           {/* ── Table of Contents sidebar ──────────────────────────────── */}
@@ -994,7 +606,6 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
                   level: s.level,
                 }))}
                 activeId={activeHeading}
-                onItemClick={scrollToHeading}
               />
             </div>
           )}
@@ -1012,32 +623,6 @@ export function DetailPage({ path, anchor, onBack, onNavigate, onAsk, onHome, on
         )}
       </AnimatePresence>
 
-      {/* ── Global animation keyframes ─────────────────────────────── */}
-      <style>{`
-        @keyframes dot-pulse {
-          0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-          40% { transform: scale(1); opacity: 1; }
-        }
-        .skeleton-line {
-          background: var(--bg-surface-alpha-2);
-          position: relative;
-          overflow: hidden;
-        }
-        .skeleton-line::after {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, var(--bg-surface-alpha-4), transparent);
-          animation: skeleton-shimmer 1.5s ease-in-out infinite;
-        }
-        @keyframes skeleton-shimmer {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(200%); }
-        }
-      `}</style>
       </motion.div>
     </>
   );

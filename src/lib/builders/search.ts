@@ -1,83 +1,89 @@
 /**
- * Builds the "Search Results" ViewModel by walking every layout-probed
- * folder (plus common extras) and scoring each file against the query.
+ * Builds the "Search Results" ViewModel by walking the whole vault and
+ * scoring each file against the query using the unified search-core.
  */
 
 import type { ViewModel, SearchResultsData, Intent } from "../view-models";
-import { readVaultFile, listVaultFiles, getVaultLayout } from "../vault-reader";
+import { notesForTag } from "../vault-tags";
 import { uid, kindFromPath, nameFromPath } from "./shared";
+import { parseTagQuery } from "./tag-query";
+import { toSearchKind } from "./search-kinds";
+import {
+  tokenizeQuery,
+  collectVaultFiles,
+  scoreFileAgainstTerms,
+  applyRecencyBoost,
+  buildExcerpt,
+} from "../search/search-core";
+
+const ZERO_HITS = { content: 0, heading: 0, tag: 0, frontmatter: 0 } as const;
 
 export async function buildSearchResults(query: string): Promise<ViewModel> {
-  // Search across every folder the vault layout probed, plus a few
-  // common unknown-to-layout names as a backstop. Vault-agnostic.
-  const layout = getVaultLayout();
-  const probed = [
-    layout?.workDir,
-    layout?.systemDir,
-    layout?.entitiesDir,
-    layout?.projectsDir,
-    layout?.researchDir,
-    layout?.journalDir,
-  ].filter((d): d is string => !!d);
-  const extras = ["memory", "private", "notes", "inbox"];
-  const extraPrefixed = layout?.hasWiki ? extras.map((n) => `wiki/${n}`) : extras;
-  const dirs = Array.from(new Set([...probed, ...extraPrefixed]));
+  // Parse #tag tokens out BEFORE any length filter so short tags like #ai work.
+  const { tags: tagFilters, rest: textQuery } = parseTagQuery(query);
+  const terms = tokenizeQuery(textQuery); // minLen=2 (was >2 — short terms now kept)
 
-  // Collect all files from every dir.
-  const allFiles = new Set<string>();
-  for (const dir of dirs) {
-    const files = await listVaultFiles(dir);
-    for (const f of files) allFiles.add(f);
+  // Tag filter: restrict to the intersection of notesForTag(t) for each tag.
+  let restrictTo: ReadonlySet<string> | undefined;
+  if (tagFilters.length > 0) {
+    const tagNoteSets = await Promise.all(
+      tagFilters.map(async (tag) => {
+        const entries = await notesForTag(tag);
+        return new Set(entries.map((e) => e.path));
+      }),
+    );
+    const [first, ...remaining] = tagNoteSets;
+    let intersection = first ?? new Set<string>();
+    for (const s of remaining) {
+      intersection = new Set([...intersection].filter((p) => s.has(p)));
+    }
+    restrictTo = intersection;
   }
 
-  const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
-  const results: { path: string; excerpt: string; score: number; kind: string }[] = [];
+  // Collect whole-vault markdown files (fixes scope: was probed folders only).
+  const files = await collectVaultFiles(restrictTo);
+  const now = Date.now();
+  const tagOnly = tagFilters.length > 0 && terms.length === 0;
 
-  for (const filePath of allFiles) {
-    const file = await readVaultFile(filePath);
-    if (!file) continue;
+  const scored = files
+    .map((f) => {
+      if (tagOnly) {
+        // Tag-only query: all tag-matched notes qualify, sorted by recency.
+        return { path: f.path, score: 0, matched: true, hits: { ...ZERO_HITS }, mtime: f.mtime };
+      }
+      return applyRecencyBoost(scoreFileAgainstTerms(f, terms), now);
+    })
+    // Filter on matched (NOT score>0) — fixes recency surfacing zero-match files.
+    .filter((s) => tagOnly || s.matched);
 
-    const content = file.content.toLowerCase();
-    const headingText = file.sections.map((s) => s.heading.toLowerCase()).join(" ");
-
-    let score = 0;
-    for (const term of terms) {
-      const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const headingCount = (headingText.match(new RegExp(escapedTerm, "g")) || []).length;
-      const contentCount = (content.match(new RegExp(escapedTerm, "g")) || []).length;
-      // Heading matches worth more
-      score += headingCount * 5 + contentCount;
-    }
-
-    // Recency boost
-    const daysSinceModified = (Date.now() - (file.mtime || 0)) / (1000 * 60 * 60 * 24);
-    const recencyBoost = Math.max(0, 1 - daysSinceModified / 90) * 2;
-    score += recencyBoost;
-
-    if (score > 0) {
-      // Extract excerpt around first match
-      const firstTerm = terms[0];
-      const idx = content.indexOf(firstTerm);
-      const start = Math.max(0, idx - 60);
-      const end = Math.min(content.length, idx + firstTerm.length + 80);
-      const excerpt = (start > 0 ? "…" : "") + content.slice(start, end).replace(/\n/g, " ") + (end < content.length ? "…" : "");
-
-      const kind = kindFromPath(filePath);
-      results.push({ path: filePath, excerpt, score, kind });
-    }
+  // Sort: tag-only by recency (mtime desc); scored queries by score desc.
+  if (tagOnly) {
+    scored.sort((a, b) => b.mtime - a.mtime);
+  } else {
+    scored.sort((a, b) => b.score - a.score);
   }
+  const top = scored.slice(0, 12);
 
-  results.sort((a, b) => b.score - a.score);
-  const topResults = results.slice(0, 12);
+  // Build excerpts using original-cased content (not lowercased).
+  // We need the original files for excerpt building — re-fetch from collectVaultFiles
+  // result is already ScorableFile which has original content.
+  const fileMap = new Map(files.map((f) => [f.path, f]));
 
   const data: SearchResultsData = {
     query,
-    results: topResults.map((r) => ({
-      label: nameFromPath(r.path).replace(/-/g, " ") || r.path,
-      path: r.path,
-      excerpt: r.excerpt,
-      kind: r.kind,
-    })),
+    results: top.map((r) => {
+      const f = fileMap.get(r.path);
+      const excerpt = f && !tagOnly
+        ? buildExcerpt(f.content, f.headings, terms)
+        : "";
+      return {
+        label: nameFromPath(r.path).replace(/-/g, " ") || r.path,
+        path: r.path,
+        excerpt,
+        // toSearchKind coerces kindFromPath output to SearchKind vocab (headline fix).
+        kind: toSearchKind(kindFromPath(r.path)),
+      };
+    }),
     suggestedViews: inferSuggestedViews(query),
   };
 
@@ -87,8 +93,13 @@ export async function buildSearchResults(query: string): Promise<ViewModel> {
     title: `Results for "${query}"`,
     layout: "stack",
     data,
-    sourceFile: topResults[0]?.path,
-    meta: { confidence: Math.min(0.5 + topResults.length * 0.05, 0.9), freshness: "fresh", generatedAt: new Date().toISOString(), primarySourceCount: topResults.length },
+    sourceFile: top[0]?.path,
+    meta: {
+      confidence: Math.min(0.5 + top.length * 0.05, 0.9),
+      freshness: "fresh",
+      generatedAt: new Date().toISOString(),
+      primarySourceCount: top.length,
+    },
   };
 }
 
@@ -108,4 +119,3 @@ function inferSuggestedViews(query: string): { intent: Intent; label: string }[]
 
   return suggestions;
 }
-

@@ -3,8 +3,9 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { readFile, writeFile } from "fs/promises";
-import { join } from "path";
 import { getVaultPath } from "@/lib/vault-reader";
+import { safeJoin } from "@/lib/fs/safe-join";
+import { invalidateAfterWrite } from "@/lib/cache/write-invalidation";
 
 /**
  * `POST /api/toggle` — flip a markdown checkbox in a vault file.
@@ -26,7 +27,10 @@ export async function POST(request: NextRequest) {
     if (!vaultRoot) {
       return NextResponse.json({ error: "No vault connected" }, { status: 409 });
     }
-    const absPath = join(vaultRoot, relPath);
+    const absPath = safeJoin(vaultRoot, relPath);
+    if (!absPath) {
+      return NextResponse.json({ error: "Invalid path" }, { status: 400 });
+    }
     let content: string;
 
     try {
@@ -51,6 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     await writeFile(absPath, lines.join("\n"), "utf-8");
+    invalidateAfterWrite();
 
     return NextResponse.json({
       success: true,

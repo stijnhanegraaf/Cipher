@@ -1,0 +1,77 @@
+{
+  "nodes": [
+    {
+      "type": "text",
+      "id": "intro",
+      "x": -300,
+      "y": -200,
+      "width": 280,
+      "height": 120,
+      "color": "4",
+      "text": "## Canvas Demo\nThis is a **read-only** canvas rendered by Cipher.\n\nPan · scroll to zoom · `F` to fit."
+    },
+    {
+      "type": "text",
+      "id": "note-a",
+      "x": 60,
+      "y": -240,
+      "width": 220,
+      "height": 80,
+      "color": "5",
+      "text": "### Node A\nA text node with a preset color (cyan)."
+    },
+    {
+      "type": "text",
+      "id": "note-b",
+      "x": 60,
+      "y": -100,
+      "width": 220,
+      "height": 80,
+      "color": "1",
+      "text": "### Node B\nAnother text node (red preset)."
+    },
+    {
+      "type": "link",
+      "id": "link-obsidian",
+      "x": 360,
+      "y": -200,
+      "width": 240,
+      "height": 80,
+      "url": "https://obsidian.md"
+    },
+    {
+      "type": "group",
+      "id": "group-main",
+      "x": -340,
+      "y": -280,
+      "width": 680,
+      "height": 300,
+      "color": "6",
+      "label": "Main Group"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "fromNode": "intro",
+      "fromSide": "right",
+      "toNode": "note-a",
+      "toSide": "left"
+    },
+    {
+      "id": "e2",
+      "fromNode": "intro",
+      "fromSide": "right",
+      "toNode": "note-b",
+      "toSide": "left"
+    },
+    {
+      "id": "e3",
+      "fromNode": "note-a",
+      "fromSide": "right",
+      "toNode": "link-obsidian",
+      "toSide": "left",
+      "color": "5"
+    }
+  ]
+}

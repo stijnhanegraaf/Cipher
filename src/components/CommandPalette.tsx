@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { PinIcon } from "@/components/ui/PinIcon";
 import type { PinEntry } from "@/lib/settings";
 import { slugify } from "@/lib/slug";
+import { useIsMobile } from "@/lib/hooks/useMediaQuery";
 
 export interface PaletteAction {
   id: string;
@@ -59,9 +60,12 @@ interface CommandPaletteProps {
  * Uses useListNavigation for arrow / j / k / Enter / Home / End.
  */
 export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) {
+  const isMobile = useIsMobile();
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const [mounted, setMounted] = useState(false);
+  // Captured once on mount for file recency scoring — lazy useState avoids calling Date.now() on every render.
+  const [now] = useState<number>(() => Date.now());
 
   const router = useRouter();
   const sheet = useSheet();
@@ -107,12 +111,14 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
   }, [router, sheet, pushRecent, index.files]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount flag to avoid SSR hydration mismatch
     setMounted(true);
   }, []);
 
   // Reset query every time the palette reopens — no stale filter from the previous session.
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset query on open; palette is controlled by open prop
       setQuery("");
       // Focus the input on next tick so it works even if the element was freshly mounted.
       const t = setTimeout(() => inputRef.current?.focus(), 0);
@@ -177,7 +183,6 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
 
     const DAY = 24 * 60 * 60 * 1000;
     const WEEK = 7 * DAY;
-    const now = Date.now();
     const recentMap = new Map(recentEntries.map((e) => [e.path, e]));
 
     const fileBonus = (path: string) => {
@@ -225,7 +230,7 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
       results.push({ kind: "fallback-chat", query: bodyTrim });
     }
     return results;
-  }, [query, body, prefix, actions, index.entities, index.projects, index.files, pins, recentEntries, openFilePath, sheetHeadings]);
+  }, [query, body, prefix, actions, index.entities, index.projects, index.files, pins, recentEntries, openFilePath, sheetHeadings, now]);
 
   const listItems: PaletteResult[] = query.trim() === "" ? emptyResults : typedResults;
   const { activeIndex, setActiveIndex, listProps, itemProps } = useListNavigation({
@@ -271,17 +276,23 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
             role="dialog"
             aria-label="Command palette"
             aria-modal="true"
-            initial={false}
+            initial={isMobile ? { opacity: 0, y: "100%" } : false}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
-            className="palette-panel fixed left-1/2 top-[15vh] -translate-x-1/2 z-[401] w-[560px] max-w-[calc(100vw-32px)] overflow-hidden flex flex-col"
+            exit={isMobile ? { opacity: 0, y: "100%" } : { opacity: 0, y: -4 }}
+            transition={isMobile ? { duration: 0.18, ease: [0.22, 1.2, 0.36, 1] } : { duration: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
+            className={
+              isMobile
+                ? "palette-panel fixed bottom-0 left-0 right-0 z-[401] w-full overflow-hidden flex flex-col"
+                : "palette-panel fixed left-1/2 top-[15vh] -translate-x-1/2 z-[401] w-[560px] max-w-[calc(100vw-32px)] overflow-hidden flex flex-col"
+            }
             style={{
-              borderRadius: "var(--radius-panel)",
+              borderRadius: isMobile
+                ? "var(--radius-panel) var(--radius-panel) 0 0"
+                : "var(--radius-panel)",
               background: "var(--surface-raised)",
               border: "1px solid var(--accent-soft)",
               boxShadow: "var(--shadow-dialog)",
-              maxHeight: "min(70vh, 560px)",
+              maxHeight: isMobile ? "90dvh" : "min(70vh, 560px)",
             }}
           >
             {/* Search input */}

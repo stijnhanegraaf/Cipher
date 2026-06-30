@@ -110,7 +110,7 @@ function InlineEdit({
 }
 
 // ─── TaskItemRow ──────────────────────────────────────────────────────
-export function TaskItemRow({ item, index = 0, onToggle, onNavigate, onAsk, filePath, lineIndex }: { item: TaskItemType; index?: number; onToggle?: (itemId: string, checked: boolean) => void; onNavigate?: (path: string) => void; onAsk?: (query: string) => void; filePath?: string; lineIndex?: number }) {
+export function TaskItemRow({ item, index: _index = 0, onToggle, onNavigate, onAsk, filePath, lineIndex }: { item: TaskItemType; index?: number; onToggle?: (itemId: string, checked: boolean) => void; onNavigate?: (path: string) => void; onAsk?: (query: string) => void; filePath?: string; lineIndex?: number }) {
   const status = statusConfig[item.status] || statusConfig.open;
   const priorityBar = item.priority ? priorityBars[item.priority] : undefined;
   const isToggleable = item.status === "open" || item.status === "done";
@@ -328,7 +328,7 @@ function getGroupTint(items: TaskItemType[]): string {
 }
 
 // ─── TaskGroupComponent ──────────────────────────────────────────────
-export function TaskGroupComponent({ group, index = 0, onToggle, onNavigate, onAsk, filePath }: { group: TaskGroupType; index?: number; onToggle?: (itemId: string, checked: boolean) => void; onNavigate?: (path: string) => void; onAsk?: (query: string) => void; filePath?: string }) {
+export function TaskGroupComponent({ group, index: _index = 0, onToggle, onNavigate, onAsk, filePath }: { group: TaskGroupType; index?: number; onToggle?: (itemId: string, checked: boolean) => void; onNavigate?: (path: string) => void; onAsk?: (query: string) => void; filePath?: string }) {
   const tint = getGroupTint(group.items);
   return (
     <motion.div

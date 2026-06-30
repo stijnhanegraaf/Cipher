@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { existsSync, statSync } from "fs";
 import { basename } from "path";
-import { getVaultPath, setVaultPath } from "@/lib/vault-reader";
+import { getVaultPath, setVaultPath, getVaultLayout } from "@/lib/vault-reader";
 
 /**
  * `POST /api/vault` — hot-swap the active vault path.
@@ -58,11 +58,15 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   const activePath = getVaultPath();
   const connected = activePath ? existsSync(activePath) : false;
+  // Expose auditsDir presence so the client can show/hide the Audits nav row
+  // without an extra round-trip. getVaultLayout() is already cached per-vault.
+  const layout = connected ? getVaultLayout() : null;
 
   return NextResponse.json({
     activePath: activePath || "",
     name: activePath ? basename(activePath) : "",
     connected,
+    hasAudits: layout?.auditsDir != null,
   });
 }
 

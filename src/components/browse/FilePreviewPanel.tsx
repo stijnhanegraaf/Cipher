@@ -17,11 +17,12 @@ import {
 } from "react";
 import type { Graph, GraphNode } from "@/lib/vault-graph";
 import { IconButton } from "@/components/ui/IconButton";
+import { TagChip } from "@/components/ui/TagChip";
+import type { FileEnvelope } from "@/lib/types/file-envelope";
+import { extractTags } from "@/lib/markdown/tags";
+import { LinkRowList, type LinkRow } from "@/components/browse/LinkRowList";
 
-export interface LinkRow {
-  path: string;
-  title: string;
-}
+export type { LinkRow };
 
 interface Props {
   path: string | null;
@@ -32,39 +33,12 @@ interface Props {
   onNavigate: (path: string) => void;
 }
 
-interface FileSection {
-  heading: string;
-  level: number;
-  body: string;
-}
-
-interface FileEnvelope {
-  path: string;
-  title: string;
-  frontmatter: Record<string, unknown>;
-  content: string;
-  sections: FileSection[];
-}
-
 interface PreviewData {
   env: FileEnvelope;
   tags: string[];
   wordCount: number;
   snippetHeading: string;
   snippet: string;
-}
-
-function deriveTags(env: FileEnvelope): string[] {
-  const out = new Set<string>();
-  const fmTags = env.frontmatter?.["tags"];
-  if (Array.isArray(fmTags)) {
-    for (const t of fmTags) if (typeof t === "string" && t.trim()) out.add(t.trim());
-  }
-  // Inline #tags from content — basic pattern, word-boundary bounded.
-  const inlineRe = /(^|\s)#([A-Za-z0-9_\-/]+)/g;
-  let m: RegExpExecArray | null;
-  while ((m = inlineRe.exec(env.content)) !== null) out.add(m[2]);
-  return Array.from(out);
 }
 
 function wordCountOf(env: FileEnvelope): number {
@@ -92,12 +66,6 @@ function relTime(mtime: number): string {
 function parentFolder(id: string): string {
   const i = id.lastIndexOf("/");
   return i === -1 ? "" : id.slice(0, i);
-}
-
-function basename(id: string): string {
-  const i = id.lastIndexOf("/");
-  const last = i === -1 ? id : id.slice(i + 1);
-  return last.replace(/\.md$/i, "");
 }
 
 export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen, onNavigate }: Props) {
@@ -134,7 +102,7 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
         const { heading, snippet } = snippetOf(env);
         const built: PreviewData = {
           env,
-          tags: deriveTags(env),
+          tags: extractTags(env.content, env.frontmatter ?? {}),
           wordCount: wordCountOf(env),
           snippetHeading: heading,
           snippet,
@@ -214,7 +182,7 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
     return (
       <aside style={frameStyle} aria-label="File preview (error)">
         <span className="caption-large" style={{ color: "var(--text-quaternary)" }}>
-          Couldn't load file metadata.
+          Couldn&#39;t load file metadata.
         </span>
       </aside>
     );
@@ -322,21 +290,28 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
       {data.tags.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
           {(data.tags.length > 6 ? data.tags.slice(0, 5) : data.tags).map((t) => (
-            <TagChip key={t} label={t} />
+            <TagChip key={t} tag={t} />
           ))}
-          {data.tags.length > 6 && <TagChip label={`+${data.tags.length - 5} more`} />}
+          {data.tags.length > 6 && (
+            <span
+              className="chip"
+              style={{ "--sc": "var(--hue-tag)" } as CSSProperties}
+            >
+              +{data.tags.length - 5} more
+            </span>
+          )}
         </div>
       )}
 
       {/* 5. LINKED FROM */}
-      <LinkSection
+      <LinkRowList
         title={`LINKED FROM · ${node.backlinks}`}
         rows={backlinkRows}
         onNavigate={onNavigate}
       />
 
       {/* 6. LINKS TO */}
-      <LinkSection
+      <LinkRowList
         title={`LINKS TO · ${node.outlinks}`}
         rows={outlinkRows}
         onNavigate={onNavigate}
@@ -345,104 +320,6 @@ export function FilePreviewPanel({ path, node, backlinkRows, outlinkRows, onOpen
   );
 }
 
-function LinkSection({
-  title,
-  rows,
-  onNavigate,
-}: {
-  title: string;
-  rows: LinkRow[];
-  onNavigate: (path: string) => void;
-}) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div
-        className="mono-label"
-        style={{
-          color: "var(--text-quaternary)",
-          letterSpacing: "0.08em",
-          marginBottom: 6,
-        }}
-      >
-        {title}
-      </div>
-      {rows.length === 0 ? null : (
-        <div>
-          {rows.slice(0, 5).map((r) => (
-            <button
-              key={r.path}
-              type="button"
-              onClick={() => onNavigate(r.path)}
-              className="app-row focus-ring"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                width: "100%",
-                height: "var(--row-h-compact)",
-                padding: "0 8px",
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                gap: 8,
-                textAlign: "left",
-              }}
-            >
-              <svg width={12} height={12} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={1.5} style={{ color: "var(--text-quaternary)", flexShrink: 0 }}>
-                <path d="M3 2h4l2 2v6H3z" />
-              </svg>
-              <span
-                className="caption-large"
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  color: "var(--text-primary)",
-                }}
-              >
-                {basename(r.path)}
-              </span>
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-quaternary)",
-                  flexShrink: 0,
-                  maxWidth: 140,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {parentFolder(r.path)}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TagChip({ label }: { label: string }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        height: 20,
-        padding: "0 10px",
-        background: "var(--bg-surface-alpha-2)",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: 999,
-        fontSize: 12,
-        color: "var(--text-tertiary)",
-      }}
-    >
-      {label}
-    </span>
-  );
-}
 
 function Sep() {
   return (

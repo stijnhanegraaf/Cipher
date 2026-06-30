@@ -37,6 +37,7 @@ export function PinDialog({ open, initial, onClose, onSave }: Props) {
   // Reset state on open.
   useEffect(() => {
     if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync controlled form fields to props on dialog open
     setPath(initial?.path ?? "");
     setLabel(initial?.label ?? "");
     setIcon(initial?.icon ?? "folder");
@@ -48,6 +49,7 @@ export function PinDialog({ open, initial, onClose, onSave }: Props) {
   useEffect(() => {
     if (labelTouched) return;
     const last = path.split("/").filter(Boolean).pop() ?? "";
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- derive label from path while user hasn't touched it
     setLabel(last.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
   }, [path, labelTouched]);
 

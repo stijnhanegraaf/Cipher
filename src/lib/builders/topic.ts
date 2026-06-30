@@ -3,7 +3,7 @@
  * pulls executive summary + deep dive + open questions, aggregates.
  */
 
-import type { ViewModel, TopicOverviewData, LinkRef, TimelineItem, SourceRef, IndexEntry, ResearchProject } from "../view-models";
+import type { ViewModel, TopicOverviewData, LinkRef, TimelineItem, SourceRef } from "../view-models";
 import {
   readVaultFile,
   getSection,
@@ -22,9 +22,6 @@ export async function buildTopicOverview(query?: string): Promise<ViewModel> {
     getProjectIndex(),
     getResearchProjects(),
   ]);
-
-  const projectNames = projectFiles.map(nameFromPath).filter((n) => n && n !== "projects" && n !== "ideas");
-  const researchNames = researchDirs.map(nameFromPath);
 
   let topicTitle = "";
   let summary = "";

@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { PageShell, PageAction } from "@/components/PageShell";
 import { TodayRow } from "@/components/browse/TodayRow";
 import type { TodayPayload, TodayTask } from "@/lib/today-builder";
+import { formatDailyDate } from "@/lib/daily-note";
 
 const FADE_DELAY_MS = 2000;
 const UNDO_WINDOW_MS = 6000;
@@ -26,6 +27,12 @@ export function TodayPage() {
    * When a task lands here we schedule a fade-out and removal from the list.
    */
   const [pendingCheck, setPendingCheck] = useState<Set<string>>(new Set());
+
+  /** Daily-note button state. */
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const [dailyToast, setDailyToast] = useState<string | null>(null);
+  /** Brief error toast for task-save failures. */
+  const [saveErrorToast, setSaveErrorToast] = useState<string | null>(null);
 
   /** Undo toast — pops when a task is checked; clicking reverts. */
   const [undoTask, setUndoTask] = useState<TodayTask | null>(null);
@@ -96,7 +103,8 @@ export function TodayPage() {
           return next;
         });
         setUndoTask(null);
-        alert("Couldn't save — reverted."); // simple fallback; richer toast in v7.1
+        setSaveErrorToast("Couldn’t save — reverted.");
+        window.setTimeout(() => setSaveErrorToast(null), 4000);
       });
 
       // After 2s, remove from list.
@@ -152,17 +160,47 @@ export function TodayPage() {
 
   const handleAsk = useCallback((query: string) => router.push(`/chat?q=${encodeURIComponent(query)}`), [router]);
 
+  const handleDailyNote = useCallback(() => {
+    setDailyLoading(true);
+    setDailyToast(null);
+    void (async () => {
+      try {
+        const iso = formatDailyDate(new Date());
+        const res = await fetch("/api/daily", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date: iso }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { path: string; created: boolean };
+          const msg = data.created ? "Created today's note" : "Opened today's note";
+          setDailyToast(msg);
+          router.push(`/browse?sheet=${encodeURIComponent(data.path)}`, { scroll: false });
+          setTimeout(() => setDailyToast(null), 3000);
+        } else if (res.status === 409) {
+          window.dispatchEvent(new CustomEvent("cipher:open-vault-connect"));
+        } else if (res.status === 422) {
+          setDailyToast("No daily-notes folder detected in this vault");
+        }
+      } catch {
+        setDailyToast("Failed to open today’s note");
+      } finally {
+        setDailyLoading(false);
+      }
+    })();
+  }, [router]);
+
   // ── Derived. ───────────────────────────────────────────────────────
-  const now = new Date();
+  // dateLabel computed once on mount; captures current date at render time.
   const dateLabel = useMemo(() =>
-    now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
-  , []); // reconcile on first render only
+    new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
+  , []); // stable: date does not change while the page is open
   const subtitle = data
     ? `${dateLabel} · ${data.counts.today} open${data.counts.blocked > 0 ? ` · ${data.counts.blocked} blocked` : ""}`
     : dateLabel;
 
-  const todayList = data?.today ?? [];
-  const upNextList = data?.upNext ?? [];
+  const todayList = useMemo(() => data?.today ?? [], [data]);
+  const upNextList = useMemo(() => data?.upNext ?? [], [data]);
   const upNextVisible = showMore ? upNextList : upNextList.slice(0, UP_NEXT_CAP);
   const upNextHiddenCount = upNextList.length - upNextVisible.length;
 
@@ -172,11 +210,56 @@ export function TodayPage() {
   const upNextGroups = useMemo(() => groupByTopic(upNextVisible), [upNextVisible]);
 
   // ── Render. ────────────────────────────────────────────────────────
+  // Daily-note header action button (pencil icon).
+  const dailyNoteAction = (
+    <PageAction
+      onClick={handleDailyNote}
+      label={dailyLoading ? "Opening today's note…" : "Open today's note"}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+      </svg>
+    </PageAction>
+  );
+
   return (
     <PageShell
       title="Today"
       subtitle={subtitle}
+      actions={dailyNoteAction}
     >
+      {/* Daily-note toast */}
+      {dailyToast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            padding: "10px 14px",
+            borderRadius: 8,
+            background: "var(--bg-tooltip)",
+            border: "1px solid var(--border-standard)",
+            color: "var(--text-primary)",
+            fontSize: 13,
+            zIndex: 100,
+            boxShadow: "var(--shadow-dialog)",
+          }}
+        >
+          {dailyToast}
+        </div>
+      )}
+
       {loading && (
         <div style={{ padding: 32 }}>
           {[0, 1, 2, 3].map((i) => (
@@ -197,7 +280,7 @@ export function TodayPage() {
       {!loading && error && (
         <div style={{ padding: 32 }}>
           <p className="caption-large" style={{ color: "var(--status-blocked)", marginBottom: 8 }}>
-            Couldn't load today
+            Couldn&#39;t load today
           </p>
           <p className="small" style={{ color: "var(--text-tertiary)", marginBottom: 16 }}>{error}</p>
           {error.toLowerCase().includes("no vault") && (
@@ -209,7 +292,7 @@ export function TodayPage() {
                 padding: "8px 16px",
                 border: "none",
                 background: "var(--accent-brand)",
-                color: "var(--text-on-brand, #fff)",
+                color: "var(--text-on-brand)",
                 cursor: "pointer",
                 fontSize: 13,
                 fontWeight: 500,
@@ -287,6 +370,27 @@ export function TodayPage() {
             </section>
           )}
         </>
+      )}
+
+      {/* Save-error toast */}
+      {saveErrorToast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            padding: "10px 14px",
+            borderRadius: 8,
+            background: "var(--bg-tooltip)",
+            border: "1px solid var(--border-standard)",
+            color: "var(--status-blocked)",
+            fontSize: 13,
+            zIndex: 100,
+            boxShadow: "var(--shadow-dialog)",
+          }}
+        >
+          {saveErrorToast}
+        </div>
       )}
 
       {/* Undo toast */}

@@ -17,7 +17,7 @@ const themeAccents = [
   { dot: "var(--text-tertiary)",      bg: "color-mix(in srgb, var(--text-tertiary) 4%, transparent)",  border: "color-mix(in srgb, var(--text-tertiary) 8%, transparent)" },
 ];
 
-export function TimelineView({ data, view, onNavigate }: { data: unknown; view: ViewModel; onNavigate?: (path: string) => void }) {
+export function TimelineView({ data, view: _view, onNavigate }: { data: unknown; view: ViewModel; onNavigate?: (path: string) => void }) {
   const timeline = data as TimelineSynthesisData;
 
   return (

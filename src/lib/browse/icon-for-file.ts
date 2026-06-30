@@ -6,6 +6,7 @@ export function labelForFileKind(kind: FileKind): string {
     case "md": return "Markdown file";
     case "image": return "Image";
     case "pdf": return "PDF";
+    case "canvas": return "Canvas";
     case "other": return "File";
   }
 }
@@ -16,6 +17,7 @@ export function iconForFileKind(kind: FileKind): string {
     case "md": return "•";
     case "image": return "▢";
     case "pdf": return "▢";
+    case "canvas": return "◈";
     case "other": return "•";
   }
 }

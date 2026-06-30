@@ -2,7 +2,9 @@
  * GET /api/resolve — resolves a wiki-link target to its vault path.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { resolveLink, getVaultPath } from "@/lib/vault-reader";
+import { resolveLink, getVaultPath, readVaultFile } from "@/lib/vault-reader";
+import { parseWikiTarget } from "@/lib/markdown/wikilink";
+import { validateAnchor, type AnchorValidation } from "@/lib/markdown/anchors";
 import { log } from "@/lib/log";
 
 // ─── GET /api/resolve?path=<any-link-input> ───────────────────────────
@@ -16,10 +18,13 @@ import { log } from "@/lib/log";
  * `GET /api/resolve?path=<link>` — resolve any wiki-link input to a
  * vault-relative `.md` path.
  *
- * Response: `{ input, resolved: string | null }`. Status codes:
+ * Response: `{ input, resolved: string | null, anchor: AnchorInfo }`. Status codes:
  * 200 on success (including `resolved: null` when the link doesn't match),
  * 400 when `path` is missing, 409 when no vault is connected, 500 on
  * unexpected failure.
+ *
+ * `anchor` shape: `{ kind: "none"|"block"|"heading"; valid: boolean; value: string }`.
+ * When there is no anchor in the input, kind is "none" and valid is true.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -38,7 +43,27 @@ export async function GET(request: NextRequest) {
     }
 
     const resolved = await resolveLink(input);
-    return NextResponse.json({ input, resolved });
+
+    // ── Anchor validation ──────────────────────────────────────────────
+    // Parse the raw anchor from the input (parseWikiTarget handles "^block" vs heading).
+    const { anchor: rawAnchor } = parseWikiTarget(input);
+
+    let anchorInfo: AnchorValidation;
+    if (!rawAnchor) {
+      anchorInfo = { kind: "none", valid: true, value: "" };
+    } else if (resolved) {
+      // Strip the trailing "#anchor" that resolveLink appends to the resolved path.
+      const resolvedPath = resolved.split("#")[0];
+      const file = await readVaultFile(resolvedPath);
+      anchorInfo = file
+        ? validateAnchor(file.content, rawAnchor)
+        : { kind: rawAnchor.startsWith("^") ? "block" : "heading", valid: false, value: rawAnchor.startsWith("^") ? rawAnchor.slice(1) : rawAnchor };
+    } else {
+      // Unresolved file — anchor cannot be valid.
+      anchorInfo = { kind: rawAnchor.startsWith("^") ? "block" : "heading", valid: false, value: rawAnchor.startsWith("^") ? rawAnchor.slice(1) : rawAnchor };
+    }
+
+    return NextResponse.json({ input, resolved, anchor: anchorInfo });
   } catch (error) {
     log.error("resolve", "API error", error);
     return NextResponse.json(

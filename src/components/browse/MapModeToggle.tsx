@@ -45,6 +45,7 @@ export function MapModeToggle({ mode, onChange }: Props) {
           letterSpacing: -0.05,
           color: active ? "var(--text-primary)" : "var(--text-tertiary)",
           background: active ? "var(--bg-elevated)" : "transparent",
+          // eslint-disable-next-line cipher-design/no-raw-color -- drop-shadow with no equivalent shadow token; pure black alpha overlay
           boxShadow: active ? "0 1px 2px rgba(0,0,0,0.2)" : "none",
           border: "none",
           borderRadius: 6,

@@ -130,6 +130,7 @@ export function HoverCard({
       // React's ref types don't play nicely with cloneElement over unknown children.
       const childRef = (trigger as unknown as { ref?: React.Ref<HTMLElement> }).ref;
       if (typeof childRef === "function") childRef(el);
+      // eslint-disable-next-line react-hooks/immutability -- forwarding an existing child ref via cloneElement; ref mutation is the documented React pattern
       else if (childRef && typeof childRef === "object") (childRef as React.MutableRefObject<HTMLElement | null>).current = el;
     },
     onMouseEnter: (e: React.MouseEvent) => {

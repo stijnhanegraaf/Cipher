@@ -56,8 +56,8 @@ export function useRecentFiles(): {
 } {
   const [entries, setEntries] = useState<RecentEntry[]>([]);
 
-  // Hydrate once.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate from localStorage on mount only; readStore() is not safe during SSR
     setEntries(readStore());
   }, []);
 

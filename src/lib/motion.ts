@@ -39,7 +39,7 @@ const duration = {
 // Reserved for physical objects that feel the weight of a real spring.
 // Critically-damped preset = no overshoot. Use for checkbox fill, status dot toggle.
 // The others are kept for explicit playful moments — never default to bouncy.
-export const springs: Record<string, any> = {
+export const springs: Record<string, Transition> = {
   /** Critically-damped: no overshoot, snappy. Use for state toggles. */
   soft:  { type: "spring", stiffness: 320, damping: 32, mass: 0.9 },
   /** Gentle lean-in for hover/press — low amplitude. */

@@ -72,7 +72,7 @@ const COMMANDS: Command[] = [
     label: "/files",
     hint: "Browse the file tree",
     keywords: ["files", "tree", "browse"],
-    run: ({ router }) => router.push("/browse"),
+    run: ({ router }) => router.push("/files"),
   },
   {
     id: "search",
@@ -143,6 +143,7 @@ export function SlashCommandMenu({ value, onSelect, onAsk }: SlashCommandMenuPro
 
   // Reset selection when matches change.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset activeIndex to 0 when keyword changes; cannot derive during render without circular dependency
     setActiveIndex(0);
   }, [keyword]);
 

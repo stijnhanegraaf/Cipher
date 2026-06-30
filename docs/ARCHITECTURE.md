@@ -70,7 +70,6 @@ Bespoke pages (`/browse/system`, `/browse/timeline`, etc.) skip steps 2–3 — 
 | `log.ts` | Tiny debug-gated logger. `log.warn/error` always pass through; `debug/info` silenced in production. |
 | `format.ts`, `motion.ts` | String formatters, framer-motion primitives. Pure utilities. |
 | `view-models.ts` | All view-model + domain types. Single source of truth for what a `SystemStatusData` looks like. |
-| `mock-data.ts` | Fallback + test data. Only used when `USE_REAL_DATA=false`. |
 
 ## components/ — what the user sees
 
@@ -79,7 +78,6 @@ Bespoke pages (`/browse/system`, `/browse/timeline`, etc.) skip steps 2–3 — 
 - `ChatInterface.tsx` — `/chat` surface. Message list + input + slash commands.
 - `CommandPalette.tsx` — ⌘K fuzzy-scored actions.
 - `DetailPage.tsx` — URL-driven overlay sheet (`?sheet=<path>&anchor=<slug>`).
-- `VaultDrawer.tsx` — file-tree drawer with optional `scopedPath` for pin-click.
 - `browse/*Page.tsx` — bespoke pages (`TodayPage`, `SystemPage`, `TimelinePage`, `GraphPage`, `SearchPage`, `EntityPage`, `TopicPage`, `FileFullPage`).
 - `views/*.tsx` — chat-summary renderers, one per `ViewType`.
 - `ui/*.tsx` — reusable primitives (`Badge`, `Kbd`, `StatusDot`, `Avatar`, `HoverCard`, `PinIcon`, `ActivitySparkline`, `LinkDistributionChart`, ...).
@@ -93,7 +91,7 @@ Bespoke pages (`/browse/system`, `/browse/timeline`, etc.) skip steps 2–3 — 
 - `/file/[...path]` → full-page file view (alternative to the overlay sheet).
 - `/api/query` → main chat + intent endpoint.
 - `/api/today` → TodayPage data.
-- `/api/vault/{graph,structure,folders}` → per-surface vault metadata.
+- `/api/vault/{graph,folders,index}` → per-surface vault metadata.
 - `/api/settings/sidebar` → user pin config GET/PUT.
 - `/api/file` → read/write a specific vault file.
 - `/api/resolve` → resolve a wiki-link string to a vault path.
@@ -116,8 +114,7 @@ Every downstream reader uses the probed dirs — nothing in `lib/` or `app/` har
 
 ## Design system
 
-Every colour, padding, radius, font size, and motion duration comes from a CSS custom property in `src/app/globals.css`. Components reach for tokens (`var(--accent-brand)`, `var(--row-h-cozy)`, `var(--motion-hover)`, `.app-row`, `.focus-ring`) rather than inventing their own values. Zero raw hex outside `globals.css`. See `CONTRIBUTING.md` for the full rules.
-
+Every colour, padding, radius, font size, and motion duration comes from a CSS custom property in `src/app/globals.css`. Components reach for tokens (`var(--accent-brand)`, `var(--row-h-cozy)`, `var(--motion-hover)`, `.app-row`, `.focus-ring`) rather than inventing their own values. Zero raw hex outside `globals.css`.
 ## Data stays local
 
 Every filesystem read happens in server components / API routes on the localhost Next.js process. The browser only sees what the API returns — typed view-models + file contents for the overlay sheet. No data leaves the machine.

@@ -14,6 +14,7 @@ import { useSidebarPins } from "@/lib/hooks/useSidebarPins";
 import { PinIcon } from "@/components/ui/PinIcon";
 import { PinDialog } from "@/components/sidebar/PinDialog";
 import type { PinEntry } from "@/lib/settings";
+import type { ThemeChoice } from "@/lib/browse/theme";
 
 /**
  * Sidebar — persistent 240px left rail.
@@ -32,8 +33,10 @@ export interface SidebarProps {
   onBrowse: () => void;
   /** Opens the command palette (e.g. scoped to "change vault"). */
   onPalette: () => void;
-  /** Toggles the theme. */
+  /** Cycles the theme (System → Light → Dark → System). */
   onToggleTheme: () => void;
+  /** Current active theme preference — drives the toggle button label/icon. */
+  themePref: ThemeChoice;
   /** Current view type, used to mark the matching nav item as active. */
   activeKind?: string | null;
   /** Recent queries from localStorage. */
@@ -57,7 +60,7 @@ interface NavItem {
   activeWhen?: () => boolean;
 }
 
-export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, activeKind, recentQueries = [], onRemoveRecent, onClearRecents, onOpenPin }: SidebarProps) {
+export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, themePref, activeKind, recentQueries = [], onRemoveRecent, onOpenPin }: SidebarProps) {
   const vault = useVault();
   const router = useRouter();
   const pathname = usePathname();
@@ -137,6 +140,19 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
       onClick: () => router.push("/browse/timeline"),
       activeWhen: () => pathname === "/browse/timeline",
     },
+    // Audits row — only visible when the connected vault has an audits directory.
+    ...(vault.hasAudits ? [{
+      id: "audits",
+      label: "Audits",
+      icon: (
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 12l2 2 4-4" />
+          <path d="M21 12c0 4.97-4.03 9-9 9S3 16.97 3 12 7.03 3 12 3s9 4.03 9 9z" />
+        </svg>
+      ),
+      onClick: () => router.push("/browse/audit"),
+      activeWhen: () => pathname === "/browse/audit",
+    }] as NavItem[] : []),
   ];
 
   return (
@@ -302,6 +318,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
             type="button"
             onClick={() => { setEditingPin(null); setDialogOpen(true); }}
             className="focus-ring"
+            aria-label="Add pin"
             title="Add pin"
             style={{
               background: "transparent",
@@ -401,7 +418,69 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           gap: 2,
         }}
       >
-        {!vault.connected && !vault.loading && (
+        {vault.connected ? (
+          /* Current vault row — name on left, Switch affordance on right. */
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              height: 32,
+              padding: "0 12px",
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 999,
+                background: "var(--accent-brand)",
+                boxShadow: "0 0 8px color-mix(in srgb, var(--accent-brand) 45%, transparent)",
+                flexShrink: 0,
+              }}
+            />
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontSize: 13,
+                fontWeight: 500,
+                letterSpacing: -0.1,
+                color: "var(--text-secondary)",
+              }}
+              title={vault.path}
+            >
+              {vault.name}
+            </span>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("cipher:open-vault-connect"))}
+              className="focus-ring"
+              aria-label="Switch vault"
+              style={{
+                flexShrink: 0,
+                padding: "3px 8px",
+                border: "1px solid var(--border-subtle)",
+                background: "transparent",
+                color: "var(--text-quaternary)",
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 500,
+                borderRadius: "var(--radius-small)",
+                letterSpacing: 0,
+                transition: "background var(--motion-micro) var(--ease-default), color var(--motion-micro) var(--ease-default), border-color var(--motion-micro) var(--ease-default)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-alpha-2)"; e.currentTarget.style.color = "var(--text-secondary)"; e.currentTarget.style.borderColor = "var(--border-standard)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-quaternary)"; e.currentTarget.style.borderColor = "var(--border-subtle)"; }}
+            >
+              Switch
+            </button>
+          </div>
+        ) : !vault.loading ? (
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent("cipher:open-vault-connect"))}
@@ -434,7 +513,7 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
             />
             Connect a vault
           </button>
-        )}
+        ) : null}
         <div
           className="flex items-center"
           style={{ height: 32, padding: "0 12px", gap: 10 }}
@@ -442,8 +521,8 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
           <button
             type="button"
             onClick={onToggleTheme}
-            aria-label="Toggle appearance"
-            title="Toggle appearance"
+            aria-label={`Appearance: ${themePref === "light" ? "Light" : themePref === "dark" ? "Dark" : "System"} — click to cycle`}
+            title={`Appearance: ${themePref === "light" ? "Light" : themePref === "dark" ? "Dark" : "System"}`}
             className="focus-ring flex items-center"
             style={{
               gap: 10,
@@ -464,11 +543,26 @@ export function Sidebar({ onAsk, onHome, onBrowse, onPalette, onToggleTheme, act
             onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-quaternary)"; }}
           >
             <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14 }}>
-              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20.354 15.354A9 9 0 018.646 3.646 9 9 0 0012 21a9 9 0 008.354-5.646z" />
-              </svg>
+              {themePref === "light" ? (
+                /* Sun icon — Light mode */
+                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                </svg>
+              ) : themePref === "dark" ? (
+                /* Moon icon — Dark mode */
+                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.354 15.354A9 9 0 018.646 3.646 9 9 0 0012 21a9 9 0 008.354-5.646z" />
+                </svg>
+              ) : (
+                /* Monitor icon — System (OS-follow) */
+                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2" />
+                  <path d="M8 21h8M12 17v4" />
+                </svg>
+              )}
             </span>
-            Appearance
+            {themePref === "light" ? "Light" : themePref === "dark" ? "Dark" : "System"}
           </button>
           <a
             href="https://github.com/stijnhanegraaf"
@@ -622,17 +716,44 @@ function PinnedRow({
       onClick={onOpen}
       onDoubleClick={onEdit}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
+      aria-label={`Open ${pin.label}`}
       className="focus-ring app-row rounded-[8px] cursor-pointer"
       style={{
         display: "flex",
         alignItems: "center",
         gap: 10,
         height: "var(--row-h-dense)",
-        padding: "0 6px 0 12px",
+        padding: "0 6px 0 4px",
         color: "var(--text-tertiary)",
         textAlign: "left",
       }}
     >
+      {/* Drag-grip affordance — signals that this row is reorderable via pointer
+          drag. Keyboard reorder is a follow-up: framer-motion Reorder.Item does
+          not expose a keyboard API; a clean implementation would require a custom
+          drag controller with onKeyDown arrow-key handlers calling reorderPins. */}
+      <span
+        aria-hidden="true"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 12,
+          flexShrink: 0,
+          color: "var(--text-quaternary)",
+          cursor: "grab",
+          opacity: 0.5,
+        }}
+      >
+        <svg width={8} height={12} viewBox="0 0 8 12" fill="currentColor" aria-hidden="true">
+          <circle cx="2" cy="2" r="1.25" />
+          <circle cx="6" cy="2" r="1.25" />
+          <circle cx="2" cy="6" r="1.25" />
+          <circle cx="6" cy="6" r="1.25" />
+          <circle cx="2" cy="10" r="1.25" />
+          <circle cx="6" cy="10" r="1.25" />
+        </svg>
+      </span>
       <PinIcon name={pin.icon} />
       <span
         className="caption"

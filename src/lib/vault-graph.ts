@@ -3,14 +3,17 @@
  * resolvable wiki-link is a directed edge. Cached per-vault.
  */
 import "server-only";
-import { readdir, stat } from "fs/promises";
-import { extname, join } from "path";
+import { stat } from "fs/promises";
+import { join } from "path";
+import { walkFiles } from "@/lib/fs/walk";
 import {
   getVaultPath,
   readVaultFile,
   resolveLink,
   extractLinks,
 } from "./vault-reader";
+import { extractMentionSnippet } from "@/lib/markdown/backlinks";
+import { extractTags, primaryTag } from "@/lib/markdown/tags";
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -21,6 +24,10 @@ export interface GraphNode {
   backlinks: number;  // inbound edge count
   outlinks: number;   // outbound edge count
   mtime: number;
+  /** All tags extracted from frontmatter + inline body (normalized, deduped). */
+  tags: string[];
+  /** Primary (first) tag, or "" when untagged. Used for graph coloring. */
+  tag: string;
 }
 
 export interface GraphEdge {
@@ -44,34 +51,6 @@ function cacheKey(root: string): string {
   return root;
 }
 
-// ─── Walk ────────────────────────────────────────────────────────────
-
-async function walkMd(root: string, maxDepth = 6): Promise<string[]> {
-  const out: string[] = [];
-  async function walk(absDir: string, rel: string, depth: number) {
-    if (depth > maxDepth) return;
-    let entries: Array<{ name: string; isFile: boolean; isDir: boolean }>;
-    try {
-      const raw = await readdir(absDir, { withFileTypes: true });
-      entries = raw
-        .filter((e) => !e.name.startsWith("."))
-        .map((e) => ({ name: e.name, isFile: e.isFile(), isDir: e.isDirectory() }));
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (entry.isDir) {
-        if (entry.name === "node_modules" || entry.name === ".git" || entry.name === ".obsidian") continue;
-        await walk(join(absDir, entry.name), rel ? `${rel}/${entry.name}` : entry.name, depth + 1);
-      } else if (entry.isFile && extname(entry.name).toLowerCase() === ".md") {
-        out.push(rel ? `${rel}/${entry.name}` : entry.name);
-      }
-    }
-  }
-  await walk(root, "", 0);
-  return out;
-}
-
 // ─── Build ───────────────────────────────────────────────────────────
 
 /**
@@ -92,7 +71,7 @@ export async function buildGraph(): Promise<Graph> {
   if (cached) return cached.graph;
 
   // Phase 1: enumerate all .md files.
-  const paths = await walkMd(root);
+  const paths = await walkFiles(root, { extensions: [".md"] });
 
   // Phase 2: build the node set. Title from frontmatter, folder from first segment.
   const nodesById = new Map<string, GraphNode>();
@@ -106,6 +85,7 @@ export async function buildGraph(): Promise<Graph> {
       const s = await stat(join(root, path));
       mtime = s.mtimeMs;
     } catch { /* ignore */ }
+    const tags = file ? extractTags(file.content, file.frontmatter) : [];
     nodesById.set(path, {
       id: path,
       title,
@@ -113,6 +93,8 @@ export async function buildGraph(): Promise<Graph> {
       backlinks: 0,
       outlinks: 0,
       mtime,
+      tags,
+      tag: primaryTag(tags),
     });
   }
 
@@ -158,4 +140,71 @@ export async function buildGraph(): Promise<Graph> {
  */
 export function invalidateGraphCache(): void {
   _graphCache.clear();
+}
+
+// ─── Backlinks ────────────────────────────────────────────────────────────────
+
+export interface Backlink {
+  /** vault-relative .md path of the linking note */
+  sourcePath: string;
+  /** node.title (frontmatter title or basename) */
+  sourceTitle: string;
+  /** context snippet from the source note around the [[link]] */
+  snippet: string;
+}
+
+/**
+ * Backlinks (inbound linked-mentions) for a vault file, each with a
+ * context snippet pulled from the source note around the [[link]].
+ *
+ * Uses the cached graph edges (buildGraph) to find sources, then reads
+ * each source's content once and runs extractMentionSnippet against the
+ * target's basename. Sorted by source mtime desc. Returns [] when the
+ * path has no inbound edges or no vault is connected.
+ */
+export async function getBacklinks(targetPath: string): Promise<Backlink[]> {
+  try {
+    const root = getVaultPath();
+    if (!root) return [];
+
+    const graph = await buildGraph();
+
+    // Find all edges pointing at targetPath
+    const inbound = graph.edges.filter((e) => e.target === targetPath);
+    if (inbound.length === 0) return [];
+
+    // Build a lookup of node metadata (title, mtime) from the graph
+    const nodeMap = new Map(graph.nodes.map((n) => [n.id, n]));
+
+    // Derive the target basename for snippet extraction (no extension)
+    const targetBasename = targetPath.split("/").pop()?.replace(/\.md$/i, "") ?? targetPath;
+
+    const results: Backlink[] = [];
+
+    for (const edge of inbound) {
+      const file = await readVaultFile(edge.source);
+      if (!file) continue;
+
+      const node = nodeMap.get(edge.source);
+      const sourceTitle = node?.title ?? edge.source.split("/").pop()?.replace(/\.md$/i, "") ?? edge.source;
+      const snippet = extractMentionSnippet(file.content, targetBasename);
+
+      results.push({
+        sourcePath: edge.source,
+        sourceTitle,
+        snippet,
+      });
+    }
+
+    // Sort by source mtime descending (most recently modified first)
+    results.sort((a, b) => {
+      const mtimeA = nodeMap.get(a.sourcePath)?.mtime ?? 0;
+      const mtimeB = nodeMap.get(b.sourcePath)?.mtime ?? 0;
+      return mtimeB - mtimeA;
+    });
+
+    return results;
+  } catch {
+    return [];
+  }
 }

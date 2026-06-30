@@ -41,6 +41,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({ filePath, mode, o
   useEffect(() => {
     let alive = true;
     const cached = lruGet(filePath);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate from LRU cache on mount, async fetch otherwise
     if (cached) { setData(cached); setError(null); return () => { alive = false; }; }
     setData(null); setError(null);
     fetch(`/api/file?path=${encodeURIComponent(filePath)}`)
@@ -55,7 +56,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({ filePath, mode, o
     return () => { alive = false; };
   }, [filePath]);
 
-  if (error) return <div className="caption" style={{ padding: 24, color: "var(--status-danger, #c0392b)" }}>Couldn't load file: {error}</div>;
+  if (error) return <div className="caption" style={{ padding: 24, color: "var(--status-danger, #c0392b)" }}>Couldn&#39;t load file: {error}</div>;
   if (!data) return <div className="caption" style={{ padding: 24, color: "var(--text-tertiary)" }}>Loading…</div>;
   return (
     <div className="reading-column">

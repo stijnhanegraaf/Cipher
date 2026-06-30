@@ -20,8 +20,8 @@ interface Props {
 
 const FALLBACK_HINTS = [
   "summarise this week",
-  "what's Alice up to",
-  "notes on Q3 plan",
+  "what changed recently",
+  "what should I focus on",
 ];
 
 export function ChatEmptyState({ onSubmit, banner }: Props) {
@@ -30,6 +30,7 @@ export function ChatEmptyState({ onSubmit, banner }: Props) {
 
   useEffect(() => {
     if (!vault.connected) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch populates hints; fallback reset on disconnect
       setHints(FALLBACK_HINTS);
       return;
     }
