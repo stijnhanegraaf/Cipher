@@ -92,9 +92,9 @@ Your open tasks, waiting-fors, and blocked items pulled from the journal and wor
   <img src="docs/images/chat.png" alt="chat empty state" width="860" />
 </p>
 
-Ask a question, get a streamed answer with citations back to the notes it pulled from. A handful of common intents (`/today`, `/system`, `/graph`, timeline, entity / topic lookups) get rendered as structured view cards instead of prose, because a list of open tasks reads better as a list than as a paragraph. Everything else falls through to the LLM with hybrid retrieval over your vault.
+Ask a question, get a streamed answer rendered as markdown with citations back to the notes it pulled from. A handful of common intents (`/today`, `/system`, `/graph`, timeline, entity / topic lookups) get rendered as structured view cards instead of prose, because a list of open tasks reads better as a list than as a paragraph. Everything else falls through to the LLM with **structure-aware retrieval** — titles, vault layout, and graph expansion on top of hybrid search, so answers know how your vault is shaped.
 
-The question you asked renders in Instrument Serif, the answer in Inter, sources as pills that stagger in when the stream completes. Hover any assistant message for copy / regenerate.
+The vault is indexed once (a resumable, concurrent pass rather than a re-index on every query). Chat lives in a global store, so it persists and keeps streaming as you navigate between pages. The question you asked renders in Instrument Serif, the answer in Inter, sources as pills that stagger in when the stream completes. Hover any assistant message for copy / regenerate.
 
 ### Command palette (⌘K)
 
@@ -114,9 +114,9 @@ This is the fastest way to get anywhere in cipher. I almost never click the side
 
 `/browse/graph` has a `Graph | Structure` toggle.
 
-**Graph** is a force-directed map of your vault with hub-weighted physics, an orphan ring for disconnected notes, and a **focus mode** that isolates a node's 1-hop subgraph with a camera glide and a HUD card listing backlinks + outlinks.
+**Graph** is a force-directed map of your vault with degree-scaled nodes (hubs sit clearly larger than leaves), gentle hub twinkle, and zoom-gated labels. Each node carries **per-tag arc segments** around its rim, so a note's tags read at a glance, and the note you came from gets a highlighted **active ring**. Hover a node to light up its 1-hop subgraph with directional particles. A **tag filter panel** with arc-matched swatches lets you dim everything except the tags you care about. Reduced-motion is respected throughout.
 
-**Structure** is the other side of the toggle. Miller columns, horizontally-scrolling folders with a 360px file-preview panel on the right. For when you want to drill down rather than zoom out.
+**Structure** is the other side of the toggle. Miller columns, horizontally-scrolling folders with a file-preview panel on the right. For when you want to drill down rather than zoom out.
 
 ### Timeline
 
@@ -136,7 +136,11 @@ Vault-health: broken links, stale notes, orphaned files, the entities that show 
 
 ### Detail sheet
 
-Click any file anywhere (sidebar, palette result, graph node, citation pill) and it slides in from the right as a sheet. Wiki-link previews, frontmatter, the whole note, and a "Linked Mentions" section listing every file that links to the current note with a context snippet. The sheet is additive; your previous view stays mounted behind it.
+Click any file anywhere (sidebar, palette result, graph node, citation pill) and it slides in from the right as a sheet. Full Obsidian-flavored rendering — callouts, embeds / transclusion (with recursion guards), wiki-links, KaTeX math, syntax-highlighted code with copy. A **Properties** panel for frontmatter, **Outgoing links** (resolved and broken), clickable tag chips, and a **Backlinks** / "Linked Mentions" section listing every file that links to the current note with a context snippet. The sheet is additive; your previous view stays mounted behind it.
+
+### Canvas
+
+Obsidian `.canvas` files render read-only — pan and zoom across text, file, image, and group cards with their edges drawn between them. A board you laid out in Obsidian opens here without conversion.
 
 ### Vault index
 
@@ -183,7 +187,7 @@ Pins for the sidebar live in `<vault>/.cipher/sidebar.json`, whatever syncs your
 
 ## Tech
 
-Next.js 16 App Router, React 19, TypeScript strict. Tailwind v4, single-token design system in `src/app/globals.css`. Inter for UI, Instrument Serif for display surfaces (page titles, empty-state headings, asked questions, sheet titles). Vercel AI SDK for streaming, Ollama for embeddings, no database, the vault is the state.
+Next.js 16 App Router, React 19, TypeScript strict. Tailwind v4, single-token design system in `src/app/globals.css` with stylelint enforcing token-only colors (no raw hex). Inter for UI, Instrument Serif for display surfaces (page titles, empty-state headings, asked questions, sheet titles). A tri-state **System / Light / Dark** theme that follows the OS live. Fully responsive — phone drawer, stacked panels, tablet layout. Vercel AI SDK for streaming, Ollama for embeddings, no database, the vault is the state.
 
 Read-only on your filesystem; no auth, no telemetry, no server-side history.
 
@@ -191,10 +195,12 @@ Read-only on your filesystem; no auth, no telemetry, no server-side history.
 npm run dev          # dev server on :3000
 npm run build        # production build
 npm run start        # serve production build
-npx tsc --noEmit     # type check
+npm run lint         # eslint + stylelint
+npm run typecheck    # tsc --noEmit
+npm run test:unit    # vitest run
 ```
 
-No test framework. Verification is tsc + build + a manual walk.
+Tested with Vitest (markdown sanitizer, retrieval, canvas parsing, graph data, theme). Verification is lint + typecheck + unit tests + build + a manual walk.
 
 ---
 
